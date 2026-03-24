@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: #0f1116;
+}
+
+body {
+  min-height: 100vh;
+  background: #0f1116;
+  color: #f5f7fb;
+  font-family: var(--font-manrope), sans-serif;
+}
+
+* {
+  border-color: #232936;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-space-grotesk), sans-serif;
+  }
+}
+
+@layer utilities {
+  .score-text {
+    font-family: var(--font-space-grotesk), sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+}
