@@ -40,4 +40,31 @@ describe("scrapeSnapshot", () => {
     });
     expect(andreasKaivers.lastFive).toHaveLength(5);
   });
+
+  it("parses multi-round grouped rows without confusing total strokes for score to par", () => {
+    const snapshot = scrapeSnapshot(readFixture("2612.html"));
+    const divisions = [...new Set(snapshot.players.map((player) => player.division))];
+
+    expect(divisions).toContain("Junioren 18");
+    expect(divisions).toContain("Open");
+
+    const jonathanKreis = requirePlayer(snapshot, "Jonathan Kreis");
+    const maxWiegand = requirePlayer(snapshot, "Max Wiegand");
+
+    expect(jonathanKreis).toMatchObject({
+      division: "Junioren 18",
+      rank: 1,
+      scoreToPar: 6,
+      thru: "F",
+    });
+    expect(maxWiegand).toMatchObject({
+      division: "Open",
+      rank: 1,
+      scoreToPar: -15,
+      thru: "F",
+    });
+    expect(Math.max(...snapshot.players.map((player) => Math.abs(player.scoreToPar)))).toBeLessThan(
+      50,
+    );
+  });
 });

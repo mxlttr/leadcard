@@ -129,7 +129,11 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
           break;
         }
 
-        groupedRows.push(candidateCells);
+        // Some live pages insert a blank separator row after the grouped round rows.
+        // Skip over it, but do not let it become the player's active row.
+        if (candidateCells.some((cell) => cell !== "")) {
+          groupedRows.push(candidateCells);
+        }
         nextIndex += 1;
       }
 
