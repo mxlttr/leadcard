@@ -49,6 +49,10 @@ function parseHoleValue(cellText: string) {
   return Number.isFinite(value) ? value : null;
 }
 
+function hasUnsupportedStatus(cells: string[]) {
+  return cells.some((cell) => /^(DNF|DNS|DSQ)$/i.test(cell));
+}
+
 function playerIdFrom(division: string, name: string) {
   return `${division}:${name}`
     .toLowerCase()
@@ -138,6 +142,12 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
       }
 
       const activeRow = groupedRows[groupedRows.length - 1];
+
+      if (hasUnsupportedStatus(firstCells) || hasUnsupportedStatus(activeRow)) {
+        rowIndex = nextIndex;
+        continue;
+      }
+
       const holeTexts = activeRow.slice(2, 2 + parValues.length);
       const playedHoles = holeTexts
         .map((cellText) => parseHoleValue(cellText))

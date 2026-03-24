@@ -39,6 +39,8 @@ describe("scrapeSnapshot", () => {
       thru: "F",
     });
     expect(andreasKaivers.lastFive).toHaveLength(5);
+    expect(snapshot.players.find((player) => player.name === "Dennis Werchau")).toBeUndefined();
+    expect(snapshot.players.find((player) => player.name === "Marcel Söffker")).toBeUndefined();
   });
 
   it("parses multi-round grouped rows without confusing total strokes for score to par", () => {
