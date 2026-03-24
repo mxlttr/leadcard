@@ -18,6 +18,17 @@ npm install
 npm run dev
 ```
 
+## Testing
+
+```bash
+npm test
+npm run test:watch
+```
+
+- Parser and server regressions live under `tests/unit`.
+- Real scoreboard fixtures live under `tests/fixtures/live`.
+- When you find a scrape edge case, save the raw HTML as a fixture and add a regression test before changing the parser.
+
 ## Notes
 
 - Tournament discovery is loaded dynamically from `turniere.discgolf.de`.
