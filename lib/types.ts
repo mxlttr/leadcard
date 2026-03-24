@@ -1,4 +1,5 @@
 export type ThruValue = number | "F";
+export type TournamentStatus = "live" | "upcoming" | "recent" | "mock";
 
 export type PlayerStanding = {
   playerId: string;
@@ -41,11 +42,13 @@ export type TournamentSummary = {
   name: string;
   course: string;
   roundLabel: string;
+  status: TournamentStatus;
 };
 
 export type LiveResponse = {
   tournament: TournamentSummary;
   tournaments: TournamentSummary[];
+  hasLiveData: boolean;
   divisions: string[];
   leaders: LeaderboardPlayer[];
   divisionLeaders: DivisionLeader[];

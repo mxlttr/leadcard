@@ -20,6 +20,7 @@ const UPDATE_INTERVAL_MS = 25_000;
 
 type LiveState = {
   tournament: TournamentSummary;
+  hasLiveData: boolean;
   fixtureIndex: number;
   lastAdvancedAt: number;
   generatedAt: string;
@@ -81,22 +82,24 @@ function toLeaderboardPlayers(
 
 async function createInitialState(tournamentId: string): Promise<LiveState> {
   const source = await loadTournamentSnapshotSource(tournamentId, 0);
-  const snapshot = scrapeSnapshot(source.html);
-  const players = snapshot.players.map<LeaderboardPlayer>((player) => ({
-    ...player,
-    delta: {
-      rankDelta: 0,
-      scoreDelta: 0,
-      thruDelta: 0,
-    },
-    latestUpdate: null,
-  }));
+  const snapshot = source.html ? scrapeSnapshot(source.html) : null;
+  const players =
+    snapshot?.players.map<LeaderboardPlayer>((player) => ({
+      ...player,
+      delta: {
+        rankDelta: 0,
+        scoreDelta: 0,
+        thruDelta: 0,
+      },
+      latestUpdate: null,
+    })) ?? [];
 
   return {
     tournament: source.tournament,
+    hasLiveData: Boolean(source.html),
     fixtureIndex: source.nextFixtureIndex,
     lastAdvancedAt: Date.now(),
-    generatedAt: snapshot.generatedAt,
+    generatedAt: snapshot?.generatedAt ?? new Date().toISOString(),
     players: sortPlayers(players),
     updates: [],
   };
@@ -115,17 +118,25 @@ async function ensureStore(tournamentId: string) {
 }
 
 async function advanceStore(store: LiveState) {
-  // This is the seam where a tournament switches from mock HTML to a real scrape URL.
   const source = await loadTournamentSnapshotSource(store.tournament.id, store.fixtureIndex);
+  store.tournament = source.tournament;
+  store.hasLiveData = Boolean(source.html);
+  store.fixtureIndex = source.nextFixtureIndex;
+  store.lastAdvancedAt = Date.now();
+
+  if (!source.html) {
+    store.generatedAt = new Date().toISOString();
+    store.players = [];
+    store.updates = [];
+    return;
+  }
+
   const nextSnapshot = scrapeSnapshot(source.html);
   const previousSnapshot = store.players.map<PlayerSnapshot>(
     ({ delta: _delta, latestUpdate: _latestUpdate, ...player }) => player,
   );
   const nextState = toLeaderboardPlayers(previousSnapshot, nextSnapshot.players, nextSnapshot.generatedAt);
 
-  store.tournament = source.tournament;
-  store.fixtureIndex = source.nextFixtureIndex;
-  store.lastAdvancedAt = Date.now();
   store.generatedAt = nextSnapshot.generatedAt;
   store.players = nextState.players;
   store.updates = [...nextState.updates.reverse(), ...store.updates].slice(0, 20);
@@ -181,6 +192,7 @@ export async function getLiveResponse(tournamentId: string): Promise<LiveRespons
   return {
     tournament: store.tournament,
     tournaments,
+    hasLiveData: store.hasLiveData,
     divisions,
     leaders: overallLeaders(store.players),
     divisionLeaders: divisionLeaders(store.players),

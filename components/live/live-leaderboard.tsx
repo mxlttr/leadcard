@@ -57,6 +57,22 @@ function groupPlayers(players: LeaderboardPlayer[]) {
   ];
 }
 
+function tournamentStatusLabel(status: LiveResponse["tournament"]["status"]) {
+  if (status === "upcoming") {
+    return "Upcoming";
+  }
+
+  if (status === "recent") {
+    return "Recent";
+  }
+
+  if (status === "mock") {
+    return "Mock";
+  }
+
+  return "Live";
+}
+
 export function LiveLeaderboard() {
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [selectedDivision, setSelectedDivision] = useState("");
@@ -81,7 +97,7 @@ export function LiveLeaderboard() {
       fetchJson<LeaderboardResponse>(
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent(selectedDivision)}`,
       ),
-    enabled: Boolean(selectedTournamentId && selectedDivision),
+    enabled: Boolean(selectedTournamentId),
   });
 
   const updatesQuery = useQuery({
@@ -162,7 +178,11 @@ export function LiveLeaderboard() {
             </div>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full border border-border">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
+                >
                   <Info className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
@@ -178,7 +198,13 @@ export function LiveLeaderboard() {
           </div>
 
           <div className="flex items-center justify-between gap-4 text-sm text-muted">
-            <span className="truncate">Latest update {timestampLabel(liveQuery.data.generatedAt)}</span>
+            <span className="truncate">
+              {liveQuery.data.hasLiveData
+                ? `Latest update ${timestampLabel(liveQuery.data.generatedAt)}`
+                : liveQuery.data.tournament.status === "upcoming"
+                  ? "Upcoming tournament"
+                  : "Live scoring unavailable"}
+            </span>
             <span className="truncate text-right">{liveQuery.data.tournament.roundLabel}</span>
           </div>
         </header>
@@ -230,10 +256,10 @@ export function LiveLeaderboard() {
                     <span
                       className={cn(
                         "ml-3 shrink-0 text-xs uppercase tracking-[0.2em]",
-                        selected ? "text-primary" : "text-muted",
+                        selected && tournament.status === "live" ? "text-primary" : "text-muted",
                       )}
                     >
-                      {selected ? "Live" : "Open"}
+                      {tournamentStatusLabel(tournament.status)}
                     </span>
                   </Button>
                 );
@@ -273,9 +299,19 @@ export function LiveLeaderboard() {
             </Button>
           </div>
 
+          {!liveQuery.data.hasLiveData ? (
+            <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
+              {liveQuery.data.tournament.status === "upcoming"
+                ? "This tournament has not started live scoring yet. Check back closer to tee time."
+                : "Live scoring is not available for this tournament right now."}
+            </div>
+          ) : null}
+
           {players.length === 0 ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
-              {filterMode === "FOLLOWING"
+              {!liveQuery.data.hasLiveData
+                ? "No leaderboard is available yet."
+                : filterMode === "FOLLOWING"
                 ? "No followed players in this division yet."
                 : "No players available for this division."}
             </div>

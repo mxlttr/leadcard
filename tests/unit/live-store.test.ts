@@ -7,6 +7,15 @@ const tournament: TournamentSummary = {
   name: "Test Event",
   course: "Test Course",
   roundLabel: "Round 2",
+  status: "live",
+};
+
+const upcomingTournament: TournamentSummary = {
+  id: "upcoming-event",
+  name: "Upcoming Event",
+  course: "Future Course",
+  roundLabel: "29.03.2026",
+  status: "upcoming",
 };
 
 function serializeSnapshot(generatedAt: string, players: PlayerSnapshot[]) {
@@ -153,5 +162,28 @@ describe("live-store", () => {
         "moves to E through 6",
       ]),
     );
+  });
+
+  it("does not fall back to mock standings for upcoming tournaments without live scoring", async () => {
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament: upcomingTournament,
+      html: null,
+      nextFixtureIndex: 0,
+    });
+    getTournamentCatalog.mockResolvedValue([upcomingTournament, tournament]);
+    getDefaultTournamentId.mockResolvedValue(upcomingTournament.id);
+
+    const liveStore = await import("@/lib/server/live-store");
+
+    const liveResponse = await liveStore.getLiveResponse(upcomingTournament.id);
+    const leaderboard = await liveStore.getLeaderboardResponse(upcomingTournament.id, "");
+    const updates = await liveStore.getUpdatesResponse(upcomingTournament.id);
+
+    expect(liveResponse.tournament.status).toBe("upcoming");
+    expect(liveResponse.hasLiveData).toBe(false);
+    expect(liveResponse.divisions).toEqual([]);
+    expect(liveResponse.leaders).toEqual([]);
+    expect(leaderboard.players).toEqual([]);
+    expect(updates.updates).toEqual([]);
   });
 });

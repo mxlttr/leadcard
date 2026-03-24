@@ -1,11 +1,11 @@
 import { load } from "cheerio";
 
-import type { TournamentSummary } from "@/lib/types";
+import type { TournamentStatus, TournamentSummary } from "@/lib/types";
 import { defaultMockTournamentId, mockTournamentFeeds } from "@/lib/server/mock-source";
 
 type TournamentSourceResult = {
   tournament: TournamentSummary;
-  html: string;
+  html: string | null;
   nextFixtureIndex: number;
 };
 
@@ -21,6 +21,7 @@ function toSummary(tournamentId: string): TournamentSummary {
     name: feed.name,
     course: feed.course,
     roundLabel: feed.roundLabel,
+    status: "mock",
   };
 }
 
@@ -49,6 +50,18 @@ function buildHeaders() {
 
 function dateRangeLabel(startDate: string, endDate: string) {
   return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
+}
+
+function tournamentStatusFor(now: Date, startDate: Date, endDate: Date): TournamentStatus {
+  if (startDate > now) {
+    return "upcoming";
+  }
+
+  if (endDate < now) {
+    return "recent";
+  }
+
+  return "live";
 }
 
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
@@ -108,11 +121,37 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
         name,
         course,
         roundLabel: dateRangeLabel(startDateLabel, endDateText),
-      } satisfies TournamentSummary;
+        status: tournamentStatusFor(now, startDate, endDate),
+        sortStart: startDate.getTime(),
+        sortEnd: endDate.getTime(),
+      };
     })
     .get()
-    .filter((tournament): tournament is TournamentSummary => Boolean(tournament))
-    .sort((a, b) => a.roundLabel.localeCompare(b.roundLabel));
+    .filter(
+      (
+        tournament,
+      ): tournament is TournamentSummary & { sortStart: number; sortEnd: number } =>
+        Boolean(tournament),
+    )
+    .sort((a, b) => {
+      const statusOrder: Record<TournamentStatus, number> = {
+        live: 0,
+        upcoming: 1,
+        recent: 2,
+        mock: 3,
+      };
+
+      if (statusOrder[a.status] !== statusOrder[b.status]) {
+        return statusOrder[a.status] - statusOrder[b.status];
+      }
+
+      if (a.status === "recent") {
+        return b.sortEnd - a.sortEnd;
+      }
+
+      return a.sortStart - b.sortStart;
+    })
+    .map(({ sortStart: _sortStart, sortEnd: _sortEnd, ...tournament }) => tournament);
 
   return tournaments;
 }
@@ -143,14 +182,21 @@ export async function getTournamentCatalog() {
 
 export async function getDefaultTournamentId() {
   const catalog = await getTournamentCatalog();
-  return catalog[0]?.id ?? defaultMockTournamentId;
+  const liveTournament = catalog.find((tournament) => tournament.status === "live");
+  return liveTournament?.id ?? catalog[0]?.id ?? defaultMockTournamentId;
 }
 
 async function getTournamentSummary(tournamentId: string) {
   const catalog = await getTournamentCatalog();
   return (
     catalog.find((tournament) => tournament.id === tournamentId) ??
-    tournamentSourceConfig[defaultMockTournamentId].tournament
+    tournamentSourceConfig[tournamentId]?.tournament ?? {
+      id: tournamentId,
+      name: `Tournament ${tournamentId}`,
+      course: "Unknown course",
+      roundLabel: "Schedule unavailable",
+      status: "upcoming",
+    }
   );
 }
 
@@ -168,8 +214,16 @@ export async function loadTournamentSnapshotSource(
     };
   }
 
-  const config =
-    tournamentSourceConfig[tournamentId] ?? tournamentSourceConfig[defaultMockTournamentId];
+  const config = tournamentSourceConfig[tournamentId];
+
+  if (!config) {
+    return {
+      tournament: await getTournamentSummary(tournamentId),
+      html: null,
+      nextFixtureIndex: fixtureIndex,
+    };
+  }
+
   const feed = mockTournamentFeeds[config.tournament.id];
   const safeIndex = fixtureIndex % feed.fixtures.length;
 
