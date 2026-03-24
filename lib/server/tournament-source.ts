@@ -136,8 +136,8 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
     .sort((a, b) => {
       const statusOrder: Record<TournamentStatus, number> = {
         live: 0,
-        upcoming: 1,
-        recent: 2,
+        recent: 1,
+        upcoming: 2,
         mock: 3,
       };
 

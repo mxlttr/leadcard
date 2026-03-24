@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Info, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -89,6 +89,7 @@ export function LiveLeaderboard() {
           ? `/api/live?tournamentId=${encodeURIComponent(selectedTournamentId)}`
           : "/api/live",
       ),
+    placeholderData: keepPreviousData,
   });
 
   const leaderboardQuery = useQuery({
@@ -98,6 +99,7 @@ export function LiveLeaderboard() {
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent(selectedDivision)}`,
       ),
     enabled: Boolean(selectedTournamentId),
+    placeholderData: keepPreviousData,
   });
 
   const updatesQuery = useQuery({
@@ -105,6 +107,7 @@ export function LiveLeaderboard() {
     queryFn: () =>
       fetchJson<UpdatesResponse>(`/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`),
     enabled: Boolean(selectedTournamentId),
+    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
@@ -145,21 +148,8 @@ export function LiveLeaderboard() {
       : currentPlayers.filter((player) => followedPlayers.includes(player.playerId));
   const groupedPlayers = groupPlayers(players);
 
-  if (
-    liveQuery.isLoading ||
-    (liveQuery.data && selectedTournamentId === "") ||
-    (selectedTournamentId !== "" && selectedDivision !== "" && leaderboardQuery.isLoading) ||
-    (selectedTournamentId !== "" && updatesQuery.isLoading)
-  ) {
-    return <LoadingShell />;
-  }
-
   if (!liveQuery.data || !leaderboardQuery.data || !updatesQuery.data) {
-    return (
-      <div className="rounded-[24px] border border-negative/25 bg-surface p-5 text-sm text-muted">
-        Live data could not be loaded right now.
-      </div>
-    );
+    return <LoadingShell />;
   }
 
   return (
@@ -218,7 +208,7 @@ export function LiveLeaderboard() {
               Active events from one week back to one week ahead.
             </p>
           </div>
-          <div className="max-h-[220px] overflow-y-auto rounded-[24px] border border-border bg-surface px-2 py-2">
+          <div className="max-h-[230px] overflow-y-auto rounded-[24px] border border-border bg-surface px-2 py-2">
             <div className="space-y-2 pr-1">
               {liveQuery.data.tournaments.map((tournament) => {
                 const selected = selectedTournamentId === tournament.id;
@@ -246,7 +236,7 @@ export function LiveLeaderboard() {
                       </span>
                       <span
                         className={cn(
-                          "mt-1 block text-xs [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden",
+                          "mt-1 block truncate text-xs",
                           selected ? "text-foreground/70" : "text-muted",
                         )}
                       >
