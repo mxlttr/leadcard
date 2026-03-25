@@ -79,6 +79,9 @@ export function LiveLeaderboard() {
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardPlayer | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [resolvedLiveData, setResolvedLiveData] = useState<LiveResponse | null>(null);
+  const [resolvedLeaderboardData, setResolvedLeaderboardData] = useState<LeaderboardResponse | null>(null);
+  const [resolvedUpdatesData, setResolvedUpdatesData] = useState<UpdatesResponse | null>(null);
   const { isFollowed, togglePlayer, followedPlayers, hydrated } = useFollowedPlayers();
 
   const liveQuery = useQuery({
@@ -116,39 +119,61 @@ export function LiveLeaderboard() {
   }, [selectedTournamentId, selectedDivision]);
 
   useEffect(() => {
-    if (!liveQuery.data) {
+    if (liveQuery.data) {
+      setResolvedLiveData(liveQuery.data);
+    }
+  }, [liveQuery.data]);
+
+  useEffect(() => {
+    if (leaderboardQuery.data) {
+      setResolvedLeaderboardData(leaderboardQuery.data);
+    }
+  }, [leaderboardQuery.data]);
+
+  useEffect(() => {
+    if (updatesQuery.data) {
+      setResolvedUpdatesData(updatesQuery.data);
+    }
+  }, [updatesQuery.data]);
+
+  const liveData = liveQuery.data ?? resolvedLiveData;
+  const leaderboardData = leaderboardQuery.data ?? resolvedLeaderboardData;
+  const updatesData = updatesQuery.data ?? resolvedUpdatesData;
+
+  useEffect(() => {
+    if (!liveData) {
       return;
     }
 
-    const hasSelection = liveQuery.data.tournaments.some(
+    const hasSelection = liveData.tournaments.some(
       (tournament) => tournament.id === selectedTournamentId,
     );
 
     if (!selectedTournamentId || !hasSelection) {
-      setSelectedTournamentId(liveQuery.data.tournament.id);
+      setSelectedTournamentId(liveData.tournament.id);
     }
-  }, [liveQuery.data, selectedTournamentId]);
+  }, [liveData, selectedTournamentId]);
 
   useEffect(() => {
-    if (!liveQuery.data) {
+    if (!liveData) {
       return;
     }
 
-    const hasDivision = liveQuery.data.divisions.includes(selectedDivision);
+    const hasDivision = liveData.divisions.includes(selectedDivision);
 
     if (!selectedDivision || !hasDivision) {
-      setSelectedDivision(liveQuery.data.divisions[0] ?? "");
+      setSelectedDivision(liveData.divisions[0] ?? "");
     }
-  }, [liveQuery.data, selectedDivision]);
+  }, [liveData, selectedDivision]);
 
-  const currentPlayers = leaderboardQuery.data?.players ?? [];
+  const currentPlayers = leaderboardData?.players ?? [];
   const players =
     !hydrated || filterMode === "ALL"
       ? currentPlayers
       : currentPlayers.filter((player) => followedPlayers.includes(player.playerId));
   const groupedPlayers = groupPlayers(players);
 
-  if (!liveQuery.data || !leaderboardQuery.data || !updatesQuery.data) {
+  if (!liveData || !leaderboardData || !updatesData) {
     return <LoadingShell />;
   }
 
@@ -189,13 +214,13 @@ export function LiveLeaderboard() {
 
           <div className="flex items-center justify-between gap-4 text-sm text-muted">
             <span className="truncate">
-              {liveQuery.data.hasLiveData
-                ? `Latest update ${timestampLabel(liveQuery.data.generatedAt)}`
-                : liveQuery.data.tournament.status === "upcoming"
+              {liveData.hasLiveData
+                ? `Latest update ${timestampLabel(liveData.generatedAt)}`
+                : liveData.tournament.status === "upcoming"
                   ? "Upcoming tournament"
                   : "Live scoring unavailable"}
             </span>
-            <span className="truncate text-right">{liveQuery.data.tournament.roundLabel}</span>
+            <span className="truncate text-right">{liveData.tournament.roundLabel}</span>
           </div>
         </header>
 
@@ -210,7 +235,7 @@ export function LiveLeaderboard() {
           </div>
           <div className="max-h-[230px] overflow-y-auto rounded-[24px] border border-border bg-surface px-2 py-2">
             <div className="space-y-2 pr-1">
-              {liveQuery.data.tournaments.map((tournament) => {
+              {liveData.tournaments.map((tournament) => {
                 const selected = selectedTournamentId === tournament.id;
 
                 return (
@@ -258,12 +283,12 @@ export function LiveLeaderboard() {
           </div>
         </section>
 
-        <GlobalSnapshot data={liveQuery.data} />
+        <GlobalSnapshot data={liveData} />
 
         <section className="space-y-4">
-          {liveQuery.data.divisions.length > 0 ? (
+          {liveData.divisions.length > 0 ? (
             <DivisionTabs
-              divisions={liveQuery.data.divisions}
+              divisions={liveData.divisions}
               selectedDivision={selectedDivision}
               onChange={setSelectedDivision}
             />
@@ -289,9 +314,9 @@ export function LiveLeaderboard() {
             </Button>
           </div>
 
-          {!liveQuery.data.hasLiveData ? (
+          {!liveData.hasLiveData ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
-              {liveQuery.data.tournament.status === "upcoming"
+              {liveData.tournament.status === "upcoming"
                 ? "This tournament has not started live scoring yet. Check back closer to tee time."
                 : "Live scoring is not available for this tournament right now."}
             </div>
@@ -299,7 +324,7 @@ export function LiveLeaderboard() {
 
           {players.length === 0 ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
-              {!liveQuery.data.hasLiveData
+              {!liveData.hasLiveData
                 ? "No leaderboard is available yet."
                 : filterMode === "FOLLOWING"
                 ? "No followed players in this division yet."
@@ -322,7 +347,7 @@ export function LiveLeaderboard() {
           )}
         </section>
 
-        <RecentUpdatesList updates={updatesQuery.data.updates} />
+        <RecentUpdatesList updates={updatesData.updates} />
 
         <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
           Latest visible scoring state. Through values reflect the most recently published hole, not live shot tracking.
@@ -332,7 +357,7 @@ export function LiveLeaderboard() {
 
       <PlayerDetailSheet
         player={selectedPlayer}
-        updates={updatesQuery.data.updates}
+        updates={updatesData.updates}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />
