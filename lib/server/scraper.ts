@@ -87,7 +87,12 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
     const thead = sections[index];
     const tbody = sections[index + 1];
 
-    if (!thead || !tbody || thead.tagName !== "thead" || tbody.tagName !== "tbody") {
+    if (
+      !thead ||
+      !tbody ||
+      thead.tagName !== "thead" ||
+      tbody.tagName !== "tbody"
+    ) {
       continue;
     }
 
@@ -108,7 +113,10 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
 
     while (rowIndex < rows.length) {
       const firstRow = $(rows[rowIndex]);
-      const firstCells = firstRow.find("td").toArray().map((cell) => sanitizeText($(cell).text()));
+      const firstCells = firstRow
+        .find("td")
+        .toArray()
+        .map((cell) => sanitizeText($(cell).text()));
       const rankCell = firstCells[0] ?? "";
       const nameCell = firstCells[1] ?? "";
 

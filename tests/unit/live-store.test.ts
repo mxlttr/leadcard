@@ -117,11 +117,13 @@ describe("live-store", () => {
 
     getTournamentCatalog.mockResolvedValue([tournament]);
     getDefaultTournamentId.mockResolvedValue(tournament.id);
-    loadTournamentSnapshotSource.mockImplementation(async (_tournamentId: string, fixtureIndex: number) => ({
-      tournament,
-      html: fixtureIndex === 0 ? firstSnapshotHtml : secondSnapshotHtml,
-      nextFixtureIndex: fixtureIndex === 0 ? 1 : 1,
-    }));
+    loadTournamentSnapshotSource.mockImplementation(
+      async (_tournamentId: string, fixtureIndex: number) => ({
+        tournament,
+        html: fixtureIndex === 0 ? firstSnapshotHtml : secondSnapshotHtml,
+        nextFixtureIndex: fixtureIndex === 0 ? 1 : 1,
+      }),
+    );
   });
 
   afterEach(() => {
@@ -142,10 +144,16 @@ describe("live-store", () => {
 
     vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
 
-    const leaderboard = await liveStore.getLeaderboardResponse(tournament.id, "Open");
+    const leaderboard = await liveStore.getLeaderboardResponse(
+      tournament.id,
+      "Open",
+    );
     const updates = await liveStore.getUpdatesResponse(tournament.id);
 
-    expect(leaderboard.players.map((player) => player.name)).toEqual(["Bob Birdie", "Alice Ace"]);
+    expect(leaderboard.players.map((player) => player.name)).toEqual([
+      "Bob Birdie",
+      "Alice Ace",
+    ]);
     expect(leaderboard.players[0]).toMatchObject({
       rank: 1,
       scoreToPar: -4,
@@ -176,7 +184,10 @@ describe("live-store", () => {
     const liveStore = await import("@/lib/server/live-store");
 
     const liveResponse = await liveStore.getLiveResponse(upcomingTournament.id);
-    const leaderboard = await liveStore.getLeaderboardResponse(upcomingTournament.id, "");
+    const leaderboard = await liveStore.getLeaderboardResponse(
+      upcomingTournament.id,
+      "",
+    );
     const updates = await liveStore.getUpdatesResponse(upcomingTournament.id);
 
     expect(liveResponse.tournament.status).toBe("upcoming");

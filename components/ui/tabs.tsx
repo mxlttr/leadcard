@@ -42,5 +42,8 @@ export const TabsContent = ({
   className,
   ...props
 }: ComponentPropsWithoutRef<typeof TabsPrimitive.Content>) => (
-  <TabsPrimitive.Content className={cn("mt-4 outline-none", className)} {...props} />
+  <TabsPrimitive.Content
+    className={cn("mt-4 outline-none", className)}
+    {...props}
+  />
 );

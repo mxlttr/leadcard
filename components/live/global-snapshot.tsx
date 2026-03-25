@@ -17,7 +17,9 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
           <h2 className="mt-2 font-display text-2xl font-semibold [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
             {data.tournament.name}
           </h2>
-          <p className="mt-2 truncate text-sm text-muted">{data.tournament.course}</p>
+          <p className="mt-2 truncate text-sm text-muted">
+            {data.tournament.course}
+          </p>
           <p className="mt-1 text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
             {noLiveData
               ? `${data.tournament.roundLabel} · Live scoring is not available yet`
@@ -38,10 +40,19 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
                 key={leader.playerId}
                 className="rounded-[20px] border border-border bg-background p-4"
               >
-                <p className="text-xs uppercase tracking-[0.18em] text-muted">Overall #{index + 1}</p>
-                <p className="mt-3 truncate font-body text-lg font-medium">{leader.name}</p>
-                <p className="mt-1 truncate text-sm text-muted">{leader.division}</p>
-                <ScoreDisplay scoreToPar={leader.scoreToPar} className="mt-4 block text-2xl" />
+                <p className="text-xs uppercase tracking-[0.18em] text-muted">
+                  Overall #{index + 1}
+                </p>
+                <p className="mt-3 truncate font-body text-lg font-medium">
+                  {leader.name}
+                </p>
+                <p className="mt-1 truncate text-sm text-muted">
+                  {leader.division}
+                </p>
+                <ScoreDisplay
+                  scoreToPar={leader.scoreToPar}
+                  className="mt-4 block text-2xl"
+                />
               </div>
             ))}
           </div>
@@ -49,7 +60,9 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
 
         <div className="grid gap-3">
           {data.divisionLeaders.map(({ division, leader }) => {
-            const gap = overallLeader ? leader.scoreToPar - overallLeader.scoreToPar : 0;
+            const gap = overallLeader
+              ? leader.scoreToPar - overallLeader.scoreToPar
+              : 0;
 
             return (
               <div
@@ -57,13 +70,20 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
                 className="flex items-center justify-between rounded-[18px] border border-border bg-background px-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-xs uppercase tracking-[0.18em] text-muted">{division} leader</p>
+                  <p className="truncate text-xs uppercase tracking-[0.18em] text-muted">
+                    {division} leader
+                  </p>
                   <p className="mt-1 truncate font-medium">{leader.name}</p>
                 </div>
                 <div className="ml-3 shrink-0 text-right">
-                  <ScoreDisplay scoreToPar={leader.scoreToPar} className="text-2xl" />
+                  <ScoreDisplay
+                    scoreToPar={leader.scoreToPar}
+                    className="text-2xl"
+                  />
                   <p className="mt-1 text-xs text-muted">
-                    {gap === 0 ? "Tied overall" : `${formatScore(gap)} to overall lead`}
+                    {gap === 0
+                      ? "Tied overall"
+                      : `${formatScore(gap)} to overall lead`}
                   </p>
                 </div>
               </div>

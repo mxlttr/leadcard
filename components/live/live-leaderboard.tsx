@@ -19,7 +19,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { LeaderboardPlayer, LeaderboardResponse, LiveResponse, UpdatesResponse } from "@/lib/types";
+import type {
+  LeaderboardPlayer,
+  LeaderboardResponse,
+  LiveResponse,
+  UpdatesResponse,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { holeToLabel, timestampLabel } from "@/lib/utils";
 import { useFollowedPlayers } from "@/hooks/use-followed-players";
@@ -77,12 +82,18 @@ export function LiveLeaderboard() {
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [selectedDivision, setSelectedDivision] = useState("");
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
-  const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardPlayer | null>(null);
+  const [selectedPlayer, setSelectedPlayer] =
+    useState<LeaderboardPlayer | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [resolvedLiveData, setResolvedLiveData] = useState<LiveResponse | null>(null);
-  const [resolvedLeaderboardData, setResolvedLeaderboardData] = useState<LeaderboardResponse | null>(null);
-  const [resolvedUpdatesData, setResolvedUpdatesData] = useState<UpdatesResponse | null>(null);
-  const { isFollowed, togglePlayer, followedPlayers, hydrated } = useFollowedPlayers();
+  const [resolvedLiveData, setResolvedLiveData] = useState<LiveResponse | null>(
+    null,
+  );
+  const [resolvedLeaderboardData, setResolvedLeaderboardData] =
+    useState<LeaderboardResponse | null>(null);
+  const [resolvedUpdatesData, setResolvedUpdatesData] =
+    useState<UpdatesResponse | null>(null);
+  const { isFollowed, togglePlayer, followedPlayers, hydrated } =
+    useFollowedPlayers();
 
   const liveQuery = useQuery({
     queryKey: ["live", selectedTournamentId || "default"],
@@ -108,7 +119,9 @@ export function LiveLeaderboard() {
   const updatesQuery = useQuery({
     queryKey: ["updates", selectedTournamentId],
     queryFn: () =>
-      fetchJson<UpdatesResponse>(`/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`),
+      fetchJson<UpdatesResponse>(
+        `/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`,
+      ),
     enabled: Boolean(selectedTournamentId),
     placeholderData: keepPreviousData,
   });
@@ -170,7 +183,9 @@ export function LiveLeaderboard() {
   const players =
     !hydrated || filterMode === "ALL"
       ? currentPlayers
-      : currentPlayers.filter((player) => followedPlayers.includes(player.playerId));
+      : currentPlayers.filter((player) =>
+          followedPlayers.includes(player.playerId),
+        );
   const groupedPlayers = groupPlayers(players);
 
   if (!liveData || !leaderboardData || !updatesData) {
@@ -183,12 +198,15 @@ export function LiveLeaderboard() {
         <header className="space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted">Leadcard</p>
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted">
+                Leadcard
+              </p>
               <h1 className="mt-2 truncate font-display text-3xl font-semibold tracking-tight">
                 Live standings
               </h1>
               <p className="mt-2 max-w-[34rem] text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-                Spectator-first leaderboard focused on movement, leaders, and the latest meaningful update.
+                Spectator-first leaderboard focused on movement, leaders, and
+                the latest meaningful update.
               </p>
             </div>
             <Dialog>
@@ -205,7 +223,9 @@ export function LiveLeaderboard() {
                 <DialogHeader>
                   <DialogTitle>Near-live, not real-time</DialogTitle>
                   <DialogDescription>
-                    Scores are scraped and diffed on an interval, so updates reflect the latest visible scoring state rather than shot-by-shot tracking.
+                    Scores are scraped and diffed on an interval, so updates
+                    reflect the latest visible scoring state rather than
+                    shot-by-shot tracking.
                   </DialogDescription>
                 </DialogHeader>
               </DialogContent>
@@ -220,7 +240,9 @@ export function LiveLeaderboard() {
                   ? "Upcoming tournament"
                   : "Live scoring unavailable"}
             </span>
-            <span className="truncate text-right">{liveData.tournament.roundLabel}</span>
+            <span className="truncate text-right">
+              {liveData.tournament.roundLabel}
+            </span>
           </div>
         </header>
 
@@ -271,7 +293,9 @@ export function LiveLeaderboard() {
                     <span
                       className={cn(
                         "ml-3 shrink-0 text-xs uppercase tracking-[0.2em]",
-                        selected && tournament.status === "live" ? "text-primary" : "text-muted",
+                        selected && tournament.status === "live"
+                          ? "text-primary"
+                          : "text-muted",
                       )}
                     >
                       {tournamentStatusLabel(tournament.status)}
@@ -306,7 +330,9 @@ export function LiveLeaderboard() {
             <Button
               variant={filterMode === "FOLLOWING" ? "accent" : "ghost"}
               size="sm"
-              className={filterMode === "FOLLOWING" ? "" : "border border-border"}
+              className={
+                filterMode === "FOLLOWING" ? "" : "border border-border"
+              }
               onClick={() => setFilterMode("FOLLOWING")}
             >
               <Star className="mr-1 h-3.5 w-3.5" />
@@ -327,8 +353,8 @@ export function LiveLeaderboard() {
               {!liveData.hasLiveData
                 ? "No leaderboard is available yet."
                 : filterMode === "FOLLOWING"
-                ? "No followed players in this division yet."
-                : "No players available for this division."}
+                  ? "No followed players in this division yet."
+                  : "No players available for this division."}
             </div>
           ) : (
             groupedPlayers.map((group) => (
@@ -350,8 +376,11 @@ export function LiveLeaderboard() {
         <RecentUpdatesList updates={updatesData.updates} />
 
         <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
-          Latest visible scoring state. Through values reflect the most recently published hole, not live shot tracking.
-          {selectedPlayer ? ` ${selectedPlayer.name} is ${holeToLabel(selectedPlayer.thru).toLowerCase()}.` : ""}
+          Latest visible scoring state. Through values reflect the most recently
+          published hole, not live shot tracking.
+          {selectedPlayer
+            ? ` ${selectedPlayer.name} is ${holeToLabel(selectedPlayer.thru).toLowerCase()}.`
+            : ""}
         </footer>
       </div>
 

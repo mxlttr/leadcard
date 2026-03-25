@@ -22,9 +22,12 @@ export function RankDelta({ value }: { value: number }) {
   }
 
   return (
-    <span className={cn("inline-flex items-center gap-1 text-sm font-medium text-muted")}>
-      <ArrowRight className="h-3.5 w-3.5" />
-      0
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-sm font-medium text-muted",
+      )}
+    >
+      <ArrowRight className="h-3.5 w-3.5" />0
     </span>
   );
 }

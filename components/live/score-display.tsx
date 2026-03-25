@@ -8,7 +8,13 @@ export function ScoreDisplay({
   className?: string;
 }) {
   return (
-    <span className={cn("score-text text-3xl font-bold tracking-tight", scoreTone(scoreToPar), className)}>
+    <span
+      className={cn(
+        "score-text text-3xl font-bold tracking-tight",
+        scoreTone(scoreToPar),
+        className,
+      )}
+    >
       {formatScore(scoreToPar)}
     </span>
   );

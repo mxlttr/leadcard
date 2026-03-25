@@ -57,7 +57,9 @@ function toLeaderboardPlayers(
   currentPlayers: PlayerSnapshot[],
   createdAt: string,
 ) {
-  const previousById = new Map(previousPlayers.map((player) => [player.playerId, player]));
+  const previousById = new Map(
+    previousPlayers.map((player) => [player.playerId, player]),
+  );
   const updates: RecentUpdate[] = [];
 
   const players = sortPlayers(
@@ -111,14 +113,20 @@ async function ensureStore(tournamentId: string) {
   }
 
   if (!globalThis.leadcardStore.has(tournamentId)) {
-    globalThis.leadcardStore.set(tournamentId, await createInitialState(tournamentId));
+    globalThis.leadcardStore.set(
+      tournamentId,
+      await createInitialState(tournamentId),
+    );
   }
 
   return globalThis.leadcardStore.get(tournamentId)!;
 }
 
 async function advanceStore(store: LiveState) {
-  const source = await loadTournamentSnapshotSource(store.tournament.id, store.fixtureIndex);
+  const source = await loadTournamentSnapshotSource(
+    store.tournament.id,
+    store.fixtureIndex,
+  );
   store.tournament = source.tournament;
   store.hasLiveData = Boolean(source.html);
   store.fixtureIndex = source.nextFixtureIndex;
@@ -135,11 +143,18 @@ async function advanceStore(store: LiveState) {
   const previousSnapshot = store.players.map<PlayerSnapshot>(
     ({ delta: _delta, latestUpdate: _latestUpdate, ...player }) => player,
   );
-  const nextState = toLeaderboardPlayers(previousSnapshot, nextSnapshot.players, nextSnapshot.generatedAt);
+  const nextState = toLeaderboardPlayers(
+    previousSnapshot,
+    nextSnapshot.players,
+    nextSnapshot.generatedAt,
+  );
 
   store.generatedAt = nextSnapshot.generatedAt;
   store.players = nextState.players;
-  store.updates = [...nextState.updates.reverse(), ...store.updates].slice(0, 20);
+  store.updates = [...nextState.updates.reverse(), ...store.updates].slice(
+    0,
+    20,
+  );
 }
 
 async function refreshIfNeeded(tournamentId: string) {
@@ -184,7 +199,9 @@ function overallLeaders(players: LeaderboardPlayer[]) {
     .slice(0, 3);
 }
 
-export async function getLiveResponse(tournamentId: string): Promise<LiveResponse> {
+export async function getLiveResponse(
+  tournamentId: string,
+): Promise<LiveResponse> {
   const store = await refreshIfNeeded(tournamentId);
   const tournaments = await getTournamentCatalog();
   const divisions = getDivisions(store.players);
@@ -215,12 +232,16 @@ export async function getLeaderboardResponse(
   return {
     tournamentId: store.tournament.id,
     division: resolvedDivision,
-    players: store.players.filter((player) => player.division === resolvedDivision),
+    players: store.players.filter(
+      (player) => player.division === resolvedDivision,
+    ),
     generatedAt: store.generatedAt,
   };
 }
 
-export async function getUpdatesResponse(tournamentId: string): Promise<UpdatesResponse> {
+export async function getUpdatesResponse(
+  tournamentId: string,
+): Promise<UpdatesResponse> {
   const store = await refreshIfNeeded(tournamentId);
 
   return {

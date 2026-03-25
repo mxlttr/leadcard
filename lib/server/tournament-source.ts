@@ -1,7 +1,10 @@
 import { load } from "cheerio";
 
 import type { TournamentStatus, TournamentSummary } from "@/lib/types";
-import { defaultMockTournamentId, mockTournamentFeeds } from "@/lib/server/mock-source";
+import {
+  defaultMockTournamentId,
+  mockTournamentFeeds,
+} from "@/lib/server/mock-source";
 
 type TournamentSourceResult = {
   tournament: TournamentSummary;
@@ -14,7 +17,9 @@ type TournamentSourceConfig = {
 };
 
 function toSummary(tournamentId: string): TournamentSummary {
-  const feed = mockTournamentFeeds[tournamentId] ?? mockTournamentFeeds[defaultMockTournamentId];
+  const feed =
+    mockTournamentFeeds[tournamentId] ??
+    mockTournamentFeeds[defaultMockTournamentId];
 
   return {
     id: feed.id,
@@ -35,7 +40,9 @@ const tournamentSourceConfig: Record<string, TournamentSourceConfig> = {
 };
 
 function getMockTournamentCatalog() {
-  return Object.values(tournamentSourceConfig).map((config) => config.tournament);
+  return Object.values(tournamentSourceConfig).map(
+    (config) => config.tournament,
+  );
 }
 
 const LISTING_URL = "https://turniere.discgolf.de/index.php?p=events";
@@ -52,7 +59,11 @@ function dateRangeLabel(startDate: string, endDate: string) {
   return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
 }
 
-function tournamentStatusFor(now: Date, startDate: Date, endDate: Date): TournamentStatus {
+function tournamentStatusFor(
+  now: Date,
+  startDate: Date,
+  endDate: Date,
+): TournamentStatus {
   if (startDate > now) {
     return "upcoming";
   }
@@ -87,7 +98,10 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
   const tournaments = $("#list_tournaments tbody tr")
     .map((_, row) => {
       const cells = $(row).find("td");
-      const eventLink = cells.eq(0).find("a[href*='sp=view'][href*='id=']").first();
+      const eventLink = cells
+        .eq(0)
+        .find("a[href*='sp=view'][href*='id=']")
+        .first();
       const href = eventLink.attr("href");
 
       if (!href) {
@@ -114,7 +128,8 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       const course = cells.eq(1).text().replace(/\s+/g, " ").trim();
       const startDateLabel =
         cells.eq(2).attr("data-search")?.trim() ?? cells.eq(2).text().trim();
-      const endDateText = cells.eq(3).attr("data-search")?.trim() ?? cells.eq(3).text().trim();
+      const endDateText =
+        cells.eq(3).attr("data-search")?.trim() ?? cells.eq(3).text().trim();
 
       return {
         id,
@@ -130,8 +145,10 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
     .filter(
       (
         tournament,
-      ): tournament is TournamentSummary & { sortStart: number; sortEnd: number } =>
-        Boolean(tournament),
+      ): tournament is TournamentSummary & {
+        sortStart: number;
+        sortEnd: number;
+      } => Boolean(tournament),
     )
     .sort((a, b) => {
       const statusOrder: Record<TournamentStatus, number> = {
@@ -151,16 +168,24 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
 
       return a.sortStart - b.sortStart;
     })
-    .map(({ sortStart: _sortStart, sortEnd: _sortEnd, ...tournament }) => tournament);
+    .map(
+      ({ sortStart: _sortStart, sortEnd: _sortEnd, ...tournament }) =>
+        tournament,
+    );
 
   return tournaments;
 }
 
-async function loadDynamicTournamentSnapshotHtml(tournamentId: string): Promise<string | null> {
-  const response = await fetch(`${LIVE_URL}${encodeURIComponent(tournamentId)}`, {
-    cache: "no-store",
-    headers: buildHeaders(),
-  });
+async function loadDynamicTournamentSnapshotHtml(
+  tournamentId: string,
+): Promise<string | null> {
+  const response = await fetch(
+    `${LIVE_URL}${encodeURIComponent(tournamentId)}`,
+    {
+      cache: "no-store",
+      headers: buildHeaders(),
+    },
+  );
 
   if (!response.ok) {
     return null;
@@ -174,7 +199,9 @@ async function loadDynamicTournamentSnapshotHtml(tournamentId: string): Promise<
 export async function getTournamentCatalog() {
   try {
     const dynamicCatalog = await loadDynamicTournamentCatalog();
-    return dynamicCatalog.length > 0 ? dynamicCatalog : getMockTournamentCatalog();
+    return dynamicCatalog.length > 0
+      ? dynamicCatalog
+      : getMockTournamentCatalog();
   } catch {
     return getMockTournamentCatalog();
   }
@@ -182,7 +209,9 @@ export async function getTournamentCatalog() {
 
 export async function getDefaultTournamentId() {
   const catalog = await getTournamentCatalog();
-  const liveTournament = catalog.find((tournament) => tournament.status === "live");
+  const liveTournament = catalog.find(
+    (tournament) => tournament.status === "live",
+  );
   return liveTournament?.id ?? catalog[0]?.id ?? defaultMockTournamentId;
 }
 

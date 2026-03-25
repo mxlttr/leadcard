@@ -71,9 +71,13 @@ export function LeaderboardCard({
             onClick={onSelect}
             className="grid min-w-0 flex-1 grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2 text-left"
           >
-            <span className="score-text text-xl font-bold text-foreground">#{player.rank}</span>
+            <span className="score-text text-xl font-bold text-foreground">
+              #{player.rank}
+            </span>
             <div className="min-w-0">
-              <div className="truncate text-base font-medium text-foreground">{player.name}</div>
+              <div className="truncate text-base font-medium text-foreground">
+                {player.name}
+              </div>
               <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-muted">
                 <span className="shrink-0">
                   <RankDelta value={player.delta.rankDelta} />
@@ -100,7 +104,8 @@ export function LeaderboardCard({
         </div>
 
         <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-          {player.latestUpdate?.text ?? `Holding ${holeToLabel(player.thru).toLowerCase()}`}
+          {player.latestUpdate?.text ??
+            `Holding ${holeToLabel(player.thru).toLowerCase()}`}
         </p>
       </CardContent>
     </Card>

@@ -6,10 +6,16 @@ import { describe, expect, it } from "vitest";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 
 function readFixture(name: string) {
-  return readFileSync(path.resolve(process.cwd(), "tests/fixtures/live", name), "utf8");
+  return readFileSync(
+    path.resolve(process.cwd(), "tests/fixtures/live", name),
+    "utf8",
+  );
 }
 
-function requirePlayer(snapshot: ReturnType<typeof scrapeSnapshot>, name: string) {
+function requirePlayer(
+  snapshot: ReturnType<typeof scrapeSnapshot>,
+  name: string,
+) {
   const player = snapshot.players.find((entry) => entry.name === name);
   expect(player).toBeDefined();
   return player!;
@@ -18,7 +24,9 @@ function requirePlayer(snapshot: ReturnType<typeof scrapeSnapshot>, name: string
 describe("scrapeSnapshot", () => {
   it("parses all division sections from the 2425 live page", () => {
     const snapshot = scrapeSnapshot(readFixture("2425.html"));
-    const divisions = [...new Set(snapshot.players.map((player) => player.division))];
+    const divisions = [
+      ...new Set(snapshot.players.map((player) => player.division)),
+    ];
 
     expect(divisions).toEqual([
       "Master 40",
@@ -39,13 +47,19 @@ describe("scrapeSnapshot", () => {
       thru: "F",
     });
     expect(andreasKaivers.lastFive).toHaveLength(5);
-    expect(snapshot.players.find((player) => player.name === "Dennis Werchau")).toBeUndefined();
-    expect(snapshot.players.find((player) => player.name === "Marcel Söffker")).toBeUndefined();
+    expect(
+      snapshot.players.find((player) => player.name === "Dennis Werchau"),
+    ).toBeUndefined();
+    expect(
+      snapshot.players.find((player) => player.name === "Marcel Söffker"),
+    ).toBeUndefined();
   });
 
   it("parses multi-round grouped rows without confusing total strokes for score to par", () => {
     const snapshot = scrapeSnapshot(readFixture("2612.html"));
-    const divisions = [...new Set(snapshot.players.map((player) => player.division))];
+    const divisions = [
+      ...new Set(snapshot.players.map((player) => player.division)),
+    ];
 
     expect(divisions).toContain("Junioren 18");
     expect(divisions).toContain("Open");
@@ -65,8 +79,10 @@ describe("scrapeSnapshot", () => {
       scoreToPar: -15,
       thru: "F",
     });
-    expect(Math.max(...snapshot.players.map((player) => Math.abs(player.scoreToPar)))).toBeLessThan(
-      50,
-    );
+    expect(
+      Math.max(
+        ...snapshot.players.map((player) => Math.abs(player.scoreToPar)),
+      ),
+    ).toBeLessThan(50);
   });
 });

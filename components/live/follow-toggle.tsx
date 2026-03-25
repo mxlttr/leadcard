@@ -23,7 +23,12 @@ export function FollowToggle({
       className={cn("h-9 w-9 rounded-full border border-border", className)}
       aria-label={active ? "Unfollow player" : "Follow player"}
     >
-      <Star className={cn("h-4 w-4", active ? "fill-primary text-primary" : "text-muted")} />
+      <Star
+        className={cn(
+          "h-4 w-4",
+          active ? "fill-primary text-primary" : "text-muted",
+        )}
+      />
     </Button>
   );
 }

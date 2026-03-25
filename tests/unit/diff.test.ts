@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createPlayerDelta, createRecentUpdate, formatScore } from "@/lib/server/diff";
+import {
+  createPlayerDelta,
+  createRecentUpdate,
+  formatScore,
+} from "@/lib/server/diff";
 import type { PlayerSnapshot } from "@/lib/types";
 
 function player(overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot {

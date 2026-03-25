@@ -23,7 +23,9 @@ export function RecentUpdatesList({ updates }: { updates: RecentUpdate[] }) {
       <CardContent className="space-y-4 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-lg font-semibold">Recent updates</h2>
+            <h2 className="font-display text-lg font-semibold">
+              Recent updates
+            </h2>
             <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
               Meaningful movement inferred from snapshot diffs.
             </p>
@@ -39,15 +41,22 @@ export function RecentUpdatesList({ updates }: { updates: RecentUpdate[] }) {
               </div>
             ) : (
               updates.map((update, index) => (
-                <div key={`${update.playerId}-${update.createdAt}-${index}`} className="space-y-3">
+                <div
+                  key={`${update.playerId}-${update.createdAt}-${index}`}
+                  className="space-y-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
-                      <Badge variant={toneVariant(update.tone)}>{update.tone}</Badge>
+                      <Badge variant={toneVariant(update.tone)}>
+                        {update.tone}
+                      </Badge>
                       <p className="text-sm text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
                         {update.text}
                       </p>
                     </div>
-                    <span className="shrink-0 text-xs text-muted">{timestampLabel(update.createdAt)}</span>
+                    <span className="shrink-0 text-xs text-muted">
+                      {timestampLabel(update.createdAt)}
+                    </span>
                   </div>
                   {index < updates.length - 1 ? <Separator /> : null}
                 </div>

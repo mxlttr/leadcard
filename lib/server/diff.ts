@@ -59,7 +59,10 @@ export function createRecentUpdate(
     };
   }
 
-  if (current.scoreToPar !== previous.scoreToPar || current.thru !== previous.thru) {
+  if (
+    current.scoreToPar !== previous.scoreToPar ||
+    current.thru !== previous.thru
+  ) {
     const tone =
       current.scoreToPar < previous.scoreToPar
         ? "positive"
