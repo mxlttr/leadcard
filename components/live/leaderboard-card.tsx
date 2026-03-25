@@ -9,7 +9,7 @@ import { ScoreDisplay } from "@/components/live/score-display";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { LeaderboardPlayer } from "@/lib/types";
-import { cn, holeToLabel } from "@/lib/utils";
+import { cn, formatDivisionRank, holeToLabel } from "@/lib/utils";
 
 function holeTone(value: number) {
   if (value < 0) {
@@ -71,11 +71,13 @@ function playerMomentum(
 
 export function LeaderboardCard({
   player,
+  divisionPlayers,
   followed,
   onFollowToggle,
   onSelect,
 }: {
   player: LeaderboardPlayer;
+  divisionPlayers: LeaderboardPlayer[];
   followed: boolean;
   onFollowToggle: () => void;
   onSelect: () => void;
@@ -92,7 +94,7 @@ export function LeaderboardCard({
             className="grid min-w-0 flex-1 grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2 text-left"
           >
             <span className="score-text text-xl font-bold text-foreground">
-              #{player.rank}
+              {formatDivisionRank(player, divisionPlayers)}
             </span>
             <div className="min-w-0">
               <div className="truncate text-base font-medium text-foreground">

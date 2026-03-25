@@ -4,12 +4,14 @@ import type { LeaderboardPlayer } from "@/lib/types";
 export function BattleGroup({
   title,
   players,
+  divisionPlayers,
   isFollowed,
   onFollowToggle,
   onPlayerSelect,
 }: {
   title: string;
   players: LeaderboardPlayer[];
+  divisionPlayers: LeaderboardPlayer[];
   isFollowed: (playerId: string) => boolean;
   onFollowToggle: (playerId: string) => void;
   onPlayerSelect: (player: LeaderboardPlayer) => void;
@@ -30,6 +32,7 @@ export function BattleGroup({
           <LeaderboardCard
             key={player.playerId}
             player={player}
+            divisionPlayers={divisionPlayers}
             followed={isFollowed(player.playerId)}
             onFollowToggle={() => onFollowToggle(player.playerId)}
             onSelect={() => onPlayerSelect(player)}

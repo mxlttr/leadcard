@@ -59,7 +59,7 @@
     "steady": "Steady",
     "holding": "Holding {{status}}",
     "currentScore": "Current score",
-    "rankSummary": "Rank #{{rank}}",
+    "rankSummary": "Rank {{rank}}",
     "rankDelta": "Rank delta {{value}}",
     "lastFiveHoles": "Last five holes",
     "lastFiveDescription": "Most recent inferred hole-by-hole movement.",

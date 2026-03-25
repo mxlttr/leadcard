@@ -42,6 +42,8 @@ async function fetchJson<T>(url: string) {
   return (await response.json()) as T;
 }
 
+const LEAD_CARD_SIZE = 4;
+
 function LoadingShell() {
   return (
     <div className="space-y-4">
@@ -58,13 +60,16 @@ function groupPlayers(
   players: LeaderboardPlayer[],
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
-  if (players.length <= 3) {
+  if (players.length <= LEAD_CARD_SIZE) {
     return [{ title: t("leaderboard.leaderboard"), players }];
   }
 
   return [
-    { title: t("leaderboard.leadBattle"), players: players.slice(0, 3) },
-    { title: t("leaderboard.chaseCard"), players: players.slice(3) },
+    {
+      title: t("leaderboard.leadBattle"),
+      players: players.slice(0, LEAD_CARD_SIZE),
+    },
+    { title: t("leaderboard.chaseCard"), players: players.slice(LEAD_CARD_SIZE) },
   ];
 }
 
@@ -391,6 +396,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 key={group.title}
                 title={group.title}
                 players={group.players}
+                divisionPlayers={currentPlayers}
                 isFollowed={isFollowed}
                 onFollowToggle={togglePlayer}
                 onPlayerSelect={(player) => {
@@ -417,6 +423,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
       <PlayerDetailSheet
         player={selectedPlayer}
+        divisionPlayers={currentPlayers}
         updates={updatesData.updates}
         open={sheetOpen}
         onOpenChange={setSheetOpen}

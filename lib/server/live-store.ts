@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 
 const UPDATE_INTERVAL_MS = 25_000;
+const LEAD_CARD_SIZE = 4;
 
 type LiveState = {
   tournament: TournamentSummary;
@@ -208,7 +209,7 @@ function divisionLeaders(players: LeaderboardPlayer[]): DivisionLeader[] {
 }
 
 function overallLeaders(players: LeaderboardPlayer[]) {
-  return [...players].sort(comparePlayersByStanding).slice(0, 3);
+  return [...players].sort(comparePlayersByStanding).slice(0, LEAD_CARD_SIZE);
 }
 
 export async function getLiveResponse(

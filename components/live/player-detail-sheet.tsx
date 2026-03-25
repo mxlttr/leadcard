@@ -14,6 +14,7 @@ import {
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LeaderboardPlayer, RecentUpdate } from "@/lib/types";
 import {
+  formatDivisionRank,
   formatScore,
   holeToLabel,
   scoreTone,
@@ -60,11 +61,13 @@ function stableHoleKeys(values: number[], playerId: string) {
 
 export function PlayerDetailSheet({
   player,
+  divisionPlayers,
   updates,
   open,
   onOpenChange,
 }: {
   player: LeaderboardPlayer | null;
+  divisionPlayers: LeaderboardPlayer[];
   updates: RecentUpdate[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -88,7 +91,10 @@ export function PlayerDetailSheet({
                 </SheetTitle>
                 <SheetDescription className="[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
                   {translateDivisionLabel(player.division, locale)} ·{" "}
-                  {t("player.rankSummary", { rank: player.rank })} ·{" "}
+                  {t("player.rankSummary", {
+                    rank: formatDivisionRank(player, divisionPlayers),
+                  })}{" "}
+                  ·{" "}
                   {holeToLabel(player.thru, t)}
                 </SheetDescription>
               </SheetHeader>

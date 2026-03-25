@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 import type { AppLocale } from "@/lib/i18n";
+import type { LeaderboardPlayer } from "@/lib/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -41,4 +42,17 @@ export function timestampLabel(value: string, locale: AppLocale) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+export function formatDivisionRank(
+  player: LeaderboardPlayer,
+  divisionPlayers: LeaderboardPlayer[],
+) {
+  const isTied = divisionPlayers.some(
+    (divisionPlayer) =>
+      divisionPlayer.playerId !== player.playerId &&
+      divisionPlayer.rank === player.rank,
+  );
+
+  return isTied ? `T${player.rank}` : `#${player.rank}`;
 }

@@ -59,7 +59,7 @@
     "steady": "Stabil",
     "holding": "Hält {{status}}",
     "currentScore": "Aktueller Score",
-    "rankSummary": "Rang #{{rank}}",
+    "rankSummary": "Rang {{rank}}",
     "rankDelta": "Rangveränderung {{value}}",
     "lastFiveHoles": "Letzte fünf Bahnen",
     "lastFiveDescription": "Zuletzt abgeleitete Entwicklung pro Bahn.",

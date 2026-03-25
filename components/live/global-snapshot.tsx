@@ -44,7 +44,7 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
               : t("snapshot.unavailableMessage")}
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {data.leaders.map((leader, index) => (
               <div
                 key={leader.playerId}
