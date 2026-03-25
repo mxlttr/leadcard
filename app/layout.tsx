@@ -48,7 +48,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html className="dark">
       <body
         className={`${manrope.variable} ${spaceGrotesk.variable} bg-background font-body text-foreground antialiased`}
       >

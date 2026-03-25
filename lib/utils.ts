@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+import type { AppLocale } from "@/lib/i18n";
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -25,12 +27,17 @@ export function scoreTone(scoreToPar: number) {
   return "text-foreground";
 }
 
-export function holeToLabel(thru: number | "F") {
-  return thru === "F" ? "Finished" : `Through ${thru}`;
+export function holeToLabel(
+  thru: number | "F",
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  return thru === "F"
+    ? t("holes.finished")
+    : t("holes.through", { count: thru });
 }
 
-export function timestampLabel(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
+export function timestampLabel(value: string, locale: AppLocale) {
+  return new Intl.DateTimeFormat(locale === "de" ? "de-DE" : "en-US", {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));

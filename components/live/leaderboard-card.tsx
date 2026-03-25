@@ -2,6 +2,7 @@
 
 import { Flame, TrendingDown, TrendingUp } from "lucide-react";
 
+import { useI18n } from "@/components/i18n-provider";
 import { FollowToggle } from "@/components/live/follow-toggle";
 import { RankDelta } from "@/components/live/rank-delta";
 import { ScoreDisplay } from "@/components/live/score-display";
@@ -22,14 +23,17 @@ function holeTone(value: number) {
   return "bg-muted/40";
 }
 
-function playerMomentum(player: LeaderboardPlayer) {
+function playerMomentum(
+  player: LeaderboardPlayer,
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
   const recentTotal = player.lastFive.reduce((sum, hole) => sum + hole, 0);
 
   if (recentTotal <= -2) {
     return (
       <Badge variant="primary" className="gap-1 normal-case tracking-normal">
         <Flame className="h-3 w-3" />
-        Hot
+        {t("player.hot")}
       </Badge>
     );
   }
@@ -38,7 +42,7 @@ function playerMomentum(player: LeaderboardPlayer) {
     return (
       <Badge variant="negative" className="gap-1 normal-case tracking-normal">
         <TrendingDown className="h-3 w-3" />
-        Sliding
+        {t("player.sliding")}
       </Badge>
     );
   }
@@ -46,7 +50,7 @@ function playerMomentum(player: LeaderboardPlayer) {
   return (
     <Badge className="gap-1 normal-case tracking-normal">
       <TrendingUp className="h-3 w-3" />
-      Steady
+      {t("player.steady")}
     </Badge>
   );
 }
@@ -62,6 +66,8 @@ export function LeaderboardCard({
   onFollowToggle: () => void;
   onSelect: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <Card className="border-border bg-surface shadow-none">
       <CardContent className="space-y-4 p-4">
@@ -82,7 +88,7 @@ export function LeaderboardCard({
                 <span className="shrink-0">
                   <RankDelta value={player.delta.rankDelta} />
                 </span>
-                <span className="truncate">{holeToLabel(player.thru)}</span>
+                <span className="truncate">{holeToLabel(player.thru, t)}</span>
               </div>
             </div>
             <ScoreDisplay scoreToPar={player.scoreToPar} className="shrink-0" />
@@ -100,12 +106,14 @@ export function LeaderboardCard({
               />
             ))}
           </div>
-          {playerMomentum(player)}
+          {playerMomentum(player, t)}
         </div>
 
         <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
           {player.latestUpdate?.text ??
-            `Holding ${holeToLabel(player.thru).toLowerCase()}`}
+            t("player.holding", {
+              status: holeToLabel(player.thru, t).toLowerCase(),
+            })}
         </p>
       </CardContent>
     </Card>

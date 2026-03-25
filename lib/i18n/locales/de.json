@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "title": "Leadcard",
+    "description": "Mobile-first Live-Leaderboard für Discgolf-Turniere."
+  },
+  "app": {
+    "name": "Leadcard",
+    "title": "Live-Zwischenstaende",
+    "tagline": "Zuschauerorientiertes Leaderboard mit Fokus auf Bewegungen, Führende und die letzte wichtige Aktualisierung.",
+    "latestUpdate": "Letztes Update {{time}}",
+    "upcomingTournament": "Bevorstehendes Turnier",
+    "liveScoringUnavailable": "Kein Livescoring verfuegbar",
+    "nearLiveTitle": "Nahezu live, nicht in Echtzeit",
+    "nearLiveDescription": "Die Scores werden in Intervallen gescraped und verglichen. Dadurch spiegeln Updates den zuletzt sichtbaren Spielstand wider, nicht Shot-für-Shot-Tracking."
+  },
+  "language": {
+    "switcherLabel": "Sprache"
+  },
+  "tournaments": {
+    "heading": "Turniere",
+    "subheading": "Aktive Events von einer Woche rückwirkend bis eine Woche im Voraus.",
+    "status": {
+      "live": "Live",
+      "recent": "Aktuell",
+      "upcoming": "Demnächst",
+      "mock": "Mock"
+    }
+  },
+  "snapshot": {
+    "heading": "Gesamtübersicht",
+    "liveScoringNotAvailableYet": "{{roundLabel}} · Livescoring ist noch nicht verfuegbar",
+    "latestUpdate": "{{roundLabel}} · Letztes Update {{time}}",
+    "upcomingMessage": "Dieses Turnier steht noch bevor. Leadcard zeigt Live-Zwischenstände, sobald der Veranstalter Livescoring veröffentlicht.",
+    "unavailableMessage": "Für dieses Turnier ist aktuell kein Livescoring verfügbar.",
+    "overall": "Gesamt #{{rank}}",
+    "divisionLeader": "{{division}} führend",
+    "tiedOverall": "Gleichstand gesamt",
+    "toOverallLead": "{{score}} hinter Gesamtführung"
+  },
+  "leaderboard": {
+    "leaderboard": "Leaderboard",
+    "leadBattle": "Spitzengruppe",
+    "chaseCard": "Verfolgerkarte",
+    "all": "Alle",
+    "following": "Gefolgt",
+    "noLiveData": "Dieses Turnier hat noch kein Livescoring gestartet. Schau näher am Startzeitpunkt noch einmal vorbei.",
+    "noLiveScoring": "Für dieses Turnier ist aktuell kein Livescoring verfügbar.",
+    "noLeaderboard": "Es ist noch kein Leaderboard verfuegbar.",
+    "noFollowedPlayers": "In dieser Division gibt es noch keine gefolgten Spieler.",
+    "noPlayers": "Für diese Division sind keine Spieler verfügbar.",
+    "footer": "Zuletzt sichtbarer Scoring-Stand. Die Anzeige für gespielte Bahnen basiert auf der zuletzt veröffentlichten Bahn, nicht auf Live-Tracking.",
+    "selectedPlayerFooter": "{{name}} ist {{status}}."
+  },
+  "player": {
+    "follow": "Spieler folgen",
+    "unfollow": "Spieler entfolgen",
+    "hot": "Heiß",
+    "sliding": "Fällt",
+    "steady": "Stabil",
+    "holding": "Hält {{status}}",
+    "currentScore": "Aktueller Score",
+    "rankSummary": "Rang #{{rank}}",
+    "rankDelta": "Rangveränderung {{value}}",
+    "lastFiveHoles": "Letzte fünf Bahnen",
+    "lastFiveDescription": "Zuletzt abgeleitete Entwicklung pro Bahn.",
+    "recentUpdates": "Letzte Updates",
+    "recentUpdatesDescription": "Neueste sichtbare Veränderungen für diesen Spieler.",
+    "noPlayerUpdate": "Für diesen Spieler gibt es in der aktuellen Sitzung noch kein abgeleitetes Update.",
+    "par": "PAR"
+  },
+  "updates": {
+    "heading": "Letzte Updates",
+    "description": "Sinnvolle Veränderungen, abgeleitet aus Snapshot-Differenzen.",
+    "latestTwenty": "Letzte 20",
+    "waiting": "Warte auf die nächste Scoring-Bewegung.",
+    "positive": "positiv",
+    "negative": "negativ",
+    "neutral": "neutral"
+  },
+  "holes": {
+    "finished": "Beendet",
+    "through": "Durch Bahn {{count}}"
+  }
+}

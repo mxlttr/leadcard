@@ -1,9 +1,14 @@
+"use client";
+
+import { useI18n } from "@/components/i18n-provider";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { Card, CardContent } from "@/components/ui/card";
+import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LiveResponse } from "@/lib/types";
 import { formatScore, timestampLabel } from "@/lib/utils";
 
 export function GlobalSnapshot({ data }: { data: LiveResponse }) {
+  const { locale, t } = useI18n();
   const overallLeader = data.leaders[0];
   const noLiveData = !data.hasLiveData;
 
@@ -12,7 +17,7 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
       <CardContent className="space-y-5 p-5">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">
-            Global snapshot
+            {t("snapshot.heading")}
           </p>
           <h2 className="mt-2 font-display text-2xl font-semibold [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
             {data.tournament.name}
@@ -22,16 +27,21 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
           </p>
           <p className="mt-1 text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
             {noLiveData
-              ? `${data.tournament.roundLabel} · Live scoring is not available yet`
-              : `${data.tournament.roundLabel} · Latest update ${timestampLabel(data.generatedAt)}`}
+              ? t("snapshot.liveScoringNotAvailableYet", {
+                  roundLabel: data.tournament.roundLabel,
+                })
+              : t("snapshot.latestUpdate", {
+                  roundLabel: data.tournament.roundLabel,
+                  time: timestampLabel(data.generatedAt, locale),
+                })}
           </p>
         </div>
 
         {noLiveData ? (
           <div className="rounded-[20px] border border-border bg-background p-4 text-sm text-muted">
             {data.tournament.status === "upcoming"
-              ? "This tournament is upcoming. Leadcard will switch to live standings once the organizer publishes livescoring."
-              : "Live scoring is not available for this tournament right now."}
+              ? t("snapshot.upcomingMessage")
+              : t("snapshot.unavailableMessage")}
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
@@ -41,13 +51,13 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
                 className="rounded-[20px] border border-border bg-background p-4"
               >
                 <p className="text-xs uppercase tracking-[0.18em] text-muted">
-                  Overall #{index + 1}
+                  {t("snapshot.overall", { rank: index + 1 })}
                 </p>
                 <p className="mt-3 truncate font-body text-lg font-medium">
                   {leader.name}
                 </p>
                 <p className="mt-1 truncate text-sm text-muted">
-                  {leader.division}
+                  {translateDivisionLabel(leader.division, locale)}
                 </p>
                 <ScoreDisplay
                   scoreToPar={leader.scoreToPar}
@@ -71,7 +81,9 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
               >
                 <div className="min-w-0">
                   <p className="truncate text-xs uppercase tracking-[0.18em] text-muted">
-                    {division} leader
+                    {t("snapshot.divisionLeader", {
+                      division: translateDivisionLabel(division, locale),
+                    })}
                   </p>
                   <p className="mt-1 truncate font-medium">{leader.name}</p>
                 </div>
@@ -82,8 +94,10 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
                   />
                   <p className="mt-1 text-xs text-muted">
                     {gap === 0
-                      ? "Tied overall"
-                      : `${formatScore(gap)} to overall lead`}
+                      ? t("snapshot.tiedOverall")
+                      : t("snapshot.toOverallLead", {
+                          score: formatScore(gap),
+                        })}
                   </p>
                 </div>
               </div>

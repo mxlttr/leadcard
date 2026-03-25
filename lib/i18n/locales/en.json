@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "title": "Leadcard",
+    "description": "Mobile-first live leaderboard for disc golf tournaments."
+  },
+  "app": {
+    "name": "Leadcard",
+    "title": "Live standings",
+    "tagline": "Spectator-first leaderboard focused on movement, leaders, and the latest meaningful update.",
+    "latestUpdate": "Latest update {{time}}",
+    "upcomingTournament": "Upcoming tournament",
+    "liveScoringUnavailable": "Live scoring unavailable",
+    "nearLiveTitle": "Near-live, not real-time",
+    "nearLiveDescription": "Scores are scraped and diffed on an interval, so updates reflect the latest visible scoring state rather than shot-by-shot tracking."
+  },
+  "language": {
+    "switcherLabel": "Language"
+  },
+  "tournaments": {
+    "heading": "Tournaments",
+    "subheading": "Active events from one week back to one week ahead.",
+    "status": {
+      "live": "Live",
+      "recent": "Recent",
+      "upcoming": "Upcoming",
+      "mock": "Mock"
+    }
+  },
+  "snapshot": {
+    "heading": "Global snapshot",
+    "liveScoringNotAvailableYet": "{{roundLabel}} · Live scoring is not available yet",
+    "latestUpdate": "{{roundLabel}} · Latest update {{time}}",
+    "upcomingMessage": "This tournament is upcoming. Leadcard will switch to live standings once the organizer publishes livescoring.",
+    "unavailableMessage": "Live scoring is not available for this tournament right now.",
+    "overall": "Overall #{{rank}}",
+    "divisionLeader": "{{division}} leader",
+    "tiedOverall": "Tied overall",
+    "toOverallLead": "{{score}} to overall lead"
+  },
+  "leaderboard": {
+    "leaderboard": "Leaderboard",
+    "leadBattle": "Lead battle",
+    "chaseCard": "Chase card",
+    "all": "All",
+    "following": "Following",
+    "noLiveData": "This tournament has not started live scoring yet. Check back closer to tee time.",
+    "noLiveScoring": "Live scoring is not available for this tournament right now.",
+    "noLeaderboard": "No leaderboard is available yet.",
+    "noFollowedPlayers": "No followed players in this division yet.",
+    "noPlayers": "No players available for this division.",
+    "footer": "Latest visible scoring state. Through values reflect the most recently published hole, not live shot tracking.",
+    "selectedPlayerFooter": "{{name}} is {{status}}."
+  },
+  "player": {
+    "follow": "Follow player",
+    "unfollow": "Unfollow player",
+    "hot": "Hot",
+    "sliding": "Sliding",
+    "steady": "Steady",
+    "holding": "Holding {{status}}",
+    "currentScore": "Current score",
+    "rankSummary": "Rank #{{rank}}",
+    "rankDelta": "Rank delta {{value}}",
+    "lastFiveHoles": "Last five holes",
+    "lastFiveDescription": "Most recent inferred hole-by-hole movement.",
+    "recentUpdates": "Recent updates",
+    "recentUpdatesDescription": "Latest visible changes for this player.",
+    "noPlayerUpdate": "No inferred update yet for this player in the current session.",
+    "par": "PAR"
+  },
+  "updates": {
+    "heading": "Recent updates",
+    "description": "Meaningful movement inferred from snapshot diffs.",
+    "latestTwenty": "Latest 20",
+    "waiting": "Waiting for the next scoring movement.",
+    "positive": "positive",
+    "negative": "negative",
+    "neutral": "neutral"
+  },
+  "holes": {
+    "finished": "Finished",
+    "through": "Through {{count}}"
+  }
+}

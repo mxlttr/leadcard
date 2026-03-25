@@ -2,8 +2,11 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Info, Star } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { useFollowedPlayers } from "@/hooks/use-followed-players";
+import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { BattleGroup } from "@/components/live/battle-group";
 import { DivisionTabs } from "@/components/live/division-tabs";
 import { GlobalSnapshot } from "@/components/live/global-snapshot";
@@ -19,15 +22,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  createTranslator,
+  locales,
+  type AppLocale,
+  type Dictionary,
+} from "@/lib/i18n";
 import type {
   LeaderboardPlayer,
   LeaderboardResponse,
   LiveResponse,
   UpdatesResponse,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import { holeToLabel, timestampLabel } from "@/lib/utils";
-import { useFollowedPlayers } from "@/hooks/use-followed-players";
+import { cn, holeToLabel, timestampLabel } from "@/lib/utils";
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url);
@@ -51,34 +58,59 @@ function LoadingShell() {
   );
 }
 
-function groupPlayers(players: LeaderboardPlayer[]) {
+function groupPlayers(
+  players: LeaderboardPlayer[],
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
   if (players.length <= 3) {
-    return [{ title: "Leaderboard", players }];
+    return [{ title: t("leaderboard.leaderboard"), players }];
   }
 
   return [
-    { title: "Lead battle", players: players.slice(0, 3) },
-    { title: "Chase card", players: players.slice(3) },
+    { title: t("leaderboard.leadBattle"), players: players.slice(0, 3) },
+    { title: t("leaderboard.chaseCard"), players: players.slice(3) },
   ];
 }
 
-function tournamentStatusLabel(status: LiveResponse["tournament"]["status"]) {
-  if (status === "upcoming") {
-    return "Upcoming";
-  }
-
-  if (status === "recent") {
-    return "Recent";
-  }
-
-  if (status === "mock") {
-    return "Mock";
-  }
-
-  return "Live";
+function tournamentStatusLabel(
+  status: LiveResponse["tournament"]["status"],
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  return t(`tournaments.status.${status}`);
 }
 
-export function LiveLeaderboard() {
+function LanguageSwitcher({ locale }: { locale: AppLocale }) {
+  const { t } = useI18n();
+
+  return (
+    <div
+      className="flex items-center gap-1 rounded-full border border-border bg-surface p-1"
+      aria-label={t("language.switcherLabel")}
+    >
+      {locales.map((item) => {
+        const active = item === locale;
+
+        return (
+          <Link
+            key={item}
+            href={`/${item}`}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] transition-colors",
+              active
+                ? "bg-background text-foreground"
+                : "text-muted hover:text-foreground",
+            )}
+          >
+            {item}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
+  const { t } = useI18n();
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [selectedDivision, setSelectedDivision] = useState("");
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
@@ -96,7 +128,7 @@ export function LiveLeaderboard() {
     useFollowedPlayers();
 
   const liveQuery = useQuery({
-    queryKey: ["live", selectedTournamentId || "default"],
+    queryKey: ["live", locale, selectedTournamentId || "default"],
     queryFn: () =>
       fetchJson<LiveResponse>(
         selectedTournamentId
@@ -107,7 +139,7 @@ export function LiveLeaderboard() {
   });
 
   const leaderboardQuery = useQuery({
-    queryKey: ["leaderboard", selectedTournamentId, selectedDivision],
+    queryKey: ["leaderboard", locale, selectedTournamentId, selectedDivision],
     queryFn: () =>
       fetchJson<LeaderboardResponse>(
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent(selectedDivision)}`,
@@ -117,7 +149,7 @@ export function LiveLeaderboard() {
   });
 
   const updatesQuery = useQuery({
-    queryKey: ["updates", selectedTournamentId],
+    queryKey: ["updates", locale, selectedTournamentId],
     queryFn: () =>
       fetchJson<UpdatesResponse>(
         `/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`,
@@ -186,7 +218,7 @@ export function LiveLeaderboard() {
       : currentPlayers.filter((player) =>
           followedPlayers.includes(player.playerId),
         );
-  const groupedPlayers = groupPlayers(players);
+  const groupedPlayers = groupPlayers(players, t);
 
   if (!liveData || !leaderboardData || !updatesData) {
     return <LoadingShell />;
@@ -199,46 +231,48 @@ export function LiveLeaderboard() {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted">
-                Leadcard
+                {t("app.name")}
               </p>
               <h1 className="mt-2 truncate font-display text-3xl font-semibold tracking-tight">
-                Live standings
+                {t("app.title")}
               </h1>
               <p className="mt-2 max-w-[34rem] text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-                Spectator-first leaderboard focused on movement, leaders, and
-                the latest meaningful update.
+                {t("app.tagline")}
               </p>
             </div>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
-                >
-                  <Info className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Near-live, not real-time</DialogTitle>
-                  <DialogDescription>
-                    Scores are scraped and diffed on an interval, so updates
-                    reflect the latest visible scoring state rather than
-                    shot-by-shot tracking.
-                  </DialogDescription>
-                </DialogHeader>
-              </DialogContent>
-            </Dialog>
+            <div className="flex shrink-0 items-center gap-2">
+              <LanguageSwitcher locale={locale} />
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{t("app.nearLiveTitle")}</DialogTitle>
+                    <DialogDescription>
+                      {t("app.nearLiveDescription")}
+                    </DialogDescription>
+                  </DialogHeader>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-4 text-sm text-muted">
             <span className="truncate">
               {liveData.hasLiveData
-                ? `Latest update ${timestampLabel(liveData.generatedAt)}`
+                ? t("app.latestUpdate", {
+                    time: timestampLabel(liveData.generatedAt, locale),
+                  })
                 : liveData.tournament.status === "upcoming"
-                  ? "Upcoming tournament"
-                  : "Live scoring unavailable"}
+                  ? t("app.upcomingTournament")
+                  : t("app.liveScoringUnavailable")}
             </span>
             <span className="truncate text-right">
               {liveData.tournament.roundLabel}
@@ -249,10 +283,10 @@ export function LiveLeaderboard() {
         <section className="space-y-3">
           <div className="px-1">
             <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
-              Tournaments
+              {t("tournaments.heading")}
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Active events from one week back to one week ahead.
+              {t("tournaments.subheading")}
             </p>
           </div>
           <div className="max-h-[230px] overflow-y-auto rounded-[24px] border border-border bg-surface px-2 py-2">
@@ -273,12 +307,7 @@ export function LiveLeaderboard() {
                     onClick={() => setSelectedTournamentId(tournament.id)}
                   >
                     <span className="min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          "block truncate font-medium",
-                          selected ? "text-foreground" : "text-foreground",
-                        )}
-                      >
+                      <span className="block truncate font-medium text-foreground">
                         {tournament.name}
                       </span>
                       <span
@@ -298,7 +327,7 @@ export function LiveLeaderboard() {
                           : "text-muted",
                       )}
                     >
-                      {tournamentStatusLabel(tournament.status)}
+                      {tournamentStatusLabel(tournament.status, t)}
                     </span>
                   </Button>
                 );
@@ -325,7 +354,7 @@ export function LiveLeaderboard() {
               className={filterMode === "ALL" ? "" : "border border-border"}
               onClick={() => setFilterMode("ALL")}
             >
-              All
+              {t("leaderboard.all")}
             </Button>
             <Button
               variant={filterMode === "FOLLOWING" ? "accent" : "ghost"}
@@ -336,25 +365,25 @@ export function LiveLeaderboard() {
               onClick={() => setFilterMode("FOLLOWING")}
             >
               <Star className="mr-1 h-3.5 w-3.5" />
-              Following
+              {t("leaderboard.following")}
             </Button>
           </div>
 
           {!liveData.hasLiveData ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
               {liveData.tournament.status === "upcoming"
-                ? "This tournament has not started live scoring yet. Check back closer to tee time."
-                : "Live scoring is not available for this tournament right now."}
+                ? t("leaderboard.noLiveData")
+                : t("leaderboard.noLiveScoring")}
             </div>
           ) : null}
 
           {players.length === 0 ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
               {!liveData.hasLiveData
-                ? "No leaderboard is available yet."
+                ? t("leaderboard.noLeaderboard")
                 : filterMode === "FOLLOWING"
-                  ? "No followed players in this division yet."
-                  : "No players available for this division."}
+                  ? t("leaderboard.noFollowedPlayers")
+                  : t("leaderboard.noPlayers")}
             </div>
           ) : (
             groupedPlayers.map((group) => (
@@ -376,10 +405,12 @@ export function LiveLeaderboard() {
         <RecentUpdatesList updates={updatesData.updates} />
 
         <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
-          Latest visible scoring state. Through values reflect the most recently
-          published hole, not live shot tracking.
+          {t("leaderboard.footer")}
           {selectedPlayer
-            ? ` ${selectedPlayer.name} is ${holeToLabel(selectedPlayer.thru).toLowerCase()}.`
+            ? ` ${t("leaderboard.selectedPlayerFooter", {
+                name: selectedPlayer.name,
+                status: holeToLabel(selectedPlayer.thru, t).toLowerCase(),
+              })}`
             : ""}
         </footer>
       </div>
@@ -391,5 +422,19 @@ export function LiveLeaderboard() {
         onOpenChange={setSheetOpen}
       />
     </>
+  );
+}
+
+export function LiveLeaderboard({
+  locale,
+  dictionary,
+}: {
+  locale: AppLocale;
+  dictionary: Dictionary;
+}) {
+  return (
+    <I18nProvider locale={locale} dictionary={dictionary}>
+      <LiveLeaderboardContent locale={locale} />
+    </I18nProvider>
   );
 }
