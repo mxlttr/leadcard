@@ -42,6 +42,26 @@ function sortPlayers(players: LeaderboardPlayer[]) {
   });
 }
 
+function comparePlayersByStanding(a: LeaderboardPlayer, b: LeaderboardPlayer) {
+  if (a.scoreToPar !== b.scoreToPar) {
+    return a.scoreToPar - b.scoreToPar;
+  }
+
+  if (a.thru === "F" && b.thru !== "F") {
+    return -1;
+  }
+
+  if (a.thru !== "F" && b.thru === "F") {
+    return 1;
+  }
+
+  if (a.rank !== b.rank) {
+    return a.rank - b.rank;
+  }
+
+  return a.name.localeCompare(b.name);
+}
+
 function getDivisions(players: LeaderboardPlayer[]) {
   return players.reduce<string[]>((divisions, player) => {
     if (!divisions.includes(player.division)) {
@@ -174,35 +194,21 @@ async function refreshIfNeeded(tournamentId: string) {
 }
 
 function divisionLeaders(players: LeaderboardPlayer[]): DivisionLeader[] {
-  return getDivisions(players).reduce<DivisionLeader[]>((leaders, division) => {
-    const leader = players.find((player) => player.division === division);
+  return getDivisions(players)
+    .reduce<DivisionLeader[]>((leaders, division) => {
+      const leader = players.find((player) => player.division === division);
 
-    if (leader) {
-      leaders.push({ division, leader });
-    }
+      if (leader) {
+        leaders.push({ division, leader });
+      }
 
-    return leaders;
-  }, []);
+      return leaders;
+    }, [])
+    .sort((a, b) => comparePlayersByStanding(a.leader, b.leader));
 }
 
 function overallLeaders(players: LeaderboardPlayer[]) {
-  return [...players]
-    .sort((a, b) => {
-      if (a.scoreToPar !== b.scoreToPar) {
-        return a.scoreToPar - b.scoreToPar;
-      }
-
-      if (a.thru === "F" && b.thru !== "F") {
-        return -1;
-      }
-
-      if (a.thru !== "F" && b.thru === "F") {
-        return 1;
-      }
-
-      return a.rank - b.rank;
-    })
-    .slice(0, 3);
+  return [...players].sort(comparePlayersByStanding).slice(0, 3);
 }
 
 export async function getLiveResponse(

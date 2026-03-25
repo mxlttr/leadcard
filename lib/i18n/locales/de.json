@@ -5,11 +5,11 @@
   },
   "app": {
     "name": "Leadcard",
-    "title": "Live-Zwischenstaende",
+    "title": "Live-Rangliste",
     "tagline": "Zuschauerorientiertes Leaderboard mit Fokus auf Bewegungen, Führende und die letzte wichtige Aktualisierung.",
     "latestUpdate": "Letztes Update {{time}}",
     "upcomingTournament": "Bevorstehendes Turnier",
-    "liveScoringUnavailable": "Kein Livescoring verfuegbar",
+    "liveScoringUnavailable": "Kein Livescoring verfügbar",
     "nearLiveTitle": "Nahezu live, nicht in Echtzeit",
     "nearLiveDescription": "Die Scores werden in Intervallen gescraped und verglichen. Dadurch spiegeln Updates den zuletzt sichtbaren Spielstand wider, nicht Shot-für-Shot-Tracking."
   },
@@ -28,7 +28,7 @@
   },
   "snapshot": {
     "heading": "Gesamtübersicht",
-    "liveScoringNotAvailableYet": "{{roundLabel}} · Livescoring ist noch nicht verfuegbar",
+    "liveScoringNotAvailableYet": "{{roundLabel}} · Livescoring ist noch nicht verfügbar",
     "latestUpdate": "{{roundLabel}} · Letztes Update {{time}}",
     "upcomingMessage": "Dieses Turnier steht noch bevor. Leadcard zeigt Live-Zwischenstände, sobald der Veranstalter Livescoring veröffentlicht.",
     "unavailableMessage": "Für dieses Turnier ist aktuell kein Livescoring verfügbar.",
@@ -45,7 +45,7 @@
     "following": "Gefolgt",
     "noLiveData": "Dieses Turnier hat noch kein Livescoring gestartet. Schau näher am Startzeitpunkt noch einmal vorbei.",
     "noLiveScoring": "Für dieses Turnier ist aktuell kein Livescoring verfügbar.",
-    "noLeaderboard": "Es ist noch kein Leaderboard verfuegbar.",
+    "noLeaderboard": "Es ist noch kein Leaderboard verfügbar.",
     "noFollowedPlayers": "In dieser Division gibt es noch keine gefolgten Spieler.",
     "noPlayers": "Für diese Division sind keine Spieler verfügbar.",
     "footer": "Zuletzt sichtbarer Scoring-Stand. Die Anzeige für gespielte Bahnen basiert auf der zuletzt veröffentlichten Bahn, nicht auf Live-Tracking.",
