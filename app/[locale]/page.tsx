@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { LiveLeaderboard } from "@/components/live/live-leaderboard";
-import { getDictionary, isValidLocale, type AppLocale } from "@/lib/i18n";
+import { type AppLocale, getDictionary, isValidLocale } from "@/lib/i18n";
 
 export default async function LocaleHomePage({
   params,

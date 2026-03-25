@@ -4,8 +4,6 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Info, Star } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-import { useFollowedPlayers } from "@/hooks/use-followed-players";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { BattleGroup } from "@/components/live/battle-group";
 import { DivisionTabs } from "@/components/live/division-tabs";
@@ -22,12 +20,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  createTranslator,
-  locales,
-  type AppLocale,
-  type Dictionary,
-} from "@/lib/i18n";
+import { useFollowedPlayers } from "@/hooks/use-followed-players";
+import { type AppLocale, type Dictionary, locales } from "@/lib/i18n";
 import type {
   LeaderboardPlayer,
   LeaderboardResponse,
@@ -37,7 +31,9 @@ import type {
 import { cn, holeToLabel, timestampLabel } from "@/lib/utils";
 
 async function fetchJson<T>(url: string) {
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}`);
@@ -83,7 +79,7 @@ function LanguageSwitcher({ locale }: { locale: AppLocale }) {
   const { t } = useI18n();
 
   return (
-    <div
+    <nav
       className="flex items-center gap-1 rounded-full border border-border bg-surface p-1"
       aria-label={t("language.switcherLabel")}
     >
@@ -105,7 +101,7 @@ function LanguageSwitcher({ locale }: { locale: AppLocale }) {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
 
@@ -159,6 +155,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   });
 
   useEffect(() => {
+    if (!selectedTournamentId && !selectedDivision) {
+      return;
+    }
+
     setSelectedPlayer(null);
     setSheetOpen(false);
   }, [selectedTournamentId, selectedDivision]);

@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext, useMemo } from "react";
 
-import { createTranslator, type AppLocale, type Dictionary } from "@/lib/i18n";
+import { type AppLocale, createTranslator, type Dictionary } from "@/lib/i18n";
 
 type I18nContextValue = {
   locale: AppLocale;

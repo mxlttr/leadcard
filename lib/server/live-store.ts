@@ -1,3 +1,10 @@
+import { createPlayerDelta, createRecentUpdate } from "@/lib/server/diff";
+import { scrapeSnapshot } from "@/lib/server/scraper";
+import {
+  getDefaultTournamentId,
+  getTournamentCatalog,
+  loadTournamentSnapshotSource,
+} from "@/lib/server/tournament-source";
 import type {
   DivisionLeader,
   LeaderboardPlayer,
@@ -8,13 +15,6 @@ import type {
   TournamentSummary,
   UpdatesResponse,
 } from "@/lib/types";
-import { createPlayerDelta, createRecentUpdate } from "@/lib/server/diff";
-import { scrapeSnapshot } from "@/lib/server/scraper";
-import {
-  getDefaultTournamentId,
-  getTournamentCatalog,
-  loadTournamentSnapshotSource,
-} from "@/lib/server/tournament-source";
 
 const UPDATE_INTERVAL_MS = 25_000;
 
@@ -119,7 +119,13 @@ async function ensureStore(tournamentId: string) {
     );
   }
 
-  return globalThis.leadcardStore.get(tournamentId)!;
+  const store = globalThis.leadcardStore.get(tournamentId);
+
+  if (!store) {
+    throw new Error(`Missing live store for tournament ${tournamentId}.`);
+  }
+
+  return store;
 }
 
 async function advanceStore(store: LiveState) {

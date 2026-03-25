@@ -23,6 +23,20 @@ function holeTone(value: number) {
   return "bg-muted/40";
 }
 
+function stableHoleKeys(values: number[], playerId: string) {
+  const counts = new Map<number, number>();
+
+  return values.map((value) => {
+    const occurrence = (counts.get(value) ?? 0) + 1;
+    counts.set(value, occurrence);
+
+    return {
+      key: `${playerId}-${value}-${occurrence}`,
+      value,
+    };
+  });
+}
+
 function playerMomentum(
   player: LeaderboardPlayer,
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -98,13 +112,15 @@ export function LeaderboardCard({
 
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            {player.lastFive.map((hole, index) => (
-              <span
-                key={`${player.playerId}-${index}`}
-                className={cn("h-3.5 w-3.5 rounded-full", holeTone(hole))}
-                aria-hidden="true"
-              />
-            ))}
+            {stableHoleKeys(player.lastFive, player.playerId).map(
+              ({ key, value }) => (
+                <span
+                  key={key}
+                  className={cn("h-3.5 w-3.5 rounded-full", holeTone(value))}
+                  aria-hidden="true"
+                />
+              ),
+            )}
           </div>
           {playerMomentum(player, t)}
         </div>

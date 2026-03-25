@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { HtmlLang } from "@/components/html-lang";
 import {
+  type AppLocale,
   getDictionary,
   isValidLocale,
   locales,
-  type AppLocale,
 } from "@/lib/i18n";
 
 export function generateStaticParams() {
@@ -44,5 +45,10 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  return children;
+  return (
+    <>
+      <HtmlLang locale={resolvedParams.locale} />
+      {children}
+    </>
+  );
 }

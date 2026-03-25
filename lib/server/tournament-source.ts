@@ -1,10 +1,9 @@
 import { load } from "cheerio";
-
-import type { TournamentStatus, TournamentSummary } from "@/lib/types";
 import {
   defaultMockTournamentId,
   mockTournamentFeeds,
 } from "@/lib/server/mock-source";
+import type { TournamentStatus, TournamentSummary } from "@/lib/types";
 
 type TournamentSourceResult = {
   tournament: TournamentSummary;

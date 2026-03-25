@@ -47,7 +47,7 @@ export function RecentUpdatesList({ updates }: { updates: RecentUpdate[] }) {
             ) : (
               updates.map((update, index) => (
                 <div
-                  key={`${update.playerId}-${update.createdAt}-${index}`}
+                  key={`${update.playerId}-${update.createdAt}-${update.text}`}
                   className="space-y-3"
                 >
                   <div className="flex items-start justify-between gap-3">

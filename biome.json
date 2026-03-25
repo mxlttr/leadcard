@@ -6,7 +6,10 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "noUnknownAtRules": "off"
+      }
     }
   },
   "javascript": {
@@ -18,6 +21,12 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!node_modules", "!.next", "!tsconfig.tsbuildinfo"]
+    "includes": [
+      "**",
+      "!node_modules",
+      "!.next",
+      "!tests/fixtures",
+      "!tsconfig.tsbuildinfo"
+    ]
   }
 }

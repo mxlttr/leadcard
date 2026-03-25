@@ -44,6 +44,20 @@ function toneVariant(tone: RecentUpdate["tone"]) {
   return "default";
 }
 
+function stableHoleKeys(values: number[], playerId: string) {
+  const counts = new Map<number, number>();
+
+  return values.map((value) => {
+    const occurrence = (counts.get(value) ?? 0) + 1;
+    counts.set(value, occurrence);
+
+    return {
+      key: `${playerId}-${value}-${occurrence}`,
+      value,
+    };
+  });
+}
+
 export function PlayerDetailSheet({
   player,
   updates,
@@ -115,18 +129,20 @@ export function PlayerDetailSheet({
                   </p>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
-                  {player.lastFive.map((value, index) => (
-                    <div
-                      key={`${player.playerId}-hole-${index}`}
-                      className={`rounded-[18px] px-3 py-4 text-center score-text text-lg font-bold ${toneChip(value)}`}
-                    >
-                      {value === 0
-                        ? t("player.par")
-                        : value > 0
-                          ? `+${value}`
-                          : value}
-                    </div>
-                  ))}
+                  {stableHoleKeys(player.lastFive, player.playerId).map(
+                    ({ key, value }) => (
+                      <div
+                        key={key}
+                        className={`rounded-[18px] px-3 py-4 text-center score-text text-lg font-bold ${toneChip(value)}`}
+                      >
+                        {value === 0
+                          ? t("player.par")
+                          : value > 0
+                            ? `+${value}`
+                            : value}
+                      </div>
+                    ),
+                  )}
                 </div>
               </section>
 
@@ -145,9 +161,9 @@ export function PlayerDetailSheet({
                       {t("player.noPlayerUpdate")}
                     </div>
                   ) : (
-                    playerUpdates.map((update, index) => (
+                    playerUpdates.map((update) => (
                       <div
-                        key={`${update.playerId}-${update.createdAt}-${index}`}
+                        key={`${update.playerId}-${update.createdAt}-${update.text}`}
                         className="rounded-[18px] border border-border bg-background px-4 py-4"
                       >
                         <div className="flex items-center justify-between gap-3">

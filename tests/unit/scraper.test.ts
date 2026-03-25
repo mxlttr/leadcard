@@ -18,7 +18,12 @@ function requirePlayer(
 ) {
   const player = snapshot.players.find((entry) => entry.name === name);
   expect(player).toBeDefined();
-  return player!;
+
+  if (!player) {
+    throw new Error(`Expected player ${name} to exist in snapshot.`);
+  }
+
+  return player;
 }
 
 describe("scrapeSnapshot", () => {
