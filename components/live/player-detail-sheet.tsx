@@ -20,6 +20,7 @@ import {
   scoreTone,
   timestampLabel,
 } from "@/lib/utils";
+import { formatUpdateText } from "@/lib/update-copy";
 
 function toneChip(value: number) {
   if (value < 0) {
@@ -181,7 +182,7 @@ export function PlayerDetailSheet({
                           </span>
                         </div>
                         <p className="mt-3 text-sm [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden">
-                          {update.text}
+                          {formatUpdateText(update, t)}
                         </p>
                       </div>
                     ))

@@ -70,7 +70,31 @@
   },
   "updates": {
     "heading": "Letzte Updates",
-    "description": "Sinnvolle Veränderungen, abgeleitet aus Snapshot-Differenzen.",
+    "description": "Der Puls des Turniers, abgeleitet aus Bewegungen im Leaderboard.",
+    "keyMoments": "Schlüsselmomente",
+    "latest": "Neueste Updates",
+    "tapHint": "Tippe auf ein Update, um direkt zum Spieler zu springen.",
+    "copy": {
+      "finishes": "{{name}} beendet das Turnier bei {{score}}",
+      "takesLead": "{{name}} übernimmt die Führung bei {{score}}",
+      "climbs": "{{name}} klettert auf {{rank}} bei {{score}}{{through}}",
+      "drops": "{{name}} fällt auf {{rank}} bei {{score}}{{through}}",
+      "holdsLead": "{{name}} verteidigt die Führung bei {{score}}{{through}}",
+      "holdsPosition": "{{name}} hält {{rank}} bei {{score}}{{through}}",
+      "throughSuffix": " nach {{hole}} Bahnen"
+    },
+    "labels": {
+      "leadChange": "Führungswechsel",
+      "leadBattle": "Kampf um die Führung",
+      "top3": "Top-3-Update",
+      "finish": "Finish",
+      "surge": "Großer Swing"
+    },
+    "context": {
+      "leadsBy": "Jetzt {{strokes}} Würfe Vorsprung",
+      "topThreeReshuffled": "Die Top 3 haben sich neu sortiert",
+      "playerFinished": "Ein Finish mit Auswirkung auf das Leaderboard"
+    },
     "latestTwenty": "Letzte 20",
     "waiting": "Warte auf die nächste Scoring-Bewegung.",
     "positive": "positiv",
@@ -79,6 +103,6 @@
   },
   "holes": {
     "finished": "Beendet",
-    "through": "Durch Bahn {{count}}"
+    "through": "Nach Bahn {{count}}"
   }
 }

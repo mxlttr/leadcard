@@ -20,11 +20,20 @@ export type PlayerDelta = {
   thruDelta: number;
 };
 
+export type UpdateImportance = "high" | "medium" | "low";
+
 export type RecentUpdate = {
+  id: string;
   playerId: string;
   playerName: string;
+  division: string;
   text: string;
+  importance: UpdateImportance;
   tone: "positive" | "negative" | "neutral";
+  rank?: number;
+  previousRank?: number;
+  scoreToPar?: number;
+  thru?: ThruValue;
   createdAt: string;
 };
 

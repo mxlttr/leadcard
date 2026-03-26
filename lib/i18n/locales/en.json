@@ -70,7 +70,31 @@
   },
   "updates": {
     "heading": "Recent updates",
-    "description": "Meaningful movement inferred from snapshot diffs.",
+    "description": "The heartbeat of the tournament, inferred from leaderboard movement.",
+    "keyMoments": "Key moments",
+    "latest": "Latest updates",
+    "tapHint": "Tap any update to jump to that player.",
+    "copy": {
+      "finishes": "{{name}} finishes at {{score}}",
+      "takesLead": "{{name}} takes the lead at {{score}}",
+      "climbs": "{{name}} climbs to {{rank}} at {{score}}{{through}}",
+      "drops": "{{name}} drops to {{rank}} at {{score}}{{through}}",
+      "holdsLead": "{{name}} holds the lead at {{score}}{{through}}",
+      "holdsPosition": "{{name}} holds {{rank}} at {{score}}{{through}}",
+      "throughSuffix": " through {{hole}}"
+    },
+    "labels": {
+      "leadChange": "Lead change",
+      "leadBattle": "Lead battle",
+      "top3": "Top 3 update",
+      "finish": "Finish",
+      "surge": "Big swing"
+    },
+    "context": {
+      "leadsBy": "Now leads by {{strokes}} strokes",
+      "topThreeReshuffled": "The top 3 has shifted",
+      "playerFinished": "A round finish with leaderboard impact"
+    },
     "latestTwenty": "Latest 20",
     "waiting": "Waiting for the next scoring movement.",
     "positive": "positive",

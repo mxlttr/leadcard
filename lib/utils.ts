@@ -44,6 +44,47 @@ export function timestampLabel(value: string, locale: AppLocale) {
   }).format(new Date(value));
 }
 
+export function formatRelativeTime(
+  value: string,
+  locale: AppLocale,
+  now = Date.now(),
+) {
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    return timestampLabel(value, locale);
+  }
+
+  const diffSeconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+
+  if (diffSeconds < 45) {
+    return locale === "de" ? "gerade eben" : "just now";
+  }
+
+  if (diffSeconds < 60 * 60) {
+    const minutes = Math.max(1, Math.floor(diffSeconds / 60));
+    return locale === "de" ? `vor ${minutes}m` : `${minutes}m ago`;
+  }
+
+  if (diffSeconds < 6 * 60 * 60) {
+    const hours = Math.max(1, Math.floor(diffSeconds / (60 * 60)));
+    return locale === "de" ? `vor ${hours}h` : `${hours}h ago`;
+  }
+
+  const date = new Date(timestamp);
+  const today = new Date(now);
+  const sameDay =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
+
+  if (sameDay) {
+    return locale === "de" ? "Früher heute" : "Earlier today";
+  }
+
+  return "";
+}
+
 export function formatDivisionRank(
   player: LeaderboardPlayer,
   divisionPlayers: LeaderboardPlayer[],

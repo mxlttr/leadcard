@@ -9,7 +9,7 @@ import { BattleGroup } from "@/components/live/battle-group";
 import { DivisionTabs } from "@/components/live/division-tabs";
 import { GlobalSnapshot } from "@/components/live/global-snapshot";
 import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
-import { RecentUpdatesList } from "@/components/live/recent-updates-list";
+import { RecentUpdatesFeed } from "@/components/live/recent-updates-feed";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +26,7 @@ import type {
   LeaderboardPlayer,
   LeaderboardResponse,
   LiveResponse,
+  RecentUpdate,
   UpdatesResponse,
 } from "@/lib/types";
 import { cn, holeToLabel, timestampLabel } from "@/lib/utils";
@@ -117,6 +118,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
   const [selectedPlayer, setSelectedPlayer] =
     useState<LeaderboardPlayer | null>(null);
+  const [pendingUpdateTarget, setPendingUpdateTarget] = useState<{
+    playerId: string;
+    division: string;
+  } | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [resolvedLiveData, setResolvedLiveData] = useState<LiveResponse | null>(
     null,
@@ -160,13 +165,23 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   });
 
   useEffect(() => {
-    if (!selectedTournamentId && !selectedDivision) {
+    if (!selectedTournamentId) {
       return;
     }
 
     setSelectedPlayer(null);
     setSheetOpen(false);
-  }, [selectedTournamentId, selectedDivision]);
+    setPendingUpdateTarget(null);
+  }, [selectedTournamentId]);
+
+  useEffect(() => {
+    if (!selectedDivision) {
+      return;
+    }
+
+    setSelectedPlayer(null);
+    setSheetOpen(false);
+  }, [selectedDivision]);
 
   useEffect(() => {
     if (liveQuery.data) {
@@ -225,8 +240,54 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         );
   const groupedPlayers = groupPlayers(players, t);
 
+  useEffect(() => {
+    if (!pendingUpdateTarget) {
+      return;
+    }
+
+    const matchedPlayer = currentPlayers.find(
+      (player) => player.playerId === pendingUpdateTarget.playerId,
+    );
+
+    if (!matchedPlayer) {
+      return;
+    }
+
+    setSelectedPlayer(matchedPlayer);
+    setSheetOpen(true);
+    setPendingUpdateTarget(null);
+  }, [currentPlayers, pendingUpdateTarget]);
+
   if (!liveData || !leaderboardData || !updatesData) {
     return <LoadingShell />;
+  }
+
+  function openPlayerDetails(player: LeaderboardPlayer) {
+    setSelectedPlayer(player);
+    setSheetOpen(true);
+  }
+
+  function handleUpdateSelect(update: RecentUpdate) {
+    setFilterMode("ALL");
+
+    const matchedPlayer = currentPlayers.find(
+      (player) => player.playerId === update.playerId,
+    );
+
+    if (matchedPlayer && update.division === selectedDivision) {
+      openPlayerDetails(matchedPlayer);
+      return;
+    }
+
+    if (!liveData?.divisions.includes(update.division)) {
+      return;
+    }
+
+    setPendingUpdateTarget({
+      playerId: update.playerId,
+      division: update.division,
+    });
+    setSelectedDivision(update.division);
   }
 
   return (
@@ -399,16 +460,16 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 divisionPlayers={currentPlayers}
                 isFollowed={isFollowed}
                 onFollowToggle={togglePlayer}
-                onPlayerSelect={(player) => {
-                  setSelectedPlayer(player);
-                  setSheetOpen(true);
-                }}
+                onPlayerSelect={openPlayerDetails}
               />
             ))
           )}
         </section>
 
-        <RecentUpdatesList updates={updatesData.updates} />
+        <RecentUpdatesFeed
+          updates={updatesData.updates}
+          onSelectUpdate={handleUpdateSelect}
+        />
 
         <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
           {t("leaderboard.footer")}

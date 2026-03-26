@@ -1,4 +1,9 @@
-import type { PlayerDelta, PlayerSnapshot, RecentUpdate } from "@/lib/types";
+import type {
+  PlayerDelta,
+  PlayerSnapshot,
+  RecentUpdate,
+  UpdateImportance,
+} from "@/lib/types";
 
 function thruToNumber(thru: number | "F") {
   return thru === "F" ? 18 : thru;
@@ -32,32 +37,72 @@ export function createRecentUpdate(
     return null;
   }
 
+  const score = formatScore(current.scoreToPar);
+
   if (previous.thru !== "F" && current.thru === "F") {
     return {
+      id: updateId(current, createdAt),
       playerId: current.playerId,
       playerName: current.name,
-      text: `finishes at ${formatScore(current.scoreToPar)}`,
-      tone: current.scoreToPar < previous.scoreToPar ? "positive" : "neutral",
+      division: current.division,
+      text: `${current.name} finishes at ${score}`,
+      importance: updateImportance(previous, current, "finish"),
+      tone: toneForMovement(previous, current, "finish"),
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
+      createdAt,
+    };
+  }
+
+  if (current.rank === 1 && previous.rank !== 1) {
+    return {
+      id: updateId(current, createdAt),
+      playerId: current.playerId,
+      playerName: current.name,
+      division: current.division,
+      text: `${current.name} takes the lead at ${score}`,
+      importance: "high",
+      tone: "positive",
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
       createdAt,
     };
   }
 
   if (current.rank < previous.rank) {
     return {
+      id: updateId(current, createdAt),
       playerId: current.playerId,
       playerName: current.name,
-      text: `moves to ${formatScore(current.scoreToPar)} through ${current.thru}`,
+      division: current.division,
+      text: `${current.name} climbs to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
+      importance: updateImportance(previous, current, "rank-up"),
       tone: "positive",
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
       createdAt,
     };
   }
 
   if (current.rank > previous.rank) {
     return {
+      id: updateId(current, createdAt),
       playerId: current.playerId,
       playerName: current.name,
-      text: `drops to ${ordinal(current.rank)}`,
+      division: current.division,
+      text: `${current.name} drops to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
+      importance: updateImportance(previous, current, "rank-down"),
       tone: "negative",
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
       createdAt,
     };
   }
@@ -66,18 +111,21 @@ export function createRecentUpdate(
     current.scoreToPar !== previous.scoreToPar ||
     current.thru !== previous.thru
   ) {
-    const tone =
-      current.scoreToPar < previous.scoreToPar
-        ? "positive"
-        : current.scoreToPar > previous.scoreToPar
-          ? "negative"
-          : "neutral";
-
     return {
+      id: updateId(current, createdAt),
       playerId: current.playerId,
       playerName: current.name,
-      text: `moves to ${formatScore(current.scoreToPar)} through ${current.thru}`,
-      tone,
+      division: current.division,
+      text:
+        current.rank === 1
+          ? `${current.name} holds the lead at ${score}${throughSuffix(current.thru)}`
+          : `${current.name} moves to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
+      importance: updateImportance(previous, current, "score"),
+      tone: toneForMovement(previous, current, "score"),
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
       createdAt,
     };
   }
@@ -93,21 +141,81 @@ export function formatScore(scoreToPar: number) {
   return scoreToPar > 0 ? `+${scoreToPar}` : `${scoreToPar}`;
 }
 
-function ordinal(rank: number) {
-  const mod10 = rank % 10;
-  const mod100 = rank % 100;
+function updateId(current: PlayerSnapshot, createdAt: string) {
+  return `${current.playerId}:${createdAt}:${current.rank}:${current.scoreToPar}:${current.thru}`;
+}
 
-  if (mod10 === 1 && mod100 !== 11) {
-    return `${rank}st`;
+function throughSuffix(thru: number | "F") {
+  if (thru === "F") {
+    return "";
   }
 
-  if (mod10 === 2 && mod100 !== 12) {
-    return `${rank}nd`;
+  return ` through ${thru}`;
+}
+
+function toneForMovement(
+  previous: PlayerSnapshot,
+  current: PlayerSnapshot,
+  kind: "finish" | "rank-up" | "rank-down" | "score",
+): RecentUpdate["tone"] {
+  if (kind === "rank-up") {
+    return "positive";
   }
 
-  if (mod10 === 3 && mod100 !== 13) {
-    return `${rank}rd`;
+  if (kind === "rank-down") {
+    return "negative";
   }
 
-  return `${rank}th`;
+  if (current.scoreToPar < previous.scoreToPar) {
+    return "positive";
+  }
+
+  if (current.scoreToPar > previous.scoreToPar) {
+    return "negative";
+  }
+
+  return "neutral";
+}
+
+function updateImportance(
+  previous: PlayerSnapshot,
+  current: PlayerSnapshot,
+  kind: "finish" | "rank-up" | "rank-down" | "score",
+): UpdateImportance {
+  const scoreSwing = Math.abs(previous.scoreToPar - current.scoreToPar);
+  const rankSwing = Math.abs(previous.rank - current.rank);
+  const topThreeShift =
+    (previous.rank > 3 && current.rank <= 3) ||
+    (previous.rank <= 3 && current.rank > 3);
+
+  if (
+    kind === "rank-up" &&
+    current.rank === 1
+  ) {
+    return "high";
+  }
+
+  if (kind === "finish" && current.rank <= 3) {
+    return "high";
+  }
+
+  if (
+    topThreeShift ||
+    (current.rank <= 3 && kind !== "score") ||
+    scoreSwing >= 3
+  ) {
+    return "high";
+  }
+
+  if (
+    current.rank <= 10 ||
+    previous.rank <= 10 ||
+    rankSwing >= 2 ||
+    scoreSwing >= 2 ||
+    kind === "finish"
+  ) {
+    return "medium";
+  }
+
+  return "low";
 }

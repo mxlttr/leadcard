@@ -7,10 +7,17 @@ type PlayerDelta = {
 };
 
 type RecentUpdate = {
+  id: string;
   playerId: string;
   playerName: string;
+  division: string;
   text: string;
+  importance: "high" | "medium" | "low";
   tone: "positive" | "negative" | "neutral";
+  rank?: number;
+  previousRank?: number;
+  scoreToPar?: number;
+  thru?: number | "F";
   createdAt: string;
 };
 
@@ -133,10 +140,17 @@ const alphaOpenPlayers = [
     rank: 1,
     scoreToPar: -5,
     latestUpdate: {
+      id: "alice-ace:2026-03-26T10:00:00.000Z:1:-5:6",
       playerId: "alice-ace",
       playerName: "Alice Ace",
-      text: "moves to -5 through 6",
+      division: "Open",
+      text: "Alice Ace takes the lead at -5",
+      importance: "high",
       tone: "positive",
+      rank: 1,
+      previousRank: 2,
+      scoreToPar: -5,
+      thru: 6,
       createdAt: "2026-03-26T10:00:00.000Z",
     },
   }),

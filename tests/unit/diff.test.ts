@@ -54,10 +54,17 @@ describe("createRecentUpdate", () => {
     );
 
     expect(update).toEqual({
+      id: "player-1:2026-03-24T12:00:25.000Z:1:-5:F",
       playerId: "player-1",
       playerName: "Test Player",
-      text: "finishes at -5",
+      division: "Open",
+      text: "Test Player finishes at -5",
+      importance: "high",
       tone: "positive",
+      rank: 1,
+      previousRank: 1,
+      scoreToPar: -5,
+      thru: "F",
       createdAt,
     });
   });
@@ -70,10 +77,17 @@ describe("createRecentUpdate", () => {
     );
 
     expect(update).toEqual({
+      id: "player-1:2026-03-24T12:00:25.000Z:1:-4:12",
       playerId: "player-1",
       playerName: "Test Player",
-      text: "moves to -4 through 12",
+      division: "Open",
+      text: "Test Player takes the lead at -4",
+      importance: "high",
       tone: "positive",
+      rank: 1,
+      previousRank: 3,
+      scoreToPar: -4,
+      thru: 12,
       createdAt,
     });
   });

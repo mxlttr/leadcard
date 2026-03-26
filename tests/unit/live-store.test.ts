@@ -198,9 +198,9 @@ describe("live-store", () => {
     });
     expect(updates.updates.map((update) => update.text)).toEqual(
       expect.arrayContaining([
-        "moves to -4 through 6",
-        "drops to 2nd",
-        "moves to E through 6",
+        "Bob Birdie takes the lead at -4",
+        "Alice Ace drops to #2 at -3 through 6",
+        "Cara Chain holds the lead at E through 6",
       ]),
     );
   });

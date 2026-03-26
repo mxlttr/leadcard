@@ -9,6 +9,7 @@ import { ScoreDisplay } from "@/components/live/score-display";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { LeaderboardPlayer } from "@/lib/types";
+import { formatUpdateText } from "@/lib/update-copy";
 import { cn, formatDivisionRank, holeToLabel } from "@/lib/utils";
 
 function holeTone(value: number) {
@@ -128,7 +129,9 @@ export function LeaderboardCard({
         </div>
 
         <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-          {player.latestUpdate?.text ??
+          {player.latestUpdate
+            ? formatUpdateText(player.latestUpdate, t)
+            : 
             t("player.holding", {
               status: holeToLabel(player.thru, t).toLowerCase(),
             })}
