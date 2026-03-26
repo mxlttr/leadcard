@@ -35,6 +35,7 @@ export function createRecentUpdate(
   if (previous.thru !== "F" && current.thru === "F") {
     return {
       playerId: current.playerId,
+      playerName: current.name,
       text: `finishes at ${formatScore(current.scoreToPar)}`,
       tone: current.scoreToPar < previous.scoreToPar ? "positive" : "neutral",
       createdAt,
@@ -44,6 +45,7 @@ export function createRecentUpdate(
   if (current.rank < previous.rank) {
     return {
       playerId: current.playerId,
+      playerName: current.name,
       text: `moves to ${formatScore(current.scoreToPar)} through ${current.thru}`,
       tone: "positive",
       createdAt,
@@ -53,6 +55,7 @@ export function createRecentUpdate(
   if (current.rank > previous.rank) {
     return {
       playerId: current.playerId,
+      playerName: current.name,
       text: `drops to ${ordinal(current.rank)}`,
       tone: "negative",
       createdAt,
@@ -72,6 +75,7 @@ export function createRecentUpdate(
 
     return {
       playerId: current.playerId,
+      playerName: current.name,
       text: `moves to ${formatScore(current.scoreToPar)} through ${current.thru}`,
       tone,
       createdAt,

@@ -55,6 +55,7 @@ describe("createRecentUpdate", () => {
 
     expect(update).toEqual({
       playerId: "player-1",
+      playerName: "Test Player",
       text: "finishes at -5",
       tone: "positive",
       createdAt,
@@ -70,6 +71,7 @@ describe("createRecentUpdate", () => {
 
     expect(update).toEqual({
       playerId: "player-1",
+      playerName: "Test Player",
       text: "moves to -4 through 12",
       tone: "positive",
       createdAt,

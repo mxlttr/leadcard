@@ -8,6 +8,7 @@ type PlayerDelta = {
 
 type RecentUpdate = {
   playerId: string;
+  playerName: string;
   text: string;
   tone: "positive" | "negative" | "neutral";
   createdAt: string;
@@ -133,6 +134,7 @@ const alphaOpenPlayers = [
     scoreToPar: -5,
     latestUpdate: {
       playerId: "alice-ace",
+      playerName: "Alice Ace",
       text: "moves to -5 through 6",
       tone: "positive",
       createdAt: "2026-03-26T10:00:00.000Z",

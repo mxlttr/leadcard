@@ -52,6 +52,9 @@ export function RecentUpdatesList({ updates }: { updates: RecentUpdate[] }) {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {update.playerName}
+                      </p>
                       <Badge variant={toneVariant(update.tone)}>
                         {t(`updates.${update.tone}`)}
                       </Badge>

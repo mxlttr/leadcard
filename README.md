@@ -18,6 +18,13 @@ npm install
 npm run dev
 ```
 
+To force the local app to use only mock tournaments and mock leaderboard snapshots:
+
+```bash
+echo 'LEADCARD_FORCE_MOCK_DATA=true' >> .env.local
+npm run dev
+```
+
 ## Testing
 
 ```bash

@@ -22,6 +22,7 @@ export type PlayerDelta = {
 
 export type RecentUpdate = {
   playerId: string;
+  playerName: string;
   text: string;
   tone: "positive" | "negative" | "neutral";
   createdAt: string;

@@ -47,6 +47,7 @@ function getMockTournamentCatalog() {
 const LISTING_URL = "https://turniere.discgolf.de/index.php?p=events";
 const LIVE_URL = "https://turniere.discgolf.de/index.php?p=events&sp=live&id=";
 const ACTIVE_WINDOW_DAYS = 7;
+const FORCE_MOCK_DATA = process.env.LEADCARD_FORCE_MOCK_DATA === "true";
 
 function buildHeaders() {
   return {
@@ -196,6 +197,10 @@ async function loadDynamicTournamentSnapshotHtml(
 }
 
 export async function getTournamentCatalog() {
+  if (FORCE_MOCK_DATA) {
+    return getMockTournamentCatalog();
+  }
+
   try {
     const dynamicCatalog = await loadDynamicTournamentCatalog();
     return dynamicCatalog.length > 0
@@ -232,7 +237,9 @@ export async function loadTournamentSnapshotSource(
   tournamentId: string,
   fixtureIndex: number,
 ): Promise<TournamentSourceResult> {
-  const dynamicHtml = await loadDynamicTournamentSnapshotHtml(tournamentId);
+  const dynamicHtml = FORCE_MOCK_DATA
+    ? null
+    : await loadDynamicTournamentSnapshotHtml(tournamentId);
 
   if (dynamicHtml) {
     return {
