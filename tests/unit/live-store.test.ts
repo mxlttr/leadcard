@@ -98,6 +98,39 @@ const secondSnapshotHtml = serializeSnapshot("2026-03-24T12:00:25.000Z", [
   },
 ]);
 
+const unsortedDivisionLeadersHtml = serializeSnapshot(
+  "2026-03-24T12:01:00.000Z",
+  [
+    {
+      playerId: "women-a",
+      name: "Cara Chain",
+      division: "Women",
+      rank: 1,
+      scoreToPar: 2,
+      thru: "F",
+      lastFive: [0, 0, 1, 0, 1],
+    },
+    {
+      playerId: "masters-a",
+      name: "Milo Mando",
+      division: "Masters",
+      rank: 1,
+      scoreToPar: -1,
+      thru: "F",
+      lastFive: [0, 0, 0, -1, 0],
+    },
+    {
+      playerId: "open-a",
+      name: "Alice Ace",
+      division: "Open",
+      rank: 1,
+      scoreToPar: -5,
+      thru: "F",
+      lastFive: [-1, 0, -1, 0, 0],
+    },
+  ],
+);
+
 const loadTournamentSnapshotSource = vi.fn();
 const getTournamentCatalog = vi.fn();
 const getDefaultTournamentId = vi.fn();
@@ -196,5 +229,23 @@ describe("live-store", () => {
     expect(liveResponse.leaders).toEqual([]);
     expect(leaderboard.players).toEqual([]);
     expect(updates.updates).toEqual([]);
+  });
+
+  it("sorts division leaders by leaderboard score instead of source order", async () => {
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament,
+      html: unsortedDivisionLeadersHtml,
+      nextFixtureIndex: 0,
+    });
+
+    const liveStore = await import("@/lib/server/live-store");
+    const liveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(liveResponse.divisionLeaders.map(({ division }) => division)).toEqual(
+      ["Open", "Masters", "Women"],
+    );
+    expect(
+      liveResponse.divisionLeaders.map(({ leader }) => leader.name),
+    ).toEqual(["Alice Ace", "Milo Mando", "Cara Chain"]);
   });
 });
