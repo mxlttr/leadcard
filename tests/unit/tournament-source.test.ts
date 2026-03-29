@@ -115,4 +115,53 @@ describe("tournament-source", () => {
       "live-event",
     );
   });
+
+  it("treats empty live-score shells as no live data", async () => {
+    const listingHtml = buildListingHtml([
+      buildListingRow({
+        id: "2492",
+        name: "Shell Event",
+        course: "Forest Ridge",
+        startDate: new Date("2026-03-29T08:00:00.000Z"),
+        endDate: new Date("2026-03-29T17:00:00.000Z"),
+      }),
+    ]);
+
+    const emptyLiveHtml = `
+      <table id="livescoring_">
+        <thead>
+          <tr><th colspan="2">Par</th></tr>
+          <tr><th>No</th><th class="th_name">Open</th></tr>
+        </thead>
+        <tbody>
+          <tr style="height:20px;"><td colspan="25"></td></tr>
+          <tr style="height:20px;"><td colspan="25"></td></tr>
+        </tbody>
+      </table>
+    `;
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(listingHtml, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(emptyLiveHtml, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tournamentSource = await import("@/lib/server/tournament-source");
+    const snapshotSource = await tournamentSource.loadTournamentSnapshotSource(
+      "2492",
+      0,
+    );
+
+    expect(snapshotSource.tournament.id).toBe("2492");
+    expect(snapshotSource.html).toBeNull();
+  });
 });

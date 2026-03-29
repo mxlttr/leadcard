@@ -55,6 +55,10 @@ function buildHeaders() {
   };
 }
 
+function sanitizeText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 function dateRangeLabel(startDate: string, endDate: string) {
   return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
 }
@@ -192,8 +196,27 @@ async function loadDynamicTournamentSnapshotHtml(
   }
 
   const html = await response.text();
+  const $ = load(html);
+  const liveTable = $("#livescoring_");
 
-  return html.includes('table id="livescoring_') ? html : null;
+  if (liveTable.length === 0) {
+    return null;
+  }
+
+  const hasPlayerRows = liveTable.find("tbody > tr").toArray().some((row) => {
+    const cells = $(row).find("td");
+
+    if (cells.length < 2) {
+      return false;
+    }
+
+    const rankCell = sanitizeText(cells.eq(0).text());
+    const nameCell = sanitizeText(cells.eq(1).text());
+
+    return rankCell !== "" && nameCell !== "";
+  });
+
+  return hasPlayerRows ? html : null;
 }
 
 export async function getTournamentCatalog() {
