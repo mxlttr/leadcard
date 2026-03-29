@@ -15,6 +15,18 @@ type TournamentSourceConfig = {
   tournament: TournamentSummary;
 };
 
+type TournamentCatalogCache = {
+  tournaments: TournamentSummary[];
+  cachedAt: number;
+};
+
+declare global {
+  var leadcardTournamentCatalogCache: TournamentCatalogCache | undefined;
+  var leadcardTournamentCatalogPromise:
+    | Promise<TournamentSummary[]>
+    | undefined;
+}
+
 function toSummary(tournamentId: string): TournamentSummary {
   const feed =
     mockTournamentFeeds[tournamentId] ??
@@ -47,6 +59,7 @@ function getMockTournamentCatalog() {
 const LISTING_URL = "https://turniere.discgolf.de/index.php?p=events";
 const LIVE_URL = "https://turniere.discgolf.de/index.php?p=events&sp=live&id=";
 const ACTIVE_WINDOW_DAYS = 7;
+const TOURNAMENT_CATALOG_CACHE_TTL_MS = 60_000;
 const FORCE_MOCK_DATA = process.env.LEADCARD_FORCE_MOCK_DATA === "true";
 
 function buildHeaders() {
@@ -393,14 +406,40 @@ export async function getTournamentCatalog() {
     return getMockTournamentCatalog();
   }
 
-  try {
-    const dynamicCatalog = await loadDynamicTournamentCatalog();
-    return dynamicCatalog.length > 0
-      ? dynamicCatalog
-      : getMockTournamentCatalog();
-  } catch {
-    return getMockTournamentCatalog();
+  const cachedCatalog = globalThis.leadcardTournamentCatalogCache;
+
+  if (
+    cachedCatalog &&
+    Date.now() - cachedCatalog.cachedAt < TOURNAMENT_CATALOG_CACHE_TTL_MS
+  ) {
+    return cachedCatalog.tournaments;
   }
+
+  if (globalThis.leadcardTournamentCatalogPromise) {
+    return globalThis.leadcardTournamentCatalogPromise;
+  }
+
+  globalThis.leadcardTournamentCatalogPromise = (async () => {
+    try {
+      const dynamicCatalog = await loadDynamicTournamentCatalog();
+      const tournaments =
+        dynamicCatalog.length > 0 ? dynamicCatalog : getMockTournamentCatalog();
+      globalThis.leadcardTournamentCatalogCache = {
+        tournaments,
+        cachedAt: Date.now(),
+      };
+      return tournaments;
+    } catch {
+      if (cachedCatalog) {
+        return cachedCatalog.tournaments;
+      }
+      return getMockTournamentCatalog();
+    } finally {
+      globalThis.leadcardTournamentCatalogPromise = undefined;
+    }
+  })();
+
+  return globalThis.leadcardTournamentCatalogPromise;
 }
 
 export async function getDefaultTournamentId() {

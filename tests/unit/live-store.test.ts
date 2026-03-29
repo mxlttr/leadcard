@@ -147,6 +147,8 @@ describe("live-store", () => {
     vi.setSystemTime(new Date("2026-03-24T12:00:00.000Z"));
     vi.resetModules();
     globalThis.leadcardStore = undefined;
+    globalThis.leadcardStoreInitialization = undefined;
+    globalThis.leadcardStoreRefreshes = undefined;
 
     getTournamentCatalog.mockResolvedValue([tournament]);
     getDefaultTournamentId.mockResolvedValue(tournament.id);
@@ -162,6 +164,8 @@ describe("live-store", () => {
   afterEach(() => {
     vi.useRealTimers();
     globalThis.leadcardStore = undefined;
+    globalThis.leadcardStoreInitialization = undefined;
+    globalThis.leadcardStoreRefreshes = undefined;
     loadTournamentSnapshotSource.mockReset();
     getTournamentCatalog.mockReset();
     getDefaultTournamentId.mockReset();
@@ -247,5 +251,34 @@ describe("live-store", () => {
     expect(
       liveResponse.divisionLeaders.map(({ leader }) => leader.name),
     ).toEqual(["Alice Ace", "Milo Mando", "Cara Chain"]);
+  });
+
+  it("shares store initialization across concurrent API requests", async () => {
+    const liveStore = await import("@/lib/server/live-store");
+
+    await Promise.all([
+      liveStore.getLiveResponse(tournament.id),
+      liveStore.getLeaderboardResponse(tournament.id, ""),
+      liveStore.getUpdatesResponse(tournament.id),
+    ]);
+
+    expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares a single refresh across concurrent API requests after the polling interval", async () => {
+    const liveStore = await import("@/lib/server/live-store");
+
+    await liveStore.getLiveResponse(tournament.id);
+    expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
+
+    await Promise.all([
+      liveStore.getLiveResponse(tournament.id),
+      liveStore.getLeaderboardResponse(tournament.id, "Open"),
+      liveStore.getUpdatesResponse(tournament.id),
+    ]);
+
+    expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(2);
   });
 });

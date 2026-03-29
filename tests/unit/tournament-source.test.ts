@@ -41,11 +41,15 @@ describe("tournament-source", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-26T10:00:00.000Z"));
     vi.resetModules();
+    globalThis.leadcardTournamentCatalogCache = undefined;
+    globalThis.leadcardTournamentCatalogPromise = undefined;
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
+    globalThis.leadcardTournamentCatalogCache = undefined;
+    globalThis.leadcardTournamentCatalogPromise = undefined;
   });
 
   it("returns active tournaments sorted as live, today, recent, tomorrow, then upcoming", async () => {
@@ -220,5 +224,83 @@ describe("tournament-source", () => {
 
     expect(snapshotSource.tournament.id).toBe("2492");
     expect(snapshotSource.html).toBeNull();
+  });
+
+  it("reuses a fresh tournament catalog cache instead of refetching on every call", async () => {
+    const listingHtml = buildListingHtml([
+      buildListingRow({
+        id: "recent-event",
+        name: "Recent Classic",
+        course: "Lakeside",
+        startDate: new Date("2026-03-21T08:00:00.000Z"),
+        endDate: new Date("2026-03-25T17:00:00.000Z"),
+      }),
+      buildListingRow({
+        id: "upcoming-event",
+        name: "Upcoming Invitational",
+        course: "Forest Ridge",
+        startDate: new Date("2026-03-30T08:00:00.000Z"),
+        endDate: new Date("2026-03-31T17:00:00.000Z"),
+      }),
+    ]);
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(listingHtml, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tournamentSource = await import("@/lib/server/tournament-source");
+
+    await tournamentSource.getTournamentCatalog();
+    await tournamentSource.getTournamentCatalog();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares the in-flight tournament catalog request across concurrent callers", async () => {
+    const listingHtml = buildListingHtml([
+      buildListingRow({
+        id: "recent-event",
+        name: "Recent Classic",
+        course: "Lakeside",
+        startDate: new Date("2026-03-21T08:00:00.000Z"),
+        endDate: new Date("2026-03-25T17:00:00.000Z"),
+      }),
+    ]);
+
+    let resolveResponse: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tournamentSource = await import("@/lib/server/tournament-source");
+    const firstRequest = tournamentSource.getTournamentCatalog();
+    const secondRequest = tournamentSource.getTournamentCatalog();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse?.(
+      new Response(listingHtml, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+
+    const [firstCatalog, secondCatalog] = await Promise.all([
+      firstRequest,
+      secondRequest,
+    ]);
+
+    expect(firstCatalog).toEqual(secondCatalog);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -31,6 +31,8 @@ type LiveState = {
 
 declare global {
   var leadcardStore: Map<string, LiveState> | undefined;
+  var leadcardStoreInitialization: Map<string, Promise<LiveState>> | undefined;
+  var leadcardStoreRefreshes: Map<string, Promise<LiveState>> | undefined;
 }
 
 function sortPlayers(players: LeaderboardPlayer[]) {
@@ -133,20 +135,59 @@ async function ensureStore(tournamentId: string) {
     globalThis.leadcardStore = new Map();
   }
 
-  if (!globalThis.leadcardStore.has(tournamentId)) {
-    globalThis.leadcardStore.set(
-      tournamentId,
-      await createInitialState(tournamentId),
-    );
+  if (!globalThis.leadcardStoreInitialization) {
+    globalThis.leadcardStoreInitialization = new Map();
   }
 
-  const store = globalThis.leadcardStore.get(tournamentId);
+  const existingStore = globalThis.leadcardStore.get(tournamentId);
 
-  if (!store) {
-    throw new Error(`Missing live store for tournament ${tournamentId}.`);
+  if (existingStore) {
+    return existingStore;
   }
 
-  return store;
+  const inFlightInitialization =
+    globalThis.leadcardStoreInitialization.get(tournamentId);
+
+  if (inFlightInitialization) {
+    return inFlightInitialization;
+  }
+
+  const initialization = createInitialState(tournamentId)
+    .then((store) => {
+      globalThis.leadcardStore?.set(tournamentId, store);
+      return store;
+    })
+    .finally(() => {
+      globalThis.leadcardStoreInitialization?.delete(tournamentId);
+    });
+
+  globalThis.leadcardStoreInitialization.set(tournamentId, initialization);
+
+  return initialization;
+}
+
+async function refreshStore(store: LiveState) {
+  if (!globalThis.leadcardStoreRefreshes) {
+    globalThis.leadcardStoreRefreshes = new Map();
+  }
+
+  const inFlightRefresh = globalThis.leadcardStoreRefreshes.get(
+    store.tournament.id,
+  );
+
+  if (inFlightRefresh) {
+    return inFlightRefresh;
+  }
+
+  const refresh = advanceStore(store)
+    .then(() => store)
+    .finally(() => {
+      globalThis.leadcardStoreRefreshes?.delete(store.tournament.id);
+    });
+
+  globalThis.leadcardStoreRefreshes.set(store.tournament.id, refresh);
+
+  return refresh;
 }
 
 async function advanceStore(store: LiveState) {
@@ -188,7 +229,7 @@ async function refreshIfNeeded(tournamentId: string) {
   const store = await ensureStore(tournamentId);
 
   if (Date.now() - store.lastAdvancedAt >= UPDATE_INTERVAL_MS) {
-    await advanceStore(store);
+    return refreshStore(store);
   }
 
   return store;
