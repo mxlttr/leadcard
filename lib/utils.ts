@@ -92,6 +92,7 @@ export function formatDivisionRank(
   const isTied = divisionPlayers.some(
     (divisionPlayer) =>
       divisionPlayer.playerId !== player.playerId &&
+      divisionPlayer.division === player.division &&
       divisionPlayer.rank === player.rank,
   );
 

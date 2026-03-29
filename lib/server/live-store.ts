@@ -241,13 +241,15 @@ export async function getLeaderboardResponse(
 ): Promise<LeaderboardResponse> {
   const store = await refreshIfNeeded(tournamentId);
   const resolvedDivision = division || getDivisions(store.players)[0] || "";
+  const players =
+    division === "__all"
+      ? store.players
+      : store.players.filter((player) => player.division === resolvedDivision);
 
   return {
     tournamentId: store.tournament.id,
     division: resolvedDivision,
-    players: store.players.filter(
-      (player) => player.division === resolvedDivision,
-    ),
+    players,
     generatedAt: store.generatedAt,
   };
 }

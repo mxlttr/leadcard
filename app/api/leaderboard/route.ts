@@ -6,7 +6,7 @@ import {
 } from "@/lib/server/live-store";
 
 export async function GET(request: NextRequest) {
-  const division = request.nextUrl.searchParams.get("division") ?? "MPO";
+  const division = request.nextUrl.searchParams.get("division") ?? "";
   const tournamentId = await getResolvedTournamentId(
     request.nextUrl.searchParams.get("tournamentId"),
   );

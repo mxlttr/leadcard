@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Info, Star } from "lucide-react";
+import { Info, Search, Star, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
@@ -11,6 +11,7 @@ import { GlobalSnapshot } from "@/components/live/global-snapshot";
 import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
 import { RecentUpdatesFeed } from "@/components/live/recent-updates-feed";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -61,8 +62,18 @@ function LoadingShell() {
 function groupPlayers(
   players: LeaderboardPlayer[],
   filterMode: "ALL" | "FOLLOWING",
+  searchingAcrossDivisions: boolean,
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
+  if (searchingAcrossDivisions) {
+    return [
+      {
+        title: t("leaderboard.searchResults"),
+        players,
+      },
+    ];
+  }
+
   if (filterMode === "FOLLOWING") {
     return [
       {
@@ -147,6 +158,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [selectedDivision, setSelectedDivision] = useState("");
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showAllPlayers, setShowAllPlayers] = useState(false);
   const [selectedPlayer, setSelectedPlayer] =
     useState<LeaderboardPlayer | null>(null);
@@ -159,6 +171,8 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     null,
   );
   const [resolvedLeaderboardData, setResolvedLeaderboardData] =
+    useState<LeaderboardResponse | null>(null);
+  const [resolvedAllPlayersData, setResolvedAllPlayersData] =
     useState<LeaderboardResponse | null>(null);
   const [resolvedUpdatesData, setResolvedUpdatesData] =
     useState<UpdatesResponse | null>(null);
@@ -186,6 +200,16 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     placeholderData: keepPreviousData,
   });
 
+  const allPlayersQuery = useQuery({
+    queryKey: ["leaderboard", "all", locale, selectedTournamentId],
+    queryFn: () =>
+      fetchJson<LeaderboardResponse>(
+        `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent("__all")}`,
+      ),
+    enabled: Boolean(selectedTournamentId && searchQuery.trim()),
+    placeholderData: keepPreviousData,
+  });
+
   const updatesQuery = useQuery({
     queryKey: ["updates", locale, selectedTournamentId],
     queryFn: () =>
@@ -201,6 +225,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       return;
     }
 
+    setSearchQuery("");
     setShowAllPlayers(false);
     setSelectedPlayer(null);
     setSheetOpen(false);
@@ -212,14 +237,20 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       return;
     }
 
+    setSearchQuery("");
     setShowAllPlayers(false);
     setSelectedPlayer(null);
     setSheetOpen(false);
   }, [selectedDivision]);
 
   useEffect(() => {
+    setSearchQuery("");
     setShowAllPlayers(false);
   }, [filterMode]);
+
+  useEffect(() => {
+    setShowAllPlayers(false);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (liveQuery.data) {
@@ -234,6 +265,12 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   }, [leaderboardQuery.data]);
 
   useEffect(() => {
+    if (allPlayersQuery.data) {
+      setResolvedAllPlayersData(allPlayersQuery.data);
+    }
+  }, [allPlayersQuery.data]);
+
+  useEffect(() => {
     if (updatesQuery.data) {
       setResolvedUpdatesData(updatesQuery.data);
     }
@@ -241,6 +278,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
   const liveData = liveQuery.data ?? resolvedLiveData;
   const leaderboardData = leaderboardQuery.data ?? resolvedLeaderboardData;
+  const allPlayersData = allPlayersQuery.data ?? resolvedAllPlayersData;
   const updatesData = updatesQuery.data ?? resolvedUpdatesData;
 
   useEffect(() => {
@@ -276,11 +314,29 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       : currentPlayers.filter((player) =>
           followedPlayers.includes(player.playerId),
         );
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+  const tournamentPlayers =
+    !hydrated || filterMode === "ALL"
+      ? (allPlayersData?.players ?? currentPlayers)
+      : (allPlayersData?.players ?? []).filter((player) =>
+          followedPlayers.includes(player.playerId),
+        );
+  const searchedPlayers = normalizedSearchQuery
+    ? tournamentPlayers.filter((player) =>
+        player.name.toLocaleLowerCase().includes(normalizedSearchQuery),
+      )
+    : players;
   const visiblePlayers = showAllPlayers
-    ? players
-    : players.slice(0, INITIAL_PLAYER_COUNT);
-  const groupedPlayers = groupPlayers(visiblePlayers, filterMode, t);
-  const canShowAllPlayers = players.length > INITIAL_PLAYER_COUNT;
+    ? searchedPlayers
+    : searchedPlayers.slice(0, INITIAL_PLAYER_COUNT);
+  const isCrossDivisionSearch = Boolean(normalizedSearchQuery);
+  const groupedPlayers = groupPlayers(
+    visiblePlayers,
+    filterMode,
+    isCrossDivisionSearch,
+    t,
+  );
+  const canShowAllPlayers = searchedPlayers.length > INITIAL_PLAYER_COUNT;
 
   useEffect(() => {
     if (!pendingUpdateTarget) {
@@ -462,23 +518,55 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           <div className="flex items-center gap-2">
             <Button
               variant={filterMode === "ALL" ? "default" : "ghost"}
-              size="sm"
-              className={filterMode === "ALL" ? "" : "border border-border"}
+              className={cn(
+                "h-11 px-4",
+                filterMode === "ALL" ? "" : "border border-border",
+              )}
               onClick={() => setFilterMode("ALL")}
             >
               {t("leaderboard.all")}
             </Button>
             <Button
               variant={filterMode === "FOLLOWING" ? "accent" : "ghost"}
-              size="sm"
-              className={
-                filterMode === "FOLLOWING" ? "" : "border border-border"
-              }
+              className={cn(
+                "h-11 px-4",
+                filterMode === "FOLLOWING" ? "" : "border border-border",
+              )}
               onClick={() => setFilterMode("FOLLOWING")}
             >
               <Star className="mr-1 h-3.5 w-3.5" />
               {t("leaderboard.following")}
             </Button>
+
+            <div className="relative min-w-0 flex-1">
+              <label htmlFor="player-search" className="sr-only">
+                {t("leaderboard.searchLabel")}
+              </label>
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Input
+                id="player-search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t("leaderboard.searchPlaceholder")}
+                className="h-11 pl-10 pr-12"
+                aria-describedby="player-search-hint"
+              />
+              <span id="player-search-hint" className="sr-only">
+                {t("leaderboard.searchHint")}
+              </span>
+              {searchQuery ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0.5 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full"
+                  onClick={() => setSearchQuery("")}
+                  aria-label={t("leaderboard.clearSearch")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           {!liveData.hasLiveData ? (
@@ -489,10 +577,12 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             </div>
           ) : null}
 
-          {players.length === 0 ? (
+          {searchedPlayers.length === 0 ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
               {!liveData.hasLiveData
                 ? t("leaderboard.noLeaderboard")
+                : normalizedSearchQuery
+                  ? t("leaderboard.noSearchResults")
                 : filterMode === "FOLLOWING"
                   ? t("leaderboard.noFollowedPlayers")
                   : t("leaderboard.noPlayers")}
@@ -505,6 +595,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   title={group.title}
                   players={group.players}
                   divisionPlayers={currentPlayers}
+                  showDivision={isCrossDivisionSearch}
                   isFollowed={isFollowed}
                   onFollowToggle={togglePlayer}
                   onPlayerSelect={openPlayerDetails}
@@ -520,7 +611,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                     {showAllPlayers
                       ? t("leaderboard.showLessPlayers")
                       : t("leaderboard.showAllPlayers", {
-                          count: players.length,
+                          count: searchedPlayers.length,
                         })}
                   </Button>
                 </div>

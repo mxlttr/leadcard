@@ -8,6 +8,7 @@ import { RankDelta } from "@/components/live/rank-delta";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LeaderboardPlayer } from "@/lib/types";
 import { formatUpdateText } from "@/lib/update-copy";
 import { cn, formatDivisionRank, holeToLabel } from "@/lib/utils";
@@ -73,17 +74,19 @@ function playerMomentum(
 export function LeaderboardCard({
   player,
   divisionPlayers,
+  showDivision,
   followed,
   onFollowToggle,
   onSelect,
 }: {
   player: LeaderboardPlayer;
   divisionPlayers: LeaderboardPlayer[];
+  showDivision?: boolean;
   followed: boolean;
   onFollowToggle: () => void;
   onSelect: () => void;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
 
   return (
     <Card className="border-border bg-surface shadow-none">
@@ -101,6 +104,11 @@ export function LeaderboardCard({
               <div className="truncate text-base font-medium text-foreground">
                 {player.name}
               </div>
+              {showDivision ? (
+                <div className="mt-1 truncate text-xs text-muted">
+                  {translateDivisionLabel(player.division, locale)}
+                </div>
+              ) : null}
               <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-muted">
                 <span className="shrink-0">
                   <RankDelta value={player.delta.rankDelta} />
