@@ -51,6 +51,8 @@
     "noLeaderboard": "No leaderboard is available yet.",
     "noFollowedPlayers": "No followed players in this division yet.",
     "noPlayers": "No players available for this division.",
+    "showAllPlayers": "Show all players ({{count}})",
+    "showLessPlayers": "Show fewer players",
     "footer": "Latest visible scoring state. Through values reflect the most recently published hole, not live shot tracking.",
     "selectedPlayerFooter": "{{name}} is {{status}}."
   },

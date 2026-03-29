@@ -44,6 +44,7 @@ async function fetchJson<T>(url: string) {
 }
 
 const LEAD_CARD_SIZE = 4;
+const INITIAL_PLAYER_COUNT = 8;
 
 function LoadingShell() {
   return (
@@ -146,6 +147,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [selectedDivision, setSelectedDivision] = useState("");
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
+  const [showAllPlayers, setShowAllPlayers] = useState(false);
   const [selectedPlayer, setSelectedPlayer] =
     useState<LeaderboardPlayer | null>(null);
   const [pendingUpdateTarget, setPendingUpdateTarget] = useState<{
@@ -199,6 +201,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       return;
     }
 
+    setShowAllPlayers(false);
     setSelectedPlayer(null);
     setSheetOpen(false);
     setPendingUpdateTarget(null);
@@ -209,9 +212,14 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       return;
     }
 
+    setShowAllPlayers(false);
     setSelectedPlayer(null);
     setSheetOpen(false);
   }, [selectedDivision]);
+
+  useEffect(() => {
+    setShowAllPlayers(false);
+  }, [filterMode]);
 
   useEffect(() => {
     if (liveQuery.data) {
@@ -268,7 +276,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       : currentPlayers.filter((player) =>
           followedPlayers.includes(player.playerId),
         );
-  const groupedPlayers = groupPlayers(players, filterMode, t);
+  const visiblePlayers = showAllPlayers
+    ? players
+    : players.slice(0, INITIAL_PLAYER_COUNT);
+  const groupedPlayers = groupPlayers(visiblePlayers, filterMode, t);
+  const canShowAllPlayers = players.length > INITIAL_PLAYER_COUNT;
 
   useEffect(() => {
     if (!pendingUpdateTarget) {
@@ -486,17 +498,34 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   : t("leaderboard.noPlayers")}
             </div>
           ) : (
-            groupedPlayers.map((group) => (
-              <BattleGroup
-                key={group.title}
-                title={group.title}
-                players={group.players}
-                divisionPlayers={currentPlayers}
-                isFollowed={isFollowed}
-                onFollowToggle={togglePlayer}
-                onPlayerSelect={openPlayerDetails}
-              />
-            ))
+            <>
+              {groupedPlayers.map((group) => (
+                <BattleGroup
+                  key={group.title}
+                  title={group.title}
+                  players={group.players}
+                  divisionPlayers={currentPlayers}
+                  isFollowed={isFollowed}
+                  onFollowToggle={togglePlayer}
+                  onPlayerSelect={openPlayerDetails}
+                />
+              ))}
+              {canShowAllPlayers ? (
+                <div className="flex justify-center pt-1">
+                  <Button
+                    variant="ghost"
+                    className="rounded-full border border-border"
+                    onClick={() => setShowAllPlayers((current) => !current)}
+                  >
+                    {showAllPlayers
+                      ? t("leaderboard.showLessPlayers")
+                      : t("leaderboard.showAllPlayers", {
+                          count: players.length,
+                        })}
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
         </section>
 

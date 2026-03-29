@@ -51,6 +51,8 @@
     "noLeaderboard": "Es ist noch kein Leaderboard verfügbar.",
     "noFollowedPlayers": "In dieser Division gibt es noch keine gefolgten Spieler.",
     "noPlayers": "Für diese Division sind keine Spieler verfügbar.",
+    "showAllPlayers": "Alle Spieler anzeigen ({{count}})",
+    "showLessPlayers": "Weniger Spieler anzeigen",
     "footer": "Zuletzt sichtbarer Scoring-Stand. Die Anzeige für gespielte Bahnen basiert auf der zuletzt veröffentlichten Bahn, nicht auf Live-Tracking.",
     "selectedPlayerFooter": "{{name}} ist {{status}}."
   },
