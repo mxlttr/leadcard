@@ -27,6 +27,105 @@ function requirePlayer(
 }
 
 describe("scrapeSnapshot", () => {
+  it("does not treat empty hole cells as finished holes", () => {
+    const html = `
+      <table id="livescoring_">
+        <thead>
+          <tr class="w-100">
+            <th colspan="2" class="text-end">Par</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">4</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">3</th>
+            <th colspan="2"></th>
+            <th class="text-end">55</th>
+            <th colspan="2"></th>
+          </tr>
+          <tr class="w-100">
+            <th>No</th>
+            <th class="th_name">Open</th>
+            <th class="text-center th_hole">1</th>
+            <th class="text-center th_hole">2</th>
+            <th class="text-center th_hole">3</th>
+            <th class="text-center th_hole">4</th>
+            <th class="text-center th_hole">5</th>
+            <th class="text-center th_hole">6</th>
+            <th class="text-center th_hole">7</th>
+            <th class="text-center th_hole">8</th>
+            <th class="text-center th_hole">9</th>
+            <th class="text-center th_hole">10</th>
+            <th class="text-center th_hole">11</th>
+            <th class="text-center th_hole">12</th>
+            <th class="text-center th_hole">13</th>
+            <th class="text-center th_hole">14</th>
+            <th class="text-center th_hole">15</th>
+            <th class="text-center th_hole">16</th>
+            <th class="text-center th_hole">17</th>
+            <th class="text-center th_hole">18</th>
+            <th class="text-end">&pm;</th>
+            <th class="text-end" style="width:20px;">Kor</th>
+            <th class="text-end">&sum;</th>
+            <th class="text-end" colspan="2">total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Michael Hermenau</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>3</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="text-end">-1</td>
+            <td class="text-end"></td>
+            <td class="text-end">3</td>
+            <td class="text-end">-1</td>
+            <td class="text-end">3</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    const snapshot = scrapeSnapshot(html);
+
+    expect(snapshot.players).toHaveLength(1);
+    expect(snapshot.players[0]).toMatchObject({
+      name: "Michael Hermenau",
+      division: "Open",
+      rank: 1,
+      scoreToPar: -1,
+      thru: 1,
+    });
+  });
+
   it("parses all division sections from the 2425 live page", () => {
     const snapshot = scrapeSnapshot(readFixture("2425.html"));
     const divisions = [

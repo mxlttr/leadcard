@@ -45,6 +45,10 @@ function parseMockSnapshot(html: string): ScrapedSnapshot {
 }
 
 function parseHoleValue(cellText: string) {
+  if (cellText === "") {
+    return null;
+  }
+
   const value = Number(cellText);
   return Number.isFinite(value) ? value : null;
 }
