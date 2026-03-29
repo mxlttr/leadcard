@@ -63,20 +63,154 @@ function dateRangeLabel(startDate: string, endDate: string) {
   return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
 }
 
+function startOfDay(value: Date) {
+  const next = new Date(value);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function addDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
 function tournamentStatusFor(
   now: Date,
   startDate: Date,
   endDate: Date,
 ): TournamentStatus {
-  if (startDate > now) {
-    return "upcoming";
-  }
+  const todayStart = startOfDay(now);
+  const tomorrowStart = addDays(todayStart, 1);
+  const dayAfterTomorrowStart = addDays(todayStart, 2);
 
-  if (endDate < now) {
+  if (endDate < todayStart) {
     return "recent";
   }
 
-  return "live";
+  if (startDate >= tomorrowStart && startDate < dayAfterTomorrowStart) {
+    return "tomorrow";
+  }
+
+  if (startDate >= dayAfterTomorrowStart) {
+    return "upcoming";
+  }
+
+  return "today";
+}
+
+async function resolveLiveTournamentStatus(
+  tournament: TournamentSummary & {
+    sortStart: number;
+    sortEnd: number;
+  },
+): Promise<
+  TournamentSummary & {
+    sortStart: number;
+    sortEnd: number;
+  }
+> {
+  if (tournament.status !== "today") {
+    return tournament;
+  }
+
+  try {
+    const html = await loadDynamicTournamentSnapshotHtml(tournament.id);
+
+    if (!html) {
+      return tournament;
+    }
+
+    const hasActiveRound = hasActiveRoundInLivePage(html);
+
+    return {
+      ...tournament,
+      status: hasActiveRound ? ("live" as const) : ("today" as const),
+    };
+  } catch {
+    return tournament;
+  }
+}
+
+function hasActiveRoundInLivePage(html: string) {
+  const $ = load(html);
+  const tableNode = $("#livescoring_");
+
+  if (tableNode.length === 0) {
+    return false;
+  }
+
+  const sections = tableNode.children().toArray();
+
+  for (let index = 0; index < sections.length; index += 2) {
+    const thead = sections[index];
+    const tbody = sections[index + 1];
+
+    if (
+      !thead ||
+      !tbody ||
+      thead.tagName !== "thead" ||
+      tbody.tagName !== "tbody"
+    ) {
+      continue;
+    }
+
+    const holeCount = $(thead).find("tr").first().find("th.th_hole").length;
+
+    if (holeCount === 0) {
+      continue;
+    }
+
+    const rows = $(tbody).find("> tr").toArray();
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+      const firstCells = $(rows[rowIndex])
+        .find("td")
+        .toArray()
+        .map((cell) => sanitizeText($(cell).text()));
+      const rankCell = firstCells[0] ?? "";
+      const nameCell = firstCells[1] ?? "";
+
+      if (!rankCell || !nameCell) {
+        continue;
+      }
+
+      const groupedRows: string[][] = [firstCells];
+      let nextIndex = rowIndex + 1;
+
+      while (nextIndex < rows.length) {
+        const candidateCells = $(rows[nextIndex])
+          .find("td")
+          .toArray()
+          .map((cell) => sanitizeText($(cell).text()));
+        const candidateRank = candidateCells[0] ?? "";
+        const candidateName = candidateCells[1] ?? "";
+
+        if (candidateRank || candidateName) {
+          break;
+        }
+
+        if (candidateCells.some((cell) => cell !== "")) {
+          groupedRows.push(candidateCells);
+        }
+
+        nextIndex += 1;
+      }
+
+      const activeRow = groupedRows[groupedRows.length - 1];
+      const playedHoles = activeRow
+        .slice(2, 2 + holeCount)
+        .filter((value) => value !== "").length;
+
+      if (playedHoles > 0 && playedHoles < holeCount) {
+        return true;
+      }
+
+      rowIndex = nextIndex - 1;
+    }
+  }
+
+  return false;
 }
 
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
@@ -99,7 +233,7 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
   const windowEnd = new Date(now);
   windowEnd.setDate(windowEnd.getDate() + ACTIVE_WINDOW_DAYS);
 
-  const tournaments = $("#list_tournaments tbody tr")
+  const baseTournaments = $("#list_tournaments tbody tr")
     .map((_, row) => {
       const cells = $(row).find("td");
       const eventLink = cells
@@ -153,13 +287,21 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
         sortStart: number;
         sortEnd: number;
       } => Boolean(tournament),
-    )
+    );
+
+  const tournaments = await Promise.all(
+    baseTournaments.map(resolveLiveTournamentStatus),
+  );
+
+  return tournaments
     .sort((a, b) => {
       const statusOrder: Record<TournamentStatus, number> = {
         live: 0,
-        recent: 1,
-        upcoming: 2,
-        mock: 3,
+        today: 1,
+        recent: 2,
+        tomorrow: 3,
+        upcoming: 4,
+        mock: 5,
       };
 
       if (statusOrder[a.status] !== statusOrder[b.status]) {
@@ -176,8 +318,6 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       ({ sortStart: _sortStart, sortEnd: _sortEnd, ...tournament }) =>
         tournament,
     );
-
-  return tournaments;
 }
 
 async function loadDynamicTournamentSnapshotHtml(

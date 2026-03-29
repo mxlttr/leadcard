@@ -81,6 +81,21 @@ function tournamentStatusLabel(
   return t(`tournaments.status.${status}`);
 }
 
+function tournamentStatusClass(
+  status: LiveResponse["tournament"]["status"],
+  selected: boolean,
+) {
+  if (status === "live") {
+    return selected
+      ? "bg-transparent text-negative"
+      : "bg-transparent text-negative";
+  }
+
+  return selected
+    ? "bg-transparent text-foreground/70"
+    : "bg-transparent text-muted";
+}
+
 function LanguageSwitcher({ locale }: { locale: AppLocale }) {
   const { t } = useI18n();
 
@@ -387,12 +402,16 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                     </span>
                     <span
                       className={cn(
-                        "ml-3 shrink-0 text-xs uppercase tracking-[0.2em]",
-                        selected && tournament.status === "live"
-                          ? "text-primary"
-                          : "text-muted",
+                        "ml-3 inline-flex shrink-0 items-center gap-2 px-0 py-0 text-[11px] font-semibold uppercase tracking-[0.16em]",
+                        tournamentStatusClass(tournament.status, selected),
                       )}
                     >
+                      {tournament.status === "live" ? (
+                        <span className="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-negative/70" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-negative" />
+                        </span>
+                      ) : null}
                       {tournamentStatusLabel(tournament.status, t)}
                     </span>
                   </Button>

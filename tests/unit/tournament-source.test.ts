@@ -48,7 +48,7 @@ describe("tournament-source", () => {
     vi.useRealTimers();
   });
 
-  it("returns active tournaments sorted live, recent, then upcoming", async () => {
+  it("returns active tournaments sorted as live, today, recent, tomorrow, then upcoming", async () => {
     const listingHtml = buildListingHtml([
       buildListingRow({
         id: "future-far",
@@ -68,7 +68,21 @@ describe("tournament-source", () => {
         id: "live-event",
         name: "Live Open",
         course: "City Course",
-        startDate: new Date("2026-03-25T08:00:00.000Z"),
+        startDate: new Date("2026-03-26T08:00:00.000Z"),
+        endDate: new Date("2026-03-26T17:00:00.000Z"),
+      }),
+      buildListingRow({
+        id: "today-event",
+        name: "Today Cup",
+        course: "South Park",
+        startDate: new Date("2026-03-26T08:00:00.000Z"),
+        endDate: new Date("2026-03-26T17:00:00.000Z"),
+      }),
+      buildListingRow({
+        id: "tomorrow-event",
+        name: "Tomorrow Invitational",
+        course: "Forest Ridge",
+        startDate: new Date("2026-03-27T08:00:00.000Z"),
         endDate: new Date("2026-03-27T17:00:00.000Z"),
       }),
       buildListingRow({
@@ -87,15 +101,54 @@ describe("tournament-source", () => {
       }),
     ]);
 
+    const activeLiveHtml = `
+      <table id="livescoring_">
+        <thead>
+          <tr><th colspan="2" class="text-end">Par</th><th class="th_hole">3</th><th class="th_hole">3</th></tr>
+          <tr><th>No</th><th class="th_name">Open</th><th>1</th><th>2</th><th colspan="2">sum</th><th colspan="2">total</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Alex Ace</td><td>2</td><td></td><td>2</td><td>-1</td><td>2</td></tr>
+        </tbody>
+      </table>
+    `;
+
+    const emptyTodayHtml = `
+      <table id="livescoring_">
+        <thead>
+          <tr><th colspan="2" class="text-end">Par</th></tr>
+          <tr><th>No</th><th class="th_name">Open</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="25"></td></tr>
+        </tbody>
+      </table>
+    `;
+
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(
-        async () =>
-          new Response(listingHtml, {
+      vi.fn().mockImplementation(async (input) => {
+        const url = typeof input === "string" ? input : input.toString();
+
+        if (url.includes("sp=live&id=live-event")) {
+          return new Response(activeLiveHtml, {
             status: 200,
             headers: { "Content-Type": "text/html" },
-          }),
-      ),
+          });
+        }
+
+        if (url.includes("sp=live&id=today-event")) {
+          return new Response(emptyTodayHtml, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          });
+        }
+
+        return new Response(listingHtml, {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        });
+      }),
     );
 
     const tournamentSource = await import("@/lib/server/tournament-source");
@@ -103,12 +156,16 @@ describe("tournament-source", () => {
 
     expect(catalog.map((tournament) => tournament.id)).toEqual([
       "live-event",
+      "today-event",
       "recent-event",
+      "tomorrow-event",
       "upcoming-event",
     ]);
     expect(catalog.map((tournament) => tournament.status)).toEqual([
       "live",
+      "today",
       "recent",
+      "tomorrow",
       "upcoming",
     ]);
     await expect(tournamentSource.getDefaultTournamentId()).resolves.toBe(

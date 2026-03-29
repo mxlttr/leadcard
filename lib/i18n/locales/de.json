@@ -21,6 +21,8 @@
     "subheading": "Aktive Events von einer Woche rückwirkend bis eine Woche im Voraus.",
     "status": {
       "live": "Live",
+      "today": "Heute",
+      "tomorrow": "Morgen",
       "recent": "Aktuell",
       "upcoming": "Demnächst",
       "mock": "Mock"

@@ -1,5 +1,11 @@
 export type ThruValue = number | "F";
-export type TournamentStatus = "live" | "upcoming" | "recent" | "mock";
+export type TournamentStatus =
+  | "live"
+  | "today"
+  | "tomorrow"
+  | "upcoming"
+  | "recent"
+  | "mock";
 
 export type PlayerStanding = {
   playerId: string;

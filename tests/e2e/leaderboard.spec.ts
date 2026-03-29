@@ -38,7 +38,7 @@ type TournamentSummary = {
   name: string;
   course: string;
   roundLabel: string;
-  status: "live" | "upcoming" | "recent" | "mock";
+  status: "live" | "today" | "tomorrow" | "upcoming" | "recent" | "mock";
 };
 
 type LiveResponse = {
