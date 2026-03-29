@@ -63,36 +63,63 @@ function dateRangeLabel(startDate: string, endDate: string) {
   return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
 }
 
-function startOfDay(value: Date) {
-  const next = new Date(value);
-  next.setHours(0, 0, 0, 0);
-  return next;
+function todayKeyInBerlin(now: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
-function addDays(value: Date, days: number) {
-  const next = new Date(value);
-  next.setDate(next.getDate() + days);
-  return next;
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function shiftDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day));
+  next.setUTCDate(next.getUTCDate() + days);
+  return `${next.getUTCFullYear()}-${padDatePart(next.getUTCMonth() + 1)}-${padDatePart(next.getUTCDate())}`;
+}
+
+function parseDateKey(value: string) {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${year}-${month}-${day}`;
+  }
+
+  const germanMatch = trimmed.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+
+  if (germanMatch) {
+    const [, day, month, year] = germanMatch;
+    return `${year}-${month}-${day}`;
+  }
+
+  return null;
 }
 
 function tournamentStatusFor(
   now: Date,
-  startDate: Date,
-  endDate: Date,
+  startDateKey: string,
+  endDateKey: string,
 ): TournamentStatus {
-  const todayStart = startOfDay(now);
-  const tomorrowStart = addDays(todayStart, 1);
-  const dayAfterTomorrowStart = addDays(todayStart, 2);
+  const todayKey = todayKeyInBerlin(now);
+  const tomorrowKey = shiftDateKey(todayKey, 1);
+  const dayAfterTomorrowKey = shiftDateKey(todayKey, 2);
 
-  if (endDate < todayStart) {
+  if (endDateKey < todayKey) {
     return "recent";
   }
 
-  if (startDate >= tomorrowStart && startDate < dayAfterTomorrowStart) {
+  if (startDateKey >= tomorrowKey && startDateKey < dayAfterTomorrowKey) {
     return "tomorrow";
   }
 
-  if (startDate >= dayAfterTomorrowStart) {
+  if (startDateKey >= dayAfterTomorrowKey) {
     return "upcoming";
   }
 
@@ -250,33 +277,35 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       const id = url.searchParams.get("id");
       const startDateSort = Number(cells.eq(2).attr("data-sort"));
       const endDateSort = Number(cells.eq(3).attr("data-sort"));
+      const startDateLabel =
+        cells.eq(2).attr("data-search")?.trim() ?? cells.eq(2).text().trim();
+      const endDateText =
+        cells.eq(3).attr("data-search")?.trim() ?? cells.eq(3).text().trim();
+      const startDateKey = parseDateKey(startDateLabel);
+      const endDateKey = parseDateKey(endDateText);
 
-      if (!id || !startDateSort || !endDateSort) {
+      if (!id || !startDateSort || !endDateSort || !startDateKey || !endDateKey) {
         return null;
       }
 
-      const startDate = new Date(startDateSort * 1000);
-      const endDate = new Date(endDateSort * 1000);
+      const windowStartKey = shiftDateKey(todayKeyInBerlin(now), -ACTIVE_WINDOW_DAYS);
+      const windowEndKey = shiftDateKey(todayKeyInBerlin(now), ACTIVE_WINDOW_DAYS);
 
-      if (endDate < windowStart || startDate > windowEnd) {
+      if (endDateKey < windowStartKey || startDateKey > windowEndKey) {
         return null;
       }
 
       const name = eventLink.text().replace(/\s+/g, " ").trim();
       const course = cells.eq(1).text().replace(/\s+/g, " ").trim();
-      const startDateLabel =
-        cells.eq(2).attr("data-search")?.trim() ?? cells.eq(2).text().trim();
-      const endDateText =
-        cells.eq(3).attr("data-search")?.trim() ?? cells.eq(3).text().trim();
 
       return {
         id,
         name,
         course,
         roundLabel: dateRangeLabel(startDateLabel, endDateText),
-        status: tournamentStatusFor(now, startDate, endDate),
-        sortStart: startDate.getTime(),
-        sortEnd: endDate.getTime(),
+        status: tournamentStatusFor(now, startDateKey, endDateKey),
+        sortStart: Number(startDateKey.replaceAll("-", "")),
+        sortEnd: Number(endDateKey.replaceAll("-", "")),
       };
     })
     .get()
