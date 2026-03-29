@@ -59,10 +59,25 @@ function LoadingShell() {
 
 function groupPlayers(
   players: LeaderboardPlayer[],
+  filterMode: "ALL" | "FOLLOWING",
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
+  if (filterMode === "FOLLOWING") {
+    return [
+      {
+        title: t("leaderboard.followingGroup"),
+        players,
+      },
+    ];
+  }
+
   if (players.length <= LEAD_CARD_SIZE) {
-    return [{ title: t("leaderboard.leaderboard"), players }];
+    return [
+      {
+        title: t("leaderboard.leaderboard"),
+        players,
+      },
+    ];
   }
 
   return [
@@ -253,7 +268,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       : currentPlayers.filter((player) =>
           followedPlayers.includes(player.playerId),
         );
-  const groupedPlayers = groupPlayers(players, t);
+  const groupedPlayers = groupPlayers(players, filterMode, t);
 
   useEffect(() => {
     if (!pendingUpdateTarget) {
