@@ -16,8 +16,25 @@ export type PlayerStanding = {
   thru: ThruValue;
 };
 
+export type PlayerHoleScore = {
+  hole: number;
+  par: number | null;
+  score: number | null;
+  relativeToPar: number | null;
+};
+
+export type PlayerRound = {
+  id: string;
+  order: number;
+  label: string;
+  thru: number | "F" | 0;
+  scoreToPar: number | null;
+  holes: PlayerHoleScore[];
+};
+
 export type PlayerSnapshot = PlayerStanding & {
   lastFive: number[];
+  rounds?: PlayerRound[];
 };
 
 export type PlayerDelta = {
@@ -69,6 +86,7 @@ export type LiveResponse = {
   leaders: LeaderboardPlayer[];
   divisionLeaders: DivisionLeader[];
   generatedAt: string;
+  nextUpdateAt: string;
   updateIntervalMs: number;
 };
 

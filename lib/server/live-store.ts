@@ -5,6 +5,7 @@ import {
   getTournamentCatalog,
   loadTournamentSnapshotSource,
 } from "@/lib/server/tournament-source";
+import { sortDivisionLabels } from "@/lib/i18n/divisions";
 import type {
   DivisionLeader,
   LeaderboardPlayer,
@@ -66,13 +67,19 @@ function comparePlayersByStanding(a: LeaderboardPlayer, b: LeaderboardPlayer) {
 }
 
 function getDivisions(players: LeaderboardPlayer[]) {
-  return players.reduce<string[]>((divisions, player) => {
-    if (!divisions.includes(player.division)) {
-      divisions.push(player.division);
-    }
+  return sortDivisionLabels(
+    players.reduce<string[]>((divisions, player) => {
+      if (!divisions.includes(player.division)) {
+        divisions.push(player.division);
+      }
 
-    return divisions;
-  }, []);
+      return divisions;
+    }, []),
+  );
+}
+
+function nextUpdateAt(store: LiveState) {
+  return new Date(store.lastAdvancedAt + UPDATE_INTERVAL_MS).toISOString();
 }
 
 function toLeaderboardPlayers(
@@ -268,12 +275,22 @@ export async function getLiveResponse(
     leaders: overallLeaders(store.players),
     divisionLeaders: divisionLeaders(store.players),
     generatedAt: store.generatedAt,
+    nextUpdateAt: nextUpdateAt(store),
     updateIntervalMs: UPDATE_INTERVAL_MS,
   };
 }
 
 export async function getResolvedTournamentId(tournamentId?: string | null) {
-  return tournamentId ?? (await getDefaultTournamentId());
+  if (!tournamentId) {
+    return getDefaultTournamentId();
+  }
+
+  const tournaments = await getTournamentCatalog();
+  const hasTournament = tournaments.some(
+    (tournament) => tournament.id === tournamentId,
+  );
+
+  return hasTournament ? tournamentId : getDefaultTournamentId();
 }
 
 export async function getLeaderboardResponse(

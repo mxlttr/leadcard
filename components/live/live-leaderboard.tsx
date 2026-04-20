@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Info, Search, Star, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { BattleGroup } from "@/components/live/battle-group";
@@ -46,6 +47,30 @@ async function fetchJson<T>(url: string) {
 
 const LEAD_CARD_SIZE = 4;
 const INITIAL_PLAYER_COUNT = 8;
+
+function formatRefreshCountdown(nextUpdateAt: string, now: number) {
+  const remainingSeconds = Math.max(
+    0,
+    Math.ceil((new Date(nextUpdateAt).getTime() - now) / 1000),
+  );
+
+  return remainingSeconds;
+}
+
+function refreshProgress(
+  nextUpdateAt: string,
+  updateIntervalMs: number,
+  now: number,
+) {
+  const nextUpdateAtMs = new Date(nextUpdateAt).getTime();
+
+  if (Number.isNaN(nextUpdateAtMs) || updateIntervalMs <= 0) {
+    return 0;
+  }
+
+  const remainingMs = Math.max(0, nextUpdateAtMs - now);
+  return Math.max(0, Math.min(1, remainingMs / updateIntervalMs));
+}
 
 function LoadingShell() {
   return (
@@ -123,6 +148,48 @@ function tournamentStatusClass(
     : "bg-transparent text-muted";
 }
 
+function TournamentListItem({
+  tournament,
+  selected,
+}: {
+  tournament: LiveResponse["tournament"];
+  selected: boolean;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="flex w-full items-center justify-between gap-3">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium text-foreground">
+          {tournament.name}
+        </span>
+        <span
+          className={cn(
+            "mt-1 block truncate text-xs",
+            selected ? "text-foreground/70" : "text-muted",
+          )}
+        >
+          {tournament.course} · {tournament.roundLabel}
+        </span>
+      </span>
+      <span
+        className={cn(
+          "ml-3 inline-flex shrink-0 items-center gap-2 px-0 py-0 text-[11px] font-semibold uppercase tracking-[0.16em]",
+          tournamentStatusClass(tournament.status, selected),
+        )}
+      >
+        {tournament.status === "live" ? (
+          <span className="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-negative/70" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-negative" />
+          </span>
+        ) : null}
+        {tournamentStatusLabel(tournament.status, t)}
+      </span>
+    </div>
+  );
+}
+
 function LanguageSwitcher({ locale }: { locale: AppLocale }) {
   const { t } = useI18n();
 
@@ -155,11 +222,17 @@ function LanguageSwitcher({ locale }: { locale: AppLocale }) {
 
 function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const { t } = useI18n();
-  const [selectedTournamentId, setSelectedTournamentId] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requestedTournamentId = searchParams.get("tournamentId") ?? "";
+  const hasTournamentIdInUrl = searchParams.has("tournamentId");
   const [selectedDivision, setSelectedDivision] = useState("");
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllPlayers, setShowAllPlayers] = useState(false);
+  const [tournamentPickerExpanded, setTournamentPickerExpanded] =
+    useState(() => !hasTournamentIdInUrl);
   const [selectedPlayer, setSelectedPlayer] =
     useState<LeaderboardPlayer | null>(null);
   const [pendingUpdateTarget, setPendingUpdateTarget] = useState<{
@@ -176,19 +249,29 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     useState<LeaderboardResponse | null>(null);
   const [resolvedUpdatesData, setResolvedUpdatesData] =
     useState<UpdatesResponse | null>(null);
+  const [refreshNow, setRefreshNow] = useState(() => Date.now());
   const { isFollowed, togglePlayer, followedPlayers, hydrated } =
     useFollowedPlayers();
 
   const liveQuery = useQuery({
-    queryKey: ["live", locale, selectedTournamentId || "default"],
+    queryKey: ["live", locale, requestedTournamentId || "default"],
     queryFn: () =>
       fetchJson<LiveResponse>(
-        selectedTournamentId
-          ? `/api/live?tournamentId=${encodeURIComponent(selectedTournamentId)}`
+        requestedTournamentId
+          ? `/api/live?tournamentId=${encodeURIComponent(requestedTournamentId)}`
           : "/api/live",
       ),
     placeholderData: keepPreviousData,
   });
+
+  const liveData = liveQuery.data ?? resolvedLiveData;
+  const selectedTournamentId =
+    requestedTournamentId || liveData?.tournament.id || "";
+  const resolvedTournamentId = liveData?.tournament.id || "";
+  const selectedTournament =
+    liveData?.tournaments.find(
+      (tournament) => tournament.id === selectedTournamentId,
+    ) ?? liveData?.tournament;
 
   const leaderboardQuery = useQuery({
     queryKey: ["leaderboard", locale, selectedTournamentId, selectedDivision],
@@ -253,47 +336,73 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   }, [searchQuery]);
 
   useEffect(() => {
-    if (liveQuery.data) {
+    if (liveQuery.data && !liveQuery.isPlaceholderData) {
       setResolvedLiveData(liveQuery.data);
     }
-  }, [liveQuery.data]);
+  }, [liveQuery.data, liveQuery.isPlaceholderData]);
 
   useEffect(() => {
-    if (leaderboardQuery.data) {
+    if (leaderboardQuery.data && !leaderboardQuery.isPlaceholderData) {
       setResolvedLeaderboardData(leaderboardQuery.data);
     }
-  }, [leaderboardQuery.data]);
+  }, [leaderboardQuery.data, leaderboardQuery.isPlaceholderData]);
 
   useEffect(() => {
-    if (allPlayersQuery.data) {
+    if (allPlayersQuery.data && !allPlayersQuery.isPlaceholderData) {
       setResolvedAllPlayersData(allPlayersQuery.data);
     }
-  }, [allPlayersQuery.data]);
+  }, [allPlayersQuery.data, allPlayersQuery.isPlaceholderData]);
 
   useEffect(() => {
-    if (updatesQuery.data) {
+    if (updatesQuery.data && !updatesQuery.isPlaceholderData) {
       setResolvedUpdatesData(updatesQuery.data);
     }
-  }, [updatesQuery.data]);
+  }, [updatesQuery.data, updatesQuery.isPlaceholderData]);
 
-  const liveData = liveQuery.data ?? resolvedLiveData;
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setRefreshNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   const leaderboardData = leaderboardQuery.data ?? resolvedLeaderboardData;
   const allPlayersData = allPlayersQuery.data ?? resolvedAllPlayersData;
   const updatesData = updatesQuery.data ?? resolvedUpdatesData;
 
+  function syncTournamentUrl(tournamentId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tournamentId", tournamentId);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }
+
   useEffect(() => {
-    if (!liveData) {
+    if (!liveData || !resolvedTournamentId || liveQuery.isPlaceholderData) {
       return;
     }
 
-    const hasSelection = liveData.tournaments.some(
-      (tournament) => tournament.id === selectedTournamentId,
-    );
-
-    if (!selectedTournamentId || !hasSelection) {
-      setSelectedTournamentId(liveData.tournament.id);
+    if (requestedTournamentId && requestedTournamentId !== resolvedTournamentId) {
+      syncTournamentUrl(resolvedTournamentId);
     }
-  }, [liveData, selectedTournamentId]);
+  }, [
+    liveData,
+    pathname,
+    requestedTournamentId,
+    resolvedTournamentId,
+    router,
+    searchParams,
+    liveQuery.isPlaceholderData,
+  ]);
+
+  useEffect(() => {
+    if (!hasTournamentIdInUrl) {
+      setTournamentPickerExpanded(true);
+    }
+  }, [hasTournamentIdInUrl]);
 
   useEffect(() => {
     if (!liveData) {
@@ -337,6 +446,13 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     t,
   );
   const canShowAllPlayers = searchedPlayers.length > INITIAL_PLAYER_COUNT;
+  const refreshCountdown = liveData
+    ? formatRefreshCountdown(liveData.nextUpdateAt, refreshNow)
+    : 0;
+  const refreshProgressValue = liveData
+    ? refreshProgress(liveData.nextUpdateAt, liveData.updateIntervalMs, refreshNow)
+    : 0;
+  const showTournamentList = !hasTournamentIdInUrl || tournamentPickerExpanded;
 
   useEffect(() => {
     if (!pendingUpdateTarget) {
@@ -390,6 +506,27 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
   return (
     <>
+      {liveData.hasLiveData ? (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-50">
+          <div
+            role="progressbar"
+            aria-label={
+              refreshCountdown > 0
+                ? t("app.nextRefresh", { seconds: refreshCountdown })
+                : t("app.refreshingNow")
+            }
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(refreshProgressValue * 100)}
+            className="h-1.5 w-screen bg-border/70"
+          >
+            <div
+              className="h-full bg-primary transition-[width] duration-1000 ease-linear"
+              style={{ width: `${refreshProgressValue * 100}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
       <div className="space-y-5">
         <header className="space-y-3">
           <div className="flex items-start justify-between gap-4">
@@ -429,15 +566,17 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           </div>
 
           <div className="flex items-center justify-between gap-4 text-sm text-muted">
-            <span className="truncate">
-              {liveData.hasLiveData
-                ? t("app.latestUpdate", {
-                    time: timestampLabel(liveData.generatedAt, locale),
-                  })
-                : liveData.tournament.status === "upcoming"
-                  ? t("app.upcomingTournament")
-                  : t("app.liveScoringUnavailable")}
-            </span>
+            <div className="min-w-0">
+              <span className="block truncate">
+                {liveData.hasLiveData
+                  ? t("app.latestUpdate", {
+                      time: timestampLabel(liveData.generatedAt, locale),
+                    })
+                  : liveData.tournament.status === "upcoming"
+                    ? t("app.upcomingTournament")
+                    : t("app.liveScoringUnavailable")}
+              </span>
+            </div>
             <span className="truncate text-right">
               {liveData.tournament.roundLabel}
             </span>
@@ -445,63 +584,62 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         </header>
 
         <section className="space-y-3">
-          <div className="px-1">
-            <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
-              {t("tournaments.heading")}
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              {t("tournaments.subheading")}
-            </p>
-          </div>
-          <div className="max-h-[230px] overflow-y-auto rounded-[24px] border border-border bg-surface px-2 py-2">
-            <div className="space-y-2 pr-1">
-              {liveData.tournaments.map((tournament) => {
-                const selected = selectedTournamentId === tournament.id;
-
-                return (
-                  <Button
-                    key={tournament.id}
-                    variant="ghost"
-                    className={cn(
-                      "h-auto w-full justify-between rounded-[20px] border px-4 py-3 text-left",
-                      selected
-                        ? "border-primary/30 bg-background text-foreground"
-                        : "border-border bg-transparent text-muted hover:bg-background hover:text-foreground",
-                    )}
-                    onClick={() => setSelectedTournamentId(tournament.id)}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium text-foreground">
-                        {tournament.name}
-                      </span>
-                      <span
-                        className={cn(
-                          "mt-1 block truncate text-xs",
-                          selected ? "text-foreground/70" : "text-muted",
-                        )}
-                      >
-                        {tournament.course} · {tournament.roundLabel}
-                      </span>
-                    </span>
-                    <span
-                      className={cn(
-                        "ml-3 inline-flex shrink-0 items-center gap-2 px-0 py-0 text-[11px] font-semibold uppercase tracking-[0.16em]",
-                        tournamentStatusClass(tournament.status, selected),
-                      )}
-                    >
-                      {tournament.status === "live" ? (
-                        <span className="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-negative/70" />
-                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-negative" />
-                        </span>
-                      ) : null}
-                      {tournamentStatusLabel(tournament.status, t)}
-                    </span>
-                  </Button>
-                );
-              })}
+          <div className="flex items-start justify-between gap-3 px-1">
+            <div className="min-w-0">
+              <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
+                {t("tournaments.heading")}
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                {t("tournaments.subheading")}
+              </p>
             </div>
+            {hasTournamentIdInUrl && !showTournamentList ? (
+              <Button
+                variant="ghost"
+                className="h-11 shrink-0 rounded-full border border-border px-4"
+                onClick={() => setTournamentPickerExpanded(true)}
+              >
+                {t("tournaments.changeTournament")}
+              </Button>
+            ) : null}
           </div>
+          {showTournamentList ? (
+            <div className="max-h-[230px] overflow-y-auto rounded-[24px] border border-border bg-surface p-2">
+              <div className="space-y-2 pr-1">
+                {liveData.tournaments.map((tournament) => {
+                  const selected = selectedTournamentId === tournament.id;
+
+                  return (
+                    <Button
+                      key={tournament.id}
+                      variant="ghost"
+                      className={cn(
+                        "h-auto w-full justify-between rounded-[20px] border px-4 py-3 text-left",
+                        selected
+                          ? "border-primary/30 bg-background text-foreground"
+                          : "border-border bg-transparent text-muted hover:bg-background hover:text-foreground",
+                      )}
+                      onClick={() => {
+                        setTournamentPickerExpanded(false);
+                        syncTournamentUrl(tournament.id);
+                      }}
+                    >
+                      <TournamentListItem
+                        tournament={tournament}
+                        selected={selected}
+                      />
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : selectedTournament ? (
+            <div className="rounded-[24px] border border-border bg-surface p-2">
+              <div className="h-auto w-full rounded-[20px] border border-primary/30 bg-background px-4 py-3 text-left text-foreground">
+                <TournamentListItem tournament={selectedTournament} selected />
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <GlobalSnapshot data={liveData} />

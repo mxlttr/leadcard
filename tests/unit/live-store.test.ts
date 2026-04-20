@@ -131,6 +131,72 @@ const unsortedDivisionLeadersHtml = serializeSnapshot(
   ],
 );
 
+const unorderedDivisionsHtml = serializeSnapshot("2026-03-24T12:00:00.000Z", [
+  {
+    playerId: "wm50-a",
+    name: "Wendy Masters",
+    division: "Damen Master 50",
+    rank: 1,
+    scoreToPar: 1,
+    thru: 3,
+    lastFive: [0, 0, 1],
+  },
+  {
+    playerId: "junior-a",
+    name: "Jonny Junior",
+    division: "Junioren 18",
+    rank: 1,
+    scoreToPar: 0,
+    thru: 3,
+    lastFive: [0, 0, 0],
+  },
+  {
+    playerId: "masters50-a",
+    name: "Milo Fifty",
+    division: "Master 50",
+    rank: 1,
+    scoreToPar: -1,
+    thru: 3,
+    lastFive: [0, -1, 0],
+  },
+  {
+    playerId: "women-a",
+    name: "Cara Chain",
+    division: "Damen",
+    rank: 1,
+    scoreToPar: -2,
+    thru: 3,
+    lastFive: [0, -1, -1],
+  },
+  {
+    playerId: "open-a",
+    name: "Alice Ace",
+    division: "Open",
+    rank: 1,
+    scoreToPar: -3,
+    thru: 3,
+    lastFive: [-1, -1, -1],
+  },
+  {
+    playerId: "masters40-a",
+    name: "Marta Forty",
+    division: "Master 40",
+    rank: 1,
+    scoreToPar: -1,
+    thru: 3,
+    lastFive: [0, -1, 0],
+  },
+  {
+    playerId: "wm40-a",
+    name: "Willa Forty",
+    division: "Damen Master 40",
+    rank: 1,
+    scoreToPar: 0,
+    thru: 3,
+    lastFive: [0, 0, 0],
+  },
+]);
+
 const loadTournamentSnapshotSource = vi.fn();
 const getTournamentCatalog = vi.fn();
 const getDefaultTournamentId = vi.fn();
@@ -178,6 +244,7 @@ describe("live-store", () => {
 
     expect(firstLiveResponse.divisions).toEqual(["Open", "Women"]);
     expect(firstLiveResponse.leaders[0]?.name).toBe("Alice Ace");
+    expect(firstLiveResponse.nextUpdateAt).toBe("2026-03-24T12:00:25.000Z");
 
     vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
 
@@ -235,6 +302,14 @@ describe("live-store", () => {
     expect(updates.updates).toEqual([]);
   });
 
+  it("resolves unknown tournament ids back to the default tournament", async () => {
+    const liveStore = await import("@/lib/server/live-store");
+
+    await expect(liveStore.getResolvedTournamentId("missing-event")).resolves.toBe(
+      tournament.id,
+    );
+  });
+
   it("sorts division leaders by leaderboard score instead of source order", async () => {
     loadTournamentSnapshotSource.mockResolvedValue({
       tournament,
@@ -251,6 +326,27 @@ describe("live-store", () => {
     expect(
       liveResponse.divisionLeaders.map(({ leader }) => leader.name),
     ).toEqual(["Alice Ace", "Milo Mando", "Cara Chain"]);
+  });
+
+  it("sorts divisions in a stable domain order", async () => {
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament,
+      html: unorderedDivisionsHtml,
+      nextFixtureIndex: 0,
+    });
+
+    const liveStore = await import("@/lib/server/live-store");
+    const liveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(liveResponse.divisions).toEqual([
+      "Open",
+      "Damen",
+      "Master 40",
+      "Master 50",
+      "Damen Master 40",
+      "Damen Master 50",
+      "Junioren 18",
+    ]);
   });
 
   it("shares store initialization across concurrent API requests", async () => {
