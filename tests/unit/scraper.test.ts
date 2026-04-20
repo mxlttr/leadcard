@@ -124,6 +124,17 @@ describe("scrapeSnapshot", () => {
       scoreToPar: -1,
       thru: 1,
     });
+    expect(snapshot.players[0]?.rounds?.[0]).toMatchObject({
+      label: "Round 1",
+      thru: 1,
+      scoreToPar: -1,
+    });
+    expect(snapshot.players[0]?.rounds?.[0]?.holes[14]).toMatchObject({
+      hole: 15,
+      par: 4,
+      score: 3,
+      relativeToPar: -1,
+    });
   });
 
   it("parses all division sections from the 2425 live page", () => {
@@ -151,6 +162,8 @@ describe("scrapeSnapshot", () => {
       thru: "F",
     });
     expect(andreasKaivers.lastFive).toHaveLength(5);
+    expect(andreasKaivers.rounds?.length).toBeGreaterThan(0);
+    expect(andreasKaivers.rounds?.at(-1)?.thru).toBe("F");
     expect(
       snapshot.players.find((player) => player.name === "Dennis Werchau"),
     ).toBeUndefined();
@@ -183,6 +196,15 @@ describe("scrapeSnapshot", () => {
       scoreToPar: -15,
       thru: "F",
     });
+    expect(jonathanKreis.rounds).toHaveLength(3);
+    expect(jonathanKreis.rounds?.[2]).toMatchObject({
+      label: "Round 3",
+      thru: "F",
+    });
+    expect(jonathanKreis.rounds?.[0]?.holes[0]?.par).toBe(3);
+    expect(jonathanKreis.rounds?.[2]?.holes.some((hole) => hole.score !== null)).toBe(
+      true,
+    );
     expect(
       Math.max(
         ...snapshot.players.map((player) => Math.abs(player.scoreToPar)),

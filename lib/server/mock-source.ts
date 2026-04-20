@@ -1,3 +1,5 @@
+import type { PlayerRound } from "@/lib/types";
+
 type FixturePlayer = {
   playerId: string;
   name: string;
@@ -6,6 +8,7 @@ type FixturePlayer = {
   scoreToPar: number;
   thru: number | "F";
   lastFive: number[];
+  rounds?: PlayerRound[];
 };
 
 type FixtureSnapshot = {
@@ -25,10 +28,135 @@ type MockTournamentFeed = Omit<MockTournamentDefinition, "fixtures"> & {
   fixtures: string[];
 };
 
+const DEFAULT_PAR_VALUES = [3, 3, 3, 3, 4, 3, 3, 4, 3, 3, 4, 3, 3, 3, 4, 3, 3, 3];
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function extractRoundCount(roundLabel: string) {
+  const match = roundLabel.match(/(\d+)/);
+  return match ? Math.max(1, Number(match[1])) : 1;
+}
+
+function buildSyntheticRound(
+  playerId: string,
+  order: number,
+  scoreToPar: number,
+  thru: number | "F",
+  recentRelativeScores: number[] = [],
+): PlayerRound {
+  const playedCount = thru === "F" ? DEFAULT_PAR_VALUES.length : Math.max(0, thru);
+  const relativeScores = Array.from({ length: playedCount }, () => 0);
+  const recentScores = recentRelativeScores.slice(-Math.min(5, playedCount));
+
+  recentScores.forEach((value, index) => {
+    const holeIndex = playedCount - recentScores.length + index;
+    relativeScores[holeIndex] = value;
+  });
+
+  let remainingScore = scoreToPar - relativeScores.reduce((sum, value) => sum + value, 0);
+
+  while (remainingScore !== 0 && playedCount > 0) {
+    let changed = false;
+
+    for (let holeIndex = 0; holeIndex < playedCount; holeIndex += 1) {
+      if (remainingScore === 0) {
+        break;
+      }
+
+      if (remainingScore < 0) {
+        const absoluteScore = DEFAULT_PAR_VALUES[holeIndex] + relativeScores[holeIndex];
+
+        if (absoluteScore > 1) {
+          relativeScores[holeIndex] -= 1;
+          remainingScore += 1;
+          changed = true;
+        }
+      } else {
+        relativeScores[holeIndex] += 1;
+        remainingScore -= 1;
+        changed = true;
+      }
+    }
+
+    if (!changed) {
+      break;
+    }
+  }
+
+  return {
+    id: `${playerId}-round-${order}`,
+    order,
+    label: `Round ${order}`,
+    thru,
+    scoreToPar,
+    holes: DEFAULT_PAR_VALUES.map((par, index) => {
+      const relativeToPar = index < playedCount ? relativeScores[index] : null;
+      const score =
+        relativeToPar === null ? null : Math.max(1, par + relativeToPar);
+
+      return {
+        hole: index + 1,
+        par,
+        score,
+        relativeToPar,
+      };
+    }),
+  };
+}
+
+function buildSyntheticRounds(player: FixturePlayer, roundCount: number) {
+  if (roundCount <= 1) {
+    return [
+      buildSyntheticRound(
+        player.playerId,
+        1,
+        player.scoreToPar,
+        player.thru,
+        player.lastFive,
+      ),
+    ];
+  }
+
+  const recentTotal = player.lastFive.reduce((sum, value) => sum + value, 0);
+  const estimatedCurrentRoundScore = player.thru === "F"
+    ? Math.round(player.scoreToPar / roundCount)
+    : Math.round((player.scoreToPar / roundCount + recentTotal) / 2);
+  const currentRoundScore = clamp(estimatedCurrentRoundScore, -8, 8);
+  const previousRoundsTotal = player.scoreToPar - currentRoundScore;
+  const basePreviousScore = Math.trunc(previousRoundsTotal / (roundCount - 1));
+  let remainder = previousRoundsTotal - basePreviousScore * (roundCount - 1);
+
+  return Array.from({ length: roundCount }, (_, index) => {
+    const order = index + 1;
+
+    if (order === roundCount) {
+      return buildSyntheticRound(
+        player.playerId,
+        order,
+        currentRoundScore,
+        player.thru,
+        player.lastFive,
+      );
+    }
+
+    const remainderStep = remainder === 0 ? 0 : remainder > 0 ? 1 : -1;
+    const roundScore = basePreviousScore + remainderStep;
+    remainder -= remainderStep;
+
+    return buildSyntheticRound(player.playerId, order, roundScore, "F");
+  });
+}
+
 function serializeSnapshot(snapshot: FixtureSnapshot) {
   const rows = snapshot.players
-    .map(
-      (player) => `
+    .map((player) => {
+      const rounds =
+        player.rounds ?? buildSyntheticRounds(player, 1);
+      const encodedRounds = JSON.stringify(rounds).replaceAll('"', "&quot;");
+
+      return `
         <li
           data-player-id="${player.playerId}"
           data-name="${player.name}"
@@ -37,9 +165,10 @@ function serializeSnapshot(snapshot: FixtureSnapshot) {
           data-score="${player.scoreToPar}"
           data-thru="${player.thru}"
           data-last-five="${player.lastFive.join(",")}"
+          data-rounds="${encodedRounds}"
         ></li>
-      `,
-    )
+      `;
+    })
     .join("");
 
   return `
@@ -52,12 +181,22 @@ function serializeSnapshot(snapshot: FixtureSnapshot) {
 function tournamentFeed(
   definition: MockTournamentDefinition,
 ): MockTournamentFeed {
+  const roundCount = extractRoundCount(definition.roundLabel);
+
   return {
     id: definition.id,
     name: definition.name,
     course: definition.course,
     roundLabel: definition.roundLabel,
-    fixtures: definition.fixtures.map(serializeSnapshot),
+    fixtures: definition.fixtures.map((fixture) =>
+      serializeSnapshot({
+        ...fixture,
+        players: fixture.players.map((player) => ({
+          ...player,
+          rounds: player.rounds ?? buildSyntheticRounds(player, roundCount),
+        })),
+      }),
+    ),
   };
 }
 

@@ -1,6 +1,6 @@
 import { load } from "cheerio";
 
-import type { PlayerSnapshot, ThruValue } from "@/lib/types";
+import type { PlayerRound, PlayerSnapshot, ThruValue } from "@/lib/types";
 
 export type ScrapedSnapshot = {
   generatedAt: string;
@@ -9,6 +9,19 @@ export type ScrapedSnapshot = {
 
 function sanitizeText(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function safeParseRounds(value: string | undefined): PlayerRound[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as PlayerRound[];
+    return Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function parseMockSnapshot(html: string): ScrapedSnapshot {
@@ -28,6 +41,7 @@ function parseMockSnapshot(html: string): ScrapedSnapshot {
         .split(",")
         .filter(Boolean)
         .map(Number);
+      const rounds = safeParseRounds(row.attr("data-rounds"));
 
       return {
         playerId: row.attr("data-player-id") ?? "",
@@ -37,6 +51,7 @@ function parseMockSnapshot(html: string): ScrapedSnapshot {
         scoreToPar: Number(row.attr("data-score")),
         thru,
         lastFive,
+        rounds,
       };
     })
     .get();
@@ -74,6 +89,46 @@ function extractScoreToPar(summaryCells: string[]) {
   return Number(values[0]);
 }
 
+function buildRound(
+  playerId: string,
+  rowCells: string[],
+  parValues: Array<number | null>,
+  order: number,
+): PlayerRound {
+  const holeTexts = rowCells.slice(2, 2 + parValues.length);
+  const holeValues = holeTexts.map((cellText) => parseHoleValue(cellText));
+  const playedCount = holeValues.filter((value): value is number => value !== null).length;
+  const thru: PlayerRound["thru"] =
+    playedCount === 0 ? 0 : playedCount >= parValues.length ? "F" : playedCount;
+
+  const holes = parValues.map((par, index) => {
+    const score = holeValues[index] ?? null;
+    return {
+      hole: index + 1,
+      par,
+      score,
+      relativeToPar:
+        score === null || par === null ? null : score - par,
+    };
+  });
+
+  const scoreToParValues = holes
+    .map((hole) => hole.relativeToPar)
+    .filter((value): value is number => value !== null);
+
+  return {
+    id: `${playerId}-round-${order}`,
+    order,
+    label: `Round ${order}`,
+    thru,
+    scoreToPar:
+      scoreToParValues.length > 0
+        ? scoreToParValues.reduce((sum, value) => sum + value, 0)
+        : null,
+    holes,
+  };
+}
+
 function parseLiveSnapshot(html: string): ScrapedSnapshot {
   const $ = load(html);
   const generatedAt = new Date().toISOString();
@@ -109,8 +164,7 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
       .find("th.th_hole")
       .map((_, hole) => parseHoleValue(sanitizeText($(hole).text())))
       .get()
-      .filter((value): value is number => value !== null)
-      .slice(0, 18);
+      .filter((value): value is number => value !== null);
 
     const rows = $(tbody).find("> tr").toArray();
     let rowIndex = 0;
@@ -154,6 +208,9 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
       }
 
       const activeRow = groupedRows[groupedRows.length - 1];
+      const rounds = groupedRows.map((row, roundIndex) =>
+        buildRound(playerIdFrom(division, nameCell), row, parValues, roundIndex + 1),
+      );
 
       if (hasUnsupportedStatus(firstCells) || hasUnsupportedStatus(activeRow)) {
         rowIndex = nextIndex;
@@ -182,6 +239,7 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
           scoreToPar,
           thru,
           lastFive,
+          rounds,
         });
       }
 
