@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Info, Search, Star, X } from "lucide-react";
+import { Info, Moon, Search, Star, Sun, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -32,6 +32,7 @@ import type {
   UpdatesResponse,
 } from "@/lib/types";
 import { cn, holeToLabel, timestampLabel } from "@/lib/utils";
+import { useTheme } from "@/components/theme-provider";
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url, {
@@ -217,6 +218,37 @@ function LanguageSwitcher({ locale }: { locale: AppLocale }) {
         );
       })}
     </nav>
+  );
+}
+
+function ThemeToggle() {
+  const { t } = useI18n();
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
+      onClick={toggleTheme}
+      aria-label={
+        theme === "dark"
+          ? t("theme.switchToLight")
+          : t("theme.switchToDark")
+      }
+      title={
+        theme === "dark"
+          ? t("theme.switchToLight")
+          : t("theme.switchToDark")
+      }
+    >
+      {theme === "dark" ? (
+        <Sun className="h-4 w-4" />
+      ) : (
+        <Moon className="h-4 w-4" />
+      )}
+    </Button>
   );
 }
 
@@ -481,6 +513,27 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     setSheetOpen(true);
   }
 
+  function handlePlayerSelect(player: LeaderboardPlayer) {
+    if (player.division === selectedDivision) {
+      const matchedPlayer = currentPlayers.find(
+        (entry) => entry.playerId === player.playerId,
+      );
+
+      openPlayerDetails(matchedPlayer ?? player);
+      return;
+    }
+
+    if (!liveData?.divisions.includes(player.division)) {
+      return;
+    }
+
+    setPendingUpdateTarget({
+      playerId: player.playerId,
+      division: player.division,
+    });
+    setSelectedDivision(player.division);
+  }
+
   function handleUpdateSelect(update: RecentUpdate) {
     setFilterMode("ALL");
 
@@ -543,6 +596,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <LanguageSwitcher locale={locale} />
+              <ThemeToggle />
               <Dialog>
                 <DialogTrigger asChild>
                   <Button
@@ -635,14 +689,20 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             </div>
           ) : selectedTournament ? (
             <div className="rounded-[24px] border border-border bg-surface p-2">
-              <div className="h-auto w-full rounded-[20px] border border-primary/30 bg-background px-4 py-3 text-left text-foreground">
+              <Button
+                variant="ghost"
+                className="h-auto w-full justify-between rounded-[20px] border border-primary/30 bg-background px-4 py-3 text-left text-foreground hover:bg-background"
+                onClick={() => setTournamentPickerExpanded(true)}
+                aria-label={t("tournaments.changeTournament")}
+                title={t("tournaments.changeTournament")}
+              >
                 <TournamentListItem tournament={selectedTournament} selected />
-              </div>
+              </Button>
             </div>
           ) : null}
         </section>
 
-        <GlobalSnapshot data={liveData} />
+        <GlobalSnapshot data={liveData} onSelectPlayer={handlePlayerSelect} />
 
         <section className="space-y-4">
           {liveData.divisions.length > 0 ? (
@@ -736,7 +796,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   showDivision={isCrossDivisionSearch}
                   isFollowed={isFollowed}
                   onFollowToggle={togglePlayer}
-                  onPlayerSelect={openPlayerDetails}
+                  onPlayerSelect={handlePlayerSelect}
                 />
               ))}
               {canShowAllPlayers ? (

@@ -4,10 +4,16 @@ import { useI18n } from "@/components/i18n-provider";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { Card, CardContent } from "@/components/ui/card";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
-import type { LiveResponse } from "@/lib/types";
+import type { LeaderboardPlayer, LiveResponse } from "@/lib/types";
 import { formatScore, timestampLabel } from "@/lib/utils";
 
-export function GlobalSnapshot({ data }: { data: LiveResponse }) {
+export function GlobalSnapshot({
+  data,
+  onSelectPlayer,
+}: {
+  data: LiveResponse;
+  onSelectPlayer?: (player: LeaderboardPlayer) => void;
+}) {
   const { locale, t } = useI18n();
   const overallLeader = data.leaders[0];
   const noLiveData = !data.hasLiveData;
@@ -46,9 +52,11 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {data.leaders.map((leader, index) => (
-              <div
+              <button
+                type="button"
                 key={leader.playerId}
-                className="rounded-[20px] border border-border bg-background p-4"
+                className="rounded-[20px] border border-border bg-background p-4 text-left"
+                onClick={() => onSelectPlayer?.(leader)}
               >
                 <p className="text-xs uppercase tracking-[0.18em] text-muted">
                   {t("snapshot.overall", { rank: index + 1 })}
@@ -63,7 +71,7 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
                   scoreToPar={leader.scoreToPar}
                   className="mt-4 block text-2xl"
                 />
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -75,9 +83,11 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
               : 0;
 
             return (
-              <div
+              <button
+                type="button"
                 key={division}
-                className="flex items-center justify-between rounded-[18px] border border-border bg-background px-4 py-3"
+                className="flex w-full items-center justify-between rounded-[18px] border border-border bg-background px-4 py-3 text-left"
+                onClick={() => onSelectPlayer?.(leader)}
               >
                 <div className="min-w-0">
                   <p className="truncate text-xs uppercase tracking-[0.18em] text-muted">
@@ -100,7 +110,7 @@ export function GlobalSnapshot({ data }: { data: LiveResponse }) {
                         })}
                   </p>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
