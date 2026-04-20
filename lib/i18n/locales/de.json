@@ -18,6 +18,10 @@
   "language": {
     "switcherLabel": "Sprache"
   },
+  "theme": {
+    "switchToLight": "Zum hellen Modus wechseln",
+    "switchToDark": "Zum dunklen Modus wechseln"
+  },
   "tournaments": {
     "heading": "Turniere",
     "subheading": "Aktive Events von einer Woche rückwirkend bis eine Woche im Voraus.",

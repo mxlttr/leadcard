@@ -3,22 +3,42 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+  --color-background: 248 250 252;
+  --color-surface: 255 255 255;
+  --color-primary: 0 230 118;
+  --color-negative: 255 23 68;
+  --color-foreground: 15 23 42;
+  --color-muted: 100 116 139;
+  --color-border: 226 232 240;
+  --color-shadow: 15 23 42;
+}
+
+.dark {
   color-scheme: dark;
+  --color-background: 15 17 22;
+  --color-surface: 21 25 34;
+  --color-primary: 0 230 118;
+  --color-negative: 255 23 68;
+  --color-foreground: 245 247 251;
+  --color-muted: 162 172 186;
+  --color-border: 35 41 54;
+  --color-shadow: 0 0 0;
 }
 
 html {
-  background: #0f1116;
+  background: rgb(var(--color-background));
 }
 
 body {
   min-height: 100vh;
-  background: #0f1116;
-  color: #f5f7fb;
+  background: rgb(var(--color-background));
+  color: rgb(var(--color-foreground));
   font-family: var(--font-manrope), sans-serif;
 }
 
 * {
-  border-color: #232936;
+  border-color: rgb(var(--color-border));
 }
 
 @layer base {

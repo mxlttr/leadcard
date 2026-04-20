@@ -11,20 +11,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0f1116",
-        surface: "#151922",
-        primary: "#00E676",
-        negative: "#FF1744",
-        foreground: "#f5f7fb",
-        muted: "#a2acba",
-        border: "#232936",
+        background: "rgb(var(--color-background) / <alpha-value>)",
+        surface: "rgb(var(--color-surface) / <alpha-value>)",
+        primary: "rgb(var(--color-primary) / <alpha-value>)",
+        negative: "rgb(var(--color-negative) / <alpha-value>)",
+        foreground: "rgb(var(--color-foreground) / <alpha-value>)",
+        muted: "rgb(var(--color-muted) / <alpha-value>)",
+        border: "rgb(var(--color-border) / <alpha-value>)",
       },
       fontFamily: {
         body: ["var(--font-manrope)"],
         display: ["var(--font-space-grotesk)"],
       },
       boxShadow: {
-        panel: "0 6px 16px rgba(0, 0, 0, 0.18)",
+        panel: "0 6px 16px rgb(var(--color-shadow) / 0.18)",
       },
     },
   },

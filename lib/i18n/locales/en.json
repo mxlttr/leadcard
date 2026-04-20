@@ -18,6 +18,10 @@
   "language": {
     "switcherLabel": "Language"
   },
+  "theme": {
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
   "tournaments": {
     "heading": "Tournaments",
     "subheading": "Active events from one week back to one week ahead.",
