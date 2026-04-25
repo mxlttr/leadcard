@@ -624,4 +624,82 @@ test.describe("mobile layout", () => {
 
     expect(hasHorizontalOverflow).toBe(false);
   });
+
+  test("keeps long tournament names usable on the board view", async ({
+    page,
+  }) => {
+    const longTournament: TournamentSummary = {
+      id: "waldschwimmbad-open",
+      name:
+        "22. Waldschwimmbad Open, Zugunsten Förderverein Discgolf Jugend Deutschland",
+      course:
+        "A Very Long Course Name With Detailed Venue Context For Overflow Testing",
+      roundLabel: "Round 2 of 3",
+      status: "live",
+    };
+    const alternateTournament: TournamentSummary = {
+      id: "alpha-open",
+      name: "Alpha Open",
+      course: "Central Park Disc Golf",
+      roundLabel: "Round 2",
+      status: "live",
+    };
+    const longLive = createLiveResponse({
+      tournament: longTournament,
+      tournaments: [longTournament, alternateTournament],
+      divisions: ["Damen Master 40 mit sehr langem Namen"],
+      leaders: longDivisionPlayers,
+      divisionLeaders: [
+        {
+          division: "Damen Master 40 mit sehr langem Namen",
+          leader: longDivisionPlayers[0],
+        },
+      ],
+    });
+    const alternateLive = createLiveResponse({
+      tournament: alternateTournament,
+      tournaments: [longTournament, alternateTournament],
+      divisions: ["Open"],
+      leaders: alphaOpenPlayers,
+      divisionLeaders: [{ division: "Open", leader: alphaOpenPlayers[0] }],
+    });
+
+    await mockApi(page, {
+      liveByTournamentId: {
+        default: longLive,
+        [longTournament.id]: longLive,
+        [alternateTournament.id]: alternateLive,
+      },
+      leaderboardByKey: {
+        [`${longTournament.id}::Damen Master 40 mit sehr langem Namen`]:
+          createLeaderboardResponse(
+            longTournament.id,
+            "Damen Master 40 mit sehr langem Namen",
+            longDivisionPlayers,
+          ),
+        [`${alternateTournament.id}::Open`]: createLeaderboardResponse(
+          alternateTournament.id,
+          "Open",
+          alphaOpenPlayers,
+        ),
+      },
+      updatesByTournamentId: {
+        default: createUpdatesResponse(longTournament.id, []),
+        [longTournament.id]: createUpdatesResponse(longTournament.id, []),
+        [alternateTournament.id]: createUpdatesResponse(alternateTournament.id, []),
+      },
+    });
+
+    await page.goto("/en/board");
+
+    await expect(
+      page.getByRole("combobox", { name: "Tournament" }),
+    ).toHaveValue(longTournament.id);
+
+    const hasHorizontalOverflow = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > window.innerWidth;
+    });
+
+    expect(hasHorizontalOverflow).toBe(false);
+  });
 });

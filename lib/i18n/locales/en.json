@@ -55,6 +55,7 @@
     "on": "On",
     "off": "Off",
     "playersPerPage": "{{count}} players",
+    "allPlayers": "All players",
     "page": "Page {{current}} / {{total}}",
     "fields": {
       "tournament": "Tournament",

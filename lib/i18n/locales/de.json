@@ -55,6 +55,7 @@
     "on": "An",
     "off": "Aus",
     "playersPerPage": "{{count}} Spieler:innen",
+    "allPlayers": "Alle Spieler:innen",
     "page": "Seite {{current}} / {{total}}",
     "fields": {
       "tournament": "Turnier",

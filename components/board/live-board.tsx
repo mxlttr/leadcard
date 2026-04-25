@@ -61,6 +61,10 @@ function parseIntervalSeconds(value: string | null) {
 }
 
 function parsePlayersPerPage(value: string | null) {
+  if (value === "all") {
+    return -1;
+  }
+
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
@@ -167,6 +171,10 @@ function formatRelativeHoleScore(relativeToPar: number | null) {
   return relativeToPar > 0 ? `+${relativeToPar}` : `${relativeToPar}`;
 }
 
+function isAllPlayersMode(playersPerPage: number) {
+  return playersPerPage === -1;
+}
+
 const boardSelectClass =
   "flex h-10 w-full rounded-full border border-border bg-surface px-4 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
@@ -174,6 +182,8 @@ function BoardHeader({
   locale,
   searchParams,
   liveData,
+  tournaments,
+  selectedTournamentId,
   activeDivision,
   rotationEnabled,
   rotationPaused,
@@ -183,6 +193,7 @@ function BoardHeader({
   fullscreenActive,
   settingsOpen,
   onToggleFullscreen,
+  onSelectTournament,
   onToggleSettings,
   onToggleRotation,
   onPreviousDivision,
@@ -191,6 +202,8 @@ function BoardHeader({
   locale: AppLocale;
   searchParams: URLSearchParams;
   liveData: LiveResponse;
+  tournaments: LiveResponse["tournaments"];
+  selectedTournamentId: string;
   activeDivision: string;
   rotationEnabled: boolean;
   rotationPaused: boolean;
@@ -200,6 +213,7 @@ function BoardHeader({
   fullscreenActive: boolean;
   settingsOpen: boolean;
   onToggleFullscreen: () => void;
+  onSelectTournament: (tournamentId: string) => void;
   onToggleSettings: () => void;
   onToggleRotation: () => void;
   onPreviousDivision: () => void;
@@ -326,19 +340,41 @@ function BoardHeader({
         </div>
 
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-            <span>
-              {t("board.currentDivision")}:{" "}
-              <span className="font-medium text-foreground">
-                {translateDivisionLabel(activeDivision, locale)}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+            <label className="min-w-0 w-full max-w-[min(100%,28rem)]">
+              <span className="sr-only">{t("board.fields.tournament")}</span>
+              <select
+                value={selectedTournamentId}
+                onChange={(event) => onSelectTournament(event.target.value)}
+                className={cn(boardSelectClass, "min-w-0 max-w-full truncate pr-10")}
+                aria-label={t("board.fields.tournament")}
+                title={
+                  tournaments.find(
+                    (tournament) => tournament.id === selectedTournamentId,
+                  )?.name ?? ""
+                }
+              >
+                {tournaments.map((tournament) => (
+                  <option key={tournament.id} value={tournament.id}>
+                    {tournament.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+              <span>
+                {t("board.currentDivision")}:{" "}
+                <span className="font-medium text-foreground">
+                  {translateDivisionLabel(activeDivision, locale)}
+                </span>
               </span>
-            </span>
-            <span>
-              {t("board.updatedAt")}:{" "}
-              <span className="font-medium text-foreground">
-                {timestampLabel(liveData.generatedAt, locale)}
+              <span>
+                {t("board.updatedAt")}:{" "}
+                <span className="font-medium text-foreground">
+                  {timestampLabel(liveData.generatedAt, locale)}
+                </span>
               </span>
-            </span>
+            </div>
           </div>
           <Button
             type="button"
@@ -544,13 +580,19 @@ function BoardSettings({
             <select
               value={String(playersPerPage)}
               onChange={(event) =>
-                onSetPlayersPerPage(Number(event.target.value))
+                onSetPlayersPerPage(
+                  event.target.value === "all"
+                    ? -1
+                    : Number(event.target.value),
+                )
               }
               className={boardSelectClass}
             >
-              {[6, 8, 10, 12, 15, 20].map((value) => (
+              {["all", 6, 8, 10, 12, 15, 20].map((value) => (
                 <option key={value} value={value}>
-                  {t("board.playersPerPage", { count: value })}
+                  {value === "all"
+                    ? t("board.allPlayers")
+                    : t("board.playersPerPage", { count: value })}
                 </option>
               ))}
             </select>
@@ -886,6 +928,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           locale={locale}
           searchParams={new URLSearchParams(searchParams.toString())}
           liveData={liveData}
+          tournaments={liveData.tournaments}
+          selectedTournamentId={selectedTournamentId}
           activeDivision={t("board.noDivision")}
           rotationEnabled={false}
           rotationPaused={true}
@@ -895,6 +939,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           fullscreenActive={fullscreenActive}
           settingsOpen={settingsOpen}
           onToggleFullscreen={toggleFullscreen}
+          onSelectTournament={syncTournamentUrl}
           onToggleSettings={() => setSettingsOpen((value) => !value)}
           onToggleRotation={() => undefined}
           onPreviousDivision={() => undefined}
@@ -939,11 +984,14 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   }
 
   const totalPlayers = currentLeaderboard.players.length;
-  const totalPages = Math.max(1, Math.ceil(totalPlayers / playersPerPage));
+  const resolvedPlayersPerPage = isAllPlayersMode(playersPerPage)
+    ? Math.max(1, totalPlayers)
+    : playersPerPage;
+  const totalPages = Math.max(1, Math.ceil(totalPlayers / resolvedPlayersPerPage));
   const safePageIndex = Math.min(pageIndex, totalPages - 1);
   const pagedPlayers = currentLeaderboard.players.slice(
-    safePageIndex * playersPerPage,
-    safePageIndex * playersPerPage + playersPerPage,
+    safePageIndex * resolvedPlayersPerPage,
+    safePageIndex * resolvedPlayersPerPage + resolvedPlayersPerPage,
   );
 
   function syncTournamentUrl(tournamentId: string) {
@@ -993,7 +1041,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
 
   function syncPlayersPerPageSetting(count: number) {
     updateBoardParams((params) => {
-      params.set("players", String(count));
+      params.set("players", count === -1 ? "all" : String(count));
     });
   }
 
@@ -1011,13 +1059,28 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   }
 
   function stepBoard(direction: -1 | 1) {
+    const currentDivisionLeaderboard = leaderboardsByDivision.get(activeDivision);
+
+    if (!currentDivisionLeaderboard) {
+      return;
+    }
+
+    const currentPlayersPerPage = isAllPlayersMode(playersPerPage)
+      ? Math.max(1, currentDivisionLeaderboard.players.length)
+      : playersPerPage;
+    const currentTotalPages = Math.max(
+      1,
+      Math.ceil(currentDivisionLeaderboard.players.length / currentPlayersPerPage),
+    );
+    const currentSafePageIndex = Math.min(pageIndex, currentTotalPages - 1);
+
     if (direction > 0) {
-      if (safePageIndex < totalPages - 1) {
-        setPageIndex(safePageIndex + 1);
+      if (currentSafePageIndex < currentTotalPages - 1) {
+        setPageIndex(currentSafePageIndex + 1);
         return;
       }
-    } else if (safePageIndex > 0) {
-      setPageIndex(safePageIndex - 1);
+    } else if (currentSafePageIndex > 0) {
+      setPageIndex(currentSafePageIndex - 1);
       return;
     }
 
@@ -1041,7 +1104,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
 
     const nextDivisionTotalPages = Math.max(
       1,
-      Math.ceil(nextDivisionLeaderboard.players.length / playersPerPage),
+      Math.ceil(nextDivisionLeaderboard.players.length / currentPlayersPerPage),
     );
 
     setActiveDivision(nextDivision);
@@ -1084,6 +1147,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
         locale={locale}
         searchParams={new URLSearchParams(searchParams.toString())}
         liveData={boardLiveData}
+        tournaments={boardLiveData.tournaments}
+        selectedTournamentId={selectedTournamentId}
         activeDivision={activeDivision}
         rotationEnabled={rotationEnabled}
         rotationPaused={rotationPaused}
@@ -1093,6 +1158,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
         fullscreenActive={fullscreenActive}
         settingsOpen={settingsOpen}
         onToggleFullscreen={toggleFullscreen}
+        onSelectTournament={syncTournamentUrl}
         onToggleSettings={() => setSettingsOpen((value) => !value)}
         onToggleRotation={() => {
           setRotationPaused((value) => !value);
