@@ -75,6 +75,8 @@ export type TournamentSummary = {
   name: string;
   course: string;
   roundLabel: string;
+  currentRound?: number;
+  totalRounds?: number;
   status: TournamentStatus;
 };
 

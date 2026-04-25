@@ -74,6 +74,7 @@
     "heading": "Tournaments",
     "subheading": "Active events from one week back to one week ahead.",
     "changeTournament": "Change tournament",
+    "roundProgress": "Round {{current}} of {{total}}",
     "status": {
       "live": "Live",
       "today": "Today",

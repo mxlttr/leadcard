@@ -74,6 +74,7 @@
     "heading": "Turniere",
     "subheading": "Aktive Events von einer Woche rückwirkend bis eine Woche im Voraus.",
     "changeTournament": "Turnier wechseln",
+    "roundProgress": "Runde {{current}} von {{total}}",
     "status": {
       "live": "Live",
       "today": "Heute",
