@@ -1,12 +1,29 @@
 import type {
   PlayerDelta,
+  PlayerRound,
   PlayerSnapshot,
   RecentUpdate,
   UpdateImportance,
 } from "@/lib/types";
 
-function thruToNumber(thru: number | "F") {
-  return thru === "F" ? 18 : thru;
+function finishedHoleCount(rounds: PlayerRound[] | undefined) {
+  const latestRound = rounds?.at(-1);
+  return latestRound?.holes.length;
+}
+
+function thruToNumber(
+  player: Pick<PlayerSnapshot, "thru" | "rounds">,
+  previous: PlayerSnapshot | undefined,
+) {
+  if (player.thru !== "F") {
+    return player.thru;
+  }
+
+  return (
+    finishedHoleCount(player.rounds) ??
+    finishedHoleCount(previous?.rounds) ??
+    18
+  );
 }
 
 export function createPlayerDelta(
@@ -24,7 +41,7 @@ export function createPlayerDelta(
   return {
     rankDelta: previous.rank - current.rank,
     scoreDelta: previous.scoreToPar - current.scoreToPar,
-    thruDelta: thruToNumber(current.thru) - thruToNumber(previous.thru),
+    thruDelta: thruToNumber(current, previous) - thruToNumber(previous, current),
   };
 }
 

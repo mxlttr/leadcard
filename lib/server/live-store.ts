@@ -1,4 +1,5 @@
 import { createPlayerDelta, createRecentUpdate } from "@/lib/server/diff";
+import { load } from "cheerio";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
   getDefaultTournamentId,
@@ -11,6 +12,7 @@ import type {
   LeaderboardPlayer,
   LeaderboardResponse,
   LiveResponse,
+  PlayerRound,
   PlayerSnapshot,
   RecentUpdate,
   TournamentSummary,
@@ -23,6 +25,7 @@ const LEAD_CARD_SIZE = 4;
 type LiveState = {
   tournament: TournamentSummary;
   hasLiveData: boolean;
+  autoRefresh: boolean;
   fixtureIndex: number;
   lastAdvancedAt: number;
   generatedAt: string;
@@ -79,7 +82,101 @@ function getDivisions(players: LeaderboardPlayer[]) {
 }
 
 function nextUpdateAt(store: LiveState) {
+  if (!store.autoRefresh) {
+    return new Date(store.lastAdvancedAt).toISOString();
+  }
+
   return new Date(store.lastAdvancedAt + UPDATE_INTERVAL_MS).toISOString();
+}
+
+function shouldAutoRefresh(players: Array<Pick<PlayerSnapshot, "thru">>) {
+  return players.length > 0 && players.some((player) => player.thru !== "F");
+}
+
+function roundLabelFor(currentRound: number, totalRounds?: number) {
+  return totalRounds && totalRounds > currentRound
+    ? `Round ${currentRound} of ${totalRounds}`
+    : `Round ${currentRound}`;
+}
+
+function inferTotalRounds(html: string | null) {
+  if (!html) {
+    return undefined;
+  }
+
+  const $ = load(html);
+  const roundValues = $(".lso_btn_navigation[data-target-element='round']")
+    .toArray()
+    .map((link) => Number($(link).attr("data-target-value")))
+    .filter((value) => Number.isInteger(value) && value > 0 && value !== 99);
+
+  if (roundValues.length === 0) {
+    return undefined;
+  }
+
+  return Math.max(...roundValues);
+}
+
+function inferLiveRound(
+  tournament: TournamentSummary,
+  html: string | null,
+  players: Array<Pick<PlayerSnapshot, "rounds">>,
+) {
+  if (tournament.status !== "live") {
+    return {
+      roundLabel: tournament.roundLabel,
+      currentRound: tournament.currentRound,
+      totalRounds: tournament.totalRounds,
+    };
+  }
+
+  const totalRounds = inferTotalRounds(html);
+  const inProgressRounds = players
+    .flatMap((player) => player.rounds ?? [])
+    .filter((round) => round.thru !== 0 && round.thru !== "F");
+
+  if (inProgressRounds.length > 0) {
+    const currentRound = inProgressRounds.reduce((latest, round) =>
+      round.order > latest.order ? round : latest,
+    );
+    return {
+      roundLabel: roundLabelFor(currentRound.order, totalRounds),
+      currentRound: currentRound.order,
+      totalRounds,
+    };
+  }
+
+  const startedRounds = players
+    .flatMap((player) => player.rounds ?? [])
+    .filter((round) => round.thru !== 0);
+
+  if (startedRounds.length > 0) {
+    const latestRound = startedRounds.reduce((latest, round) =>
+      round.order > latest.order ? round : latest,
+    );
+    return {
+      roundLabel: roundLabelFor(latestRound.order, totalRounds),
+      currentRound: latestRound.order,
+      totalRounds,
+    };
+  }
+
+  return {
+    roundLabel: tournament.roundLabel,
+    currentRound: tournament.currentRound,
+    totalRounds,
+  };
+}
+
+function withInferredRound(
+  tournament: TournamentSummary,
+  html: string | null,
+  players: Array<Pick<PlayerSnapshot, "rounds">>,
+): TournamentSummary {
+  return {
+    ...tournament,
+    ...inferLiveRound(tournament, html, players),
+  };
 }
 
 function toLeaderboardPlayers(
@@ -127,8 +224,13 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
     })) ?? [];
 
   return {
-    tournament: source.tournament,
+    tournament: withInferredRound(
+      source.tournament,
+      source.html,
+      snapshot?.players ?? [],
+    ),
     hasLiveData: Boolean(source.html),
+    autoRefresh: shouldAutoRefresh(snapshot?.players ?? []),
     fixtureIndex: source.nextFixtureIndex,
     lastAdvancedAt: Date.now(),
     generatedAt: snapshot?.generatedAt ?? new Date().toISOString(),
@@ -202,15 +304,16 @@ async function advanceStore(store: LiveState) {
     store.tournament.id,
     store.fixtureIndex,
   );
-  store.tournament = source.tournament;
   store.hasLiveData = Boolean(source.html);
   store.fixtureIndex = source.nextFixtureIndex;
   store.lastAdvancedAt = Date.now();
 
   if (!source.html) {
+    store.tournament = source.tournament;
     store.generatedAt = new Date().toISOString();
     store.players = [];
     store.updates = [];
+    store.autoRefresh = false;
     return;
   }
 
@@ -224,8 +327,12 @@ async function advanceStore(store: LiveState) {
     nextSnapshot.generatedAt,
   );
 
+  store.tournament = {
+    ...withInferredRound(source.tournament, source.html, nextSnapshot.players),
+  };
   store.generatedAt = nextSnapshot.generatedAt;
   store.players = nextState.players;
+  store.autoRefresh = shouldAutoRefresh(nextSnapshot.players);
   store.updates = [...nextState.updates.reverse(), ...store.updates].slice(
     0,
     20,
@@ -235,7 +342,10 @@ async function advanceStore(store: LiveState) {
 async function refreshIfNeeded(tournamentId: string) {
   const store = await ensureStore(tournamentId);
 
-  if (Date.now() - store.lastAdvancedAt >= UPDATE_INTERVAL_MS) {
+  if (
+    store.autoRefresh &&
+    Date.now() - store.lastAdvancedAt >= UPDATE_INTERVAL_MS
+  ) {
     return refreshStore(store);
   }
 
@@ -276,7 +386,7 @@ export async function getLiveResponse(
     divisionLeaders: divisionLeaders(store.players),
     generatedAt: store.generatedAt,
     nextUpdateAt: nextUpdateAt(store),
-    updateIntervalMs: UPDATE_INTERVAL_MS,
+    updateIntervalMs: store.autoRefresh ? UPDATE_INTERVAL_MS : 0,
   };
 }
 

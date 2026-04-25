@@ -109,6 +109,24 @@ function boardStatusClass(status: LiveResponse["tournament"]["status"]) {
   return "text-muted";
 }
 
+function tournamentRoundSummary(
+  tournament: LiveResponse["tournament"],
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  if (
+    tournament.currentRound &&
+    tournament.totalRounds &&
+    tournament.totalRounds >= tournament.currentRound
+  ) {
+    return t("tournaments.roundProgress", {
+      current: tournament.currentRound,
+      total: tournament.totalRounds,
+    });
+  }
+
+  return tournament.roundLabel;
+}
+
 function languageHref(locale: AppLocale, searchParams: URLSearchParams) {
   const query = searchParams.toString();
   return query ? `/${locale}/board?${query}` : `/${locale}/board`;
@@ -212,7 +230,7 @@ function BoardHeader({
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
               <span>{liveData.tournament.course}</span>
-              <span>{liveData.tournament.roundLabel}</span>
+              <span>{tournamentRoundSummary(liveData.tournament, t)}</span>
               <span>
                 {liveData.hasLiveData
                   ? t("board.latestSnapshot", {
@@ -715,6 +733,10 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           ? `/api/live?tournamentId=${encodeURIComponent(requestedTournamentId)}`
           : "/api/live",
       ),
+    refetchInterval: (query) => {
+      const interval = (query.state.data as LiveResponse | undefined)?.updateIntervalMs;
+      return interval && interval > 0 ? interval : false;
+    },
     placeholderData: keepPreviousData,
   });
 
@@ -730,6 +752,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent(division)}`,
         ),
       enabled: Boolean(selectedTournamentId),
+      refetchInterval:
+        liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
       placeholderData: keepPreviousData,
     })),
   });

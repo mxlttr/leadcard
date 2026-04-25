@@ -149,6 +149,24 @@ function tournamentStatusClass(
     : "bg-transparent text-muted";
 }
 
+function tournamentRoundSummary(
+  tournament: LiveResponse["tournament"],
+  t: (key: string, params?: Record<string, string | number>) => string,
+) {
+  if (
+    tournament.currentRound &&
+    tournament.totalRounds &&
+    tournament.totalRounds >= tournament.currentRound
+  ) {
+    return t("tournaments.roundProgress", {
+      current: tournament.currentRound,
+      total: tournament.totalRounds,
+    });
+  }
+
+  return tournament.roundLabel;
+}
+
 function TournamentListItem({
   tournament,
   selected,
@@ -170,7 +188,7 @@ function TournamentListItem({
             selected ? "text-foreground/70" : "text-muted",
           )}
         >
-          {tournament.course} · {tournament.roundLabel}
+          {tournament.course} · {tournamentRoundSummary(tournament, t)}
         </span>
       </span>
       <span
@@ -293,6 +311,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           ? `/api/live?tournamentId=${encodeURIComponent(requestedTournamentId)}`
           : "/api/live",
       ),
+    refetchInterval: (query) => {
+      const interval = (query.state.data as LiveResponse | undefined)?.updateIntervalMs;
+      return interval && interval > 0 ? interval : false;
+    },
     placeholderData: keepPreviousData,
   });
 
@@ -312,6 +334,8 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent(selectedDivision)}`,
       ),
     enabled: Boolean(selectedTournamentId),
+    refetchInterval:
+      liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
     placeholderData: keepPreviousData,
   });
 
@@ -322,6 +346,8 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent("__all")}`,
       ),
     enabled: Boolean(selectedTournamentId && searchQuery.trim()),
+    refetchInterval:
+      liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
     placeholderData: keepPreviousData,
   });
 
@@ -332,6 +358,8 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`,
       ),
     enabled: Boolean(selectedTournamentId),
+    refetchInterval:
+      liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
     placeholderData: keepPreviousData,
   });
 
@@ -632,7 +660,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               </span>
             </div>
             <span className="truncate text-right">
-              {liveData.tournament.roundLabel}
+              {tournamentRoundSummary(liveData.tournament, t)}
             </span>
           </div>
         </header>

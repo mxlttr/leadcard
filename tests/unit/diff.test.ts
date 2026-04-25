@@ -5,7 +5,24 @@ import {
   createRecentUpdate,
   formatScore,
 } from "@/lib/server/diff";
+import type { PlayerRound } from "@/lib/types";
 import type { PlayerSnapshot } from "@/lib/types";
+
+function round(totalHoles: number, thru: PlayerRound["thru"]): PlayerRound {
+  return {
+    id: `round-${totalHoles}`,
+    order: 1,
+    label: "Round 1",
+    thru,
+    scoreToPar: 0,
+    holes: Array.from({ length: totalHoles }, (_, index) => ({
+      hole: index + 1,
+      par: 3,
+      score: index < (thru === "F" ? totalHoles : thru) ? 3 : null,
+      relativeToPar: index < (thru === "F" ? totalHoles : thru) ? 0 : null,
+    })),
+  };
+}
 
 function player(overrides: Partial<PlayerSnapshot> = {}): PlayerSnapshot {
   return {
@@ -40,6 +57,15 @@ describe("createPlayerDelta", () => {
       scoreDelta: 0,
       thruDelta: 0,
     });
+  });
+
+  it("uses the actual round length for finished players when round data is available", () => {
+    const delta = createPlayerDelta(
+      player({ thru: 13, rounds: [round(14, 13)] }),
+      player({ thru: "F", rounds: [round(14, "F")] }),
+    );
+
+    expect(delta.thruDelta).toBe(1);
   });
 });
 

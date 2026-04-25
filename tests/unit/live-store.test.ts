@@ -98,6 +98,86 @@ const secondSnapshotHtml = serializeSnapshot("2026-03-24T12:00:25.000Z", [
   },
 ]);
 
+const finishedSnapshotHtml = serializeSnapshot("2026-03-24T12:00:25.000Z", [
+  {
+    playerId: "open-a",
+    name: "Alice Ace",
+    division: "Open",
+    rank: 1,
+    scoreToPar: -5,
+    thru: "F",
+    lastFive: [0, -1, 0, 0, -1],
+  },
+  {
+    playerId: "open-b",
+    name: "Bob Birdie",
+    division: "Open",
+    rank: 2,
+    scoreToPar: -3,
+    thru: "F",
+    lastFive: [0, 0, 0, -1, 0],
+  },
+]);
+
+const multiRoundLiveHtml = `
+  <div class="nav">
+    <a class="nav-link lso_btn_navigation" data-target-element="round" data-target-value="99">Gesamtübersicht</a>
+    <a class="nav-link lso_btn_navigation" data-target-element="round" data-target-value="1">Runde 1</a>
+    <a class="nav-link lso_btn_navigation" data-target-element="round" data-target-value="2">Runde 2</a>
+    <a class="nav-link lso_btn_navigation" data-target-element="round" data-target-value="3">Runde 3</a>
+  </div>
+  <table id="livescoring_">
+    <thead>
+      <tr class="w-100">
+        <th colspan="2" class="text-end">Par</th>
+        <th class="text-center th_hole">3</th>
+        <th class="text-center th_hole">3</th>
+        <th class="text-center th_hole">3</th>
+        <th colspan="2"></th>
+        <th class="text-end">9</th>
+        <th colspan="2"></th>
+      </tr>
+      <tr class="w-100">
+        <th>No</th>
+        <th class="th_name">Open</th>
+        <th class="text-center th_hole">1</th>
+        <th class="text-center th_hole">2</th>
+        <th class="text-center th_hole">3</th>
+        <th class="text-end">&pm;</th>
+        <th class="text-end" style="width:20px;">Kor</th>
+        <th class="text-end">&sum;</th>
+        <th class="text-end" colspan="2">total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Alice Ace</td>
+        <td>3</td>
+        <td>3</td>
+        <td>2</td>
+        <td class="text-end">-1</td>
+        <td class="text-end"></td>
+        <td class="text-end">8</td>
+        <td class="text-end">-1</td>
+        <td class="text-end">8</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td></td>
+        <td>2</td>
+        <td></td>
+        <td></td>
+        <td class="text-end">-1</td>
+        <td class="text-end"></td>
+        <td class="text-end">2</td>
+        <td class="text-end">-2</td>
+        <td class="text-end">10</td>
+      </tr>
+    </tbody>
+  </table>
+`;
+
 const unsortedDivisionLeadersHtml = serializeSnapshot(
   "2026-03-24T12:01:00.000Z",
   [
@@ -302,6 +382,24 @@ describe("live-store", () => {
     expect(updates.updates).toEqual([]);
   });
 
+  it("relabels live tournaments with the inferred current round", async () => {
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament: {
+        ...tournament,
+        roundLabel: "24.03.2026 - 26.03.2026",
+      },
+      html: multiRoundLiveHtml,
+      nextFixtureIndex: 0,
+    });
+
+    const liveStore = await import("@/lib/server/live-store");
+    const liveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(liveResponse.tournament.currentRound).toBe(2);
+    expect(liveResponse.tournament.totalRounds).toBe(3);
+    expect(liveResponse.tournament.roundLabel).toBe("Round 2 of 3");
+  });
+
   it("resolves unknown tournament ids back to the default tournament", async () => {
     const liveStore = await import("@/lib/server/live-store");
 
@@ -376,5 +474,26 @@ describe("live-store", () => {
     ]);
 
     expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops auto-refreshing once every player has finished", async () => {
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament,
+      html: finishedSnapshotHtml,
+      nextFixtureIndex: 0,
+    });
+
+    const liveStore = await import("@/lib/server/live-store");
+    const firstLiveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(firstLiveResponse.updateIntervalMs).toBe(0);
+    expect(firstLiveResponse.nextUpdateAt).toBe("2026-03-24T12:00:00.000Z");
+
+    vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
+
+    const secondLiveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(secondLiveResponse.updateIntervalMs).toBe(0);
+    expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(1);
   });
 });
