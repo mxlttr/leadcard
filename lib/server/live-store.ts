@@ -1,18 +1,17 @@
-import { createPlayerDelta, createRecentUpdate } from "@/lib/server/diff";
 import { load } from "cheerio";
+import { sortDivisionLabels } from "@/lib/i18n/divisions";
+import { createPlayerDelta, createRecentUpdate } from "@/lib/server/diff";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
   getDefaultTournamentId,
   getTournamentCatalog,
   loadTournamentSnapshotSource,
 } from "@/lib/server/tournament-source";
-import { sortDivisionLabels } from "@/lib/i18n/divisions";
 import type {
   DivisionLeader,
   LeaderboardPlayer,
   LeaderboardResponse,
   LiveResponse,
-  PlayerRound,
   PlayerSnapshot,
   RecentUpdate,
   TournamentSummary,

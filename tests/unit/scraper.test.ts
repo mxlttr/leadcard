@@ -202,9 +202,9 @@ describe("scrapeSnapshot", () => {
       thru: "F",
     });
     expect(jonathanKreis.rounds?.[0]?.holes[0]?.par).toBe(3);
-    expect(jonathanKreis.rounds?.[2]?.holes.some((hole) => hole.score !== null)).toBe(
-      true,
-    );
+    expect(
+      jonathanKreis.rounds?.[2]?.holes.some((hole) => hole.score !== null),
+    ).toBe(true);
     expect(
       Math.max(
         ...snapshot.players.map((player) => Math.abs(player.scoreToPar)),

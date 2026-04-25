@@ -403,9 +403,9 @@ describe("live-store", () => {
   it("resolves unknown tournament ids back to the default tournament", async () => {
     const liveStore = await import("@/lib/server/live-store");
 
-    await expect(liveStore.getResolvedTournamentId("missing-event")).resolves.toBe(
-      tournament.id,
-    );
+    await expect(
+      liveStore.getResolvedTournamentId("missing-event"),
+    ).resolves.toBe(tournament.id);
   });
 
   it("sorts division leaders by leaderboard score instead of source order", async () => {
@@ -418,9 +418,9 @@ describe("live-store", () => {
     const liveStore = await import("@/lib/server/live-store");
     const liveResponse = await liveStore.getLiveResponse(tournament.id);
 
-    expect(liveResponse.divisionLeaders.map(({ division }) => division)).toEqual(
-      ["Open", "Masters", "Women"],
-    );
+    expect(
+      liveResponse.divisionLeaders.map(({ division }) => division),
+    ).toEqual(["Open", "Masters", "Women"]);
     expect(
       liveResponse.divisionLeaders.map(({ leader }) => leader.name),
     ).toEqual(["Alice Ace", "Milo Mando", "Cara Chain"]);

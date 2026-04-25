@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { buildRecentUpdatesFeed } from "@/lib/recent-updates";
 import type { RecentUpdate } from "@/lib/types";
 
-function update(overrides: Partial<RecentUpdate> & { id: string }): RecentUpdate {
+function update(
+  overrides: Partial<RecentUpdate> & { id: string },
+): RecentUpdate {
   const { id, ...rest } = overrides;
 
   return {
@@ -70,11 +72,9 @@ describe("buildRecentUpdatesFeed", () => {
 
     expect(feed.keyMoments).toHaveLength(1);
     expect(feed.keyMoments[0]?.type).toBe("lead_change");
-    expect(feed.keyMoments[0]?.updates.map((entry) => entry.playerName)).toEqual([
-      "Jonas Weber",
-      "Lukas Hartmann",
-      "Mika Braun",
-    ]);
+    expect(
+      feed.keyMoments[0]?.updates.map((entry) => entry.playerName),
+    ).toEqual(["Jonas Weber", "Lukas Hartmann", "Mika Braun"]);
     expect(feed.latestUpdates.map((entry) => entry.id)).toEqual(["latest-1"]);
   });
 

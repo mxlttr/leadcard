@@ -14,7 +14,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
-import type { LeaderboardPlayer, PlayerHoleScore, PlayerRound, RecentUpdate } from "@/lib/types";
+import type {
+  LeaderboardPlayer,
+  PlayerHoleScore,
+  PlayerRound,
+  RecentUpdate,
+} from "@/lib/types";
+import { formatUpdateText } from "@/lib/update-copy";
 import {
   formatDivisionRank,
   formatScore,
@@ -22,7 +28,6 @@ import {
   scoreTone,
   timestampLabel,
 } from "@/lib/utils";
-import { formatUpdateText } from "@/lib/update-copy";
 
 function toneVariant(tone: RecentUpdate["tone"]) {
   if (tone === "positive") {
@@ -54,9 +59,8 @@ function holeScoreTone(hole: PlayerHoleScore) {
 
 function activeRoundId(rounds: PlayerRound[]) {
   const currentRound =
-    [...rounds]
-      .reverse()
-      .find((round) => round.thru !== 0) ?? rounds[rounds.length - 1];
+    [...rounds].reverse().find((round) => round.thru !== 0) ??
+    rounds[rounds.length - 1];
 
   return currentRound?.id ?? "";
 }
@@ -108,8 +112,7 @@ export function PlayerDetailSheet({
                   {t("player.rankSummary", {
                     rank: formatDivisionRank(player, divisionPlayers),
                   })}{" "}
-                  ·{" "}
-                  {holeToLabel(player.thru, t)}
+                  · {holeToLabel(player.thru, t)}
                 </SheetDescription>
               </SheetHeader>
 

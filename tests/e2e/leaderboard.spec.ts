@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 type PlayerDelta = {
   rankDelta: number;
@@ -244,12 +244,18 @@ function createUpdatesResponse(
   };
 }
 
-async function mockApi(page: Page, options?: {
-  waitForResponse?: (pathname: string, tournamentId: string) => Promise<void> | undefined;
-  liveByTournamentId?: Record<string, LiveResponse>;
-  leaderboardByKey?: Record<string, LeaderboardResponse>;
-  updatesByTournamentId?: Record<string, UpdatesResponse>;
-}) {
+async function mockApi(
+  page: Page,
+  options?: {
+    waitForResponse?: (
+      pathname: string,
+      tournamentId: string,
+    ) => Promise<void> | undefined;
+    liveByTournamentId?: Record<string, LiveResponse>;
+    leaderboardByKey?: Record<string, LeaderboardResponse>;
+    updatesByTournamentId?: Record<string, UpdatesResponse>;
+  },
+) {
   const liveByTournamentId = options?.liveByTournamentId ?? {};
   const leaderboardByKey = options?.leaderboardByKey ?? {};
   const updatesByTournamentId = options?.updatesByTournamentId ?? {};
@@ -264,8 +270,7 @@ async function mockApi(page: Page, options?: {
 
     if (pathname === "/api/live") {
       const body =
-        liveByTournamentId[tournamentId] ??
-        liveByTournamentId.default;
+        liveByTournamentId[tournamentId] ?? liveByTournamentId.default;
 
       await route.fulfill({
         status: 200,
@@ -291,8 +296,7 @@ async function mockApi(page: Page, options?: {
 
     if (pathname === "/api/updates") {
       const body =
-        updatesByTournamentId[tournamentId] ??
-        updatesByTournamentId.default;
+        updatesByTournamentId[tournamentId] ?? updatesByTournamentId.default;
 
       await route.fulfill({
         status: 200,
@@ -328,6 +332,11 @@ test("keeps the previous leaderboard visible while switching tournaments", async
     leaders: betaMastersPlayers,
     divisionLeaders: [{ division: "Masters", leader: betaMastersPlayers[0] }],
   });
+  const alphaLatestUpdate = alphaOpenPlayers[0]?.latestUpdate;
+
+  if (!alphaLatestUpdate) {
+    throw new Error("Expected seeded latest update for Alpha Open.");
+  }
 
   await mockApi(page, {
     waitForResponse(pathname, tournamentId) {
@@ -360,11 +369,9 @@ test("keeps the previous leaderboard visible while switching tournaments", async
       ),
     },
     updatesByTournamentId: {
-      default: createUpdatesResponse(alphaTournament.id, [
-        alphaOpenPlayers[0].latestUpdate!,
-      ]),
+      default: createUpdatesResponse(alphaTournament.id, [alphaLatestUpdate]),
       [alphaTournament.id]: createUpdatesResponse(alphaTournament.id, [
-        alphaOpenPlayers[0].latestUpdate!,
+        alphaLatestUpdate,
       ]),
       [betaTournament.id]: createUpdatesResponse(betaTournament.id, []),
     },
@@ -561,9 +568,9 @@ test("persists followed players across reloads", async ({ page }) => {
   await page.reload();
   await page.getByRole("button", { name: "Following" }).click();
 
-  await expect(page.getByRole("button", { name: "Unfollow player" })).toHaveCount(
-    1,
-  );
+  await expect(
+    page.getByRole("button", { name: "Unfollow player" }),
+  ).toHaveCount(1);
   await expect(playerCard(page, "Alice Ace")).toBeVisible();
 });
 
@@ -630,8 +637,7 @@ test.describe("mobile layout", () => {
   }) => {
     const longTournament: TournamentSummary = {
       id: "waldschwimmbad-open",
-      name:
-        "22. Waldschwimmbad Open, Zugunsten Förderverein Discgolf Jugend Deutschland",
+      name: "22. Waldschwimmbad Open, Zugunsten Förderverein Discgolf Jugend Deutschland",
       course:
         "A Very Long Course Name With Detailed Venue Context For Overflow Testing",
       roundLabel: "Round 2 of 3",
@@ -686,7 +692,10 @@ test.describe("mobile layout", () => {
       updatesByTournamentId: {
         default: createUpdatesResponse(longTournament.id, []),
         [longTournament.id]: createUpdatesResponse(longTournament.id, []),
-        [alternateTournament.id]: createUpdatesResponse(alternateTournament.id, []),
+        [alternateTournament.id]: createUpdatesResponse(
+          alternateTournament.id,
+          [],
+        ),
       },
     });
 

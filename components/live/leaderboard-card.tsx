@@ -139,10 +139,9 @@ export function LeaderboardCard({
         <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
           {player.latestUpdate
             ? formatUpdateText(player.latestUpdate, t)
-            : 
-            t("player.holding", {
-              status: holeToLabel(player.thru, t).toLowerCase(),
-            })}
+            : t("player.holding", {
+                status: holeToLabel(player.thru, t).toLowerCase(),
+              })}
         </p>
       </CardContent>
     </Card>

@@ -4,15 +4,15 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Info, Moon, Search, Star, Sun, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { BattleGroup } from "@/components/live/battle-group";
 import { DivisionTabs } from "@/components/live/division-tabs";
 import { GlobalSnapshot } from "@/components/live/global-snapshot";
 import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
 import { RecentUpdatesFeed } from "@/components/live/recent-updates-feed";
+import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollowedPlayers } from "@/hooks/use-followed-players";
 import { type AppLocale, type Dictionary, locales } from "@/lib/i18n";
@@ -32,7 +33,6 @@ import type {
   UpdatesResponse,
 } from "@/lib/types";
 import { cn, holeToLabel, timestampLabel } from "@/lib/utils";
-import { useTheme } from "@/components/theme-provider";
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url, {
@@ -123,7 +123,10 @@ function groupPlayers(
       title: t("leaderboard.leadBattle"),
       players: players.slice(0, LEAD_CARD_SIZE),
     },
-    { title: t("leaderboard.chaseCard"), players: players.slice(LEAD_CARD_SIZE) },
+    {
+      title: t("leaderboard.chaseCard"),
+      players: players.slice(LEAD_CARD_SIZE),
+    },
   ];
 }
 
@@ -251,14 +254,10 @@ function ThemeToggle() {
       className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
       onClick={toggleTheme}
       aria-label={
-        theme === "dark"
-          ? t("theme.switchToLight")
-          : t("theme.switchToDark")
+        theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")
       }
       title={
-        theme === "dark"
-          ? t("theme.switchToLight")
-          : t("theme.switchToDark")
+        theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")
       }
     >
       {theme === "dark" ? (
@@ -281,8 +280,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllPlayers, setShowAllPlayers] = useState(false);
-  const [tournamentPickerExpanded, setTournamentPickerExpanded] =
-    useState(() => !hasTournamentIdInUrl);
+  const [tournamentPickerExpanded, setTournamentPickerExpanded] = useState(
+    () => !hasTournamentIdInUrl,
+  );
   const [selectedPlayer, setSelectedPlayer] =
     useState<LeaderboardPlayer | null>(null);
   const [pendingUpdateTarget, setPendingUpdateTarget] = useState<{
@@ -312,7 +312,8 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           : "/api/live",
       ),
     refetchInterval: (query) => {
-      const interval = (query.state.data as LiveResponse | undefined)?.updateIntervalMs;
+      const interval = (query.state.data as LiveResponse | undefined)
+        ?.updateIntervalMs;
       return interval && interval > 0 ? interval : false;
     },
     placeholderData: keepPreviousData,
@@ -335,7 +336,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       ),
     enabled: Boolean(selectedTournamentId),
     refetchInterval:
-      liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
+      liveData && liveData.updateIntervalMs > 0
+        ? liveData.updateIntervalMs
+        : false,
     placeholderData: keepPreviousData,
   });
 
@@ -347,7 +350,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       ),
     enabled: Boolean(selectedTournamentId && searchQuery.trim()),
     refetchInterval:
-      liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
+      liveData && liveData.updateIntervalMs > 0
+        ? liveData.updateIntervalMs
+        : false,
     placeholderData: keepPreviousData,
   });
 
@@ -359,7 +364,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       ),
     enabled: Boolean(selectedTournamentId),
     refetchInterval:
-      liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
+      liveData && liveData.updateIntervalMs > 0
+        ? liveData.updateIntervalMs
+        : false,
     placeholderData: keepPreviousData,
   });
 
@@ -385,15 +392,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     setSelectedPlayer(null);
     setSheetOpen(false);
   }, [selectedDivision]);
-
-  useEffect(() => {
-    setSearchQuery("");
-    setShowAllPlayers(false);
-  }, [filterMode]);
-
-  useEffect(() => {
-    setShowAllPlayers(false);
-  }, [searchQuery]);
 
   useEffect(() => {
     if (liveQuery.data && !liveQuery.isPlaceholderData) {
@@ -431,30 +429,34 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const allPlayersData = allPlayersQuery.data ?? resolvedAllPlayersData;
   const updatesData = updatesQuery.data ?? resolvedUpdatesData;
 
-  function syncTournamentUrl(tournamentId: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tournamentId", tournamentId);
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-  }
+  const syncTournamentUrl = useCallback(
+    (tournamentId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tournamentId", tournamentId);
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      });
+    },
+    [pathname, router, searchParams],
+  );
 
   useEffect(() => {
     if (!liveData || !resolvedTournamentId || liveQuery.isPlaceholderData) {
       return;
     }
 
-    if (requestedTournamentId && requestedTournamentId !== resolvedTournamentId) {
+    if (
+      requestedTournamentId &&
+      requestedTournamentId !== resolvedTournamentId
+    ) {
       syncTournamentUrl(resolvedTournamentId);
     }
   }, [
     liveData,
-    pathname,
+    syncTournamentUrl,
     requestedTournamentId,
     resolvedTournamentId,
-    router,
-    searchParams,
     liveQuery.isPlaceholderData,
   ]);
 
@@ -510,7 +512,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     ? formatRefreshCountdown(liveData.nextUpdateAt, refreshNow)
     : 0;
   const refreshProgressValue = liveData
-    ? refreshProgress(liveData.nextUpdateAt, liveData.updateIntervalMs, refreshNow)
+    ? refreshProgress(
+        liveData.nextUpdateAt,
+        liveData.updateIntervalMs,
+        refreshNow,
+      )
     : 0;
   const showTournamentList = !hasTournamentIdInUrl || tournamentPickerExpanded;
 
@@ -748,7 +754,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 "h-11 px-4",
                 filterMode === "ALL" ? "" : "border border-border",
               )}
-              onClick={() => setFilterMode("ALL")}
+              onClick={() => {
+                setFilterMode("ALL");
+                setSearchQuery("");
+                setShowAllPlayers(false);
+              }}
             >
               {t("leaderboard.all")}
             </Button>
@@ -758,7 +768,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 "h-11 px-4",
                 filterMode === "FOLLOWING" ? "" : "border border-border",
               )}
-              onClick={() => setFilterMode("FOLLOWING")}
+              onClick={() => {
+                setFilterMode("FOLLOWING");
+                setSearchQuery("");
+                setShowAllPlayers(false);
+              }}
             >
               <Star className="mr-1 h-3.5 w-3.5" />
               {t("leaderboard.following")}
@@ -772,7 +786,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               <Input
                 id="player-search"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setShowAllPlayers(false);
+                }}
                 placeholder={t("leaderboard.searchPlaceholder")}
                 className="h-11 pl-10 pr-12"
                 aria-describedby="player-search-hint"
@@ -786,7 +803,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   variant="ghost"
                   size="icon"
                   className="absolute right-0.5 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full"
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setShowAllPlayers(false);
+                  }}
                   aria-label={t("leaderboard.clearSearch")}
                 >
                   <X className="h-4 w-4" />
@@ -809,9 +829,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 ? t("leaderboard.noLeaderboard")
                 : normalizedSearchQuery
                   ? t("leaderboard.noSearchResults")
-                : filterMode === "FOLLOWING"
-                  ? t("leaderboard.noFollowedPlayers")
-                  : t("leaderboard.noPlayers")}
+                  : filterMode === "FOLLOWING"
+                    ? t("leaderboard.noFollowedPlayers")
+                    : t("leaderboard.noPlayers")}
             </div>
           ) : (
             <>

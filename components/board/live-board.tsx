@@ -15,15 +15,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { RankDelta } from "@/components/live/rank-delta";
 import { ScoreDisplay } from "@/components/live/score-display";
+import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useTheme } from "@/components/theme-provider";
 import { type AppLocale, type Dictionary, locales } from "@/lib/i18n";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type {
@@ -35,7 +35,6 @@ import type {
 import {
   cn,
   formatRelativeTime,
-  formatScore,
   holeToLabel,
   timestampLabel,
 } from "@/lib/utils";
@@ -346,7 +345,10 @@ function BoardHeader({
               <select
                 value={selectedTournamentId}
                 onChange={(event) => onSelectTournament(event.target.value)}
-                className={cn(boardSelectClass, "min-w-0 max-w-full truncate pr-10")}
+                className={cn(
+                  boardSelectClass,
+                  "min-w-0 max-w-full truncate pr-10",
+                )}
                 aria-label={t("board.fields.tournament")}
                 title={
                   tournaments.find(
@@ -612,7 +614,9 @@ function BoardSettings({
             <div className="mt-3 flex items-center gap-2">
               <Button
                 type="button"
-                variant={rotationEnabled && !selectedDivision ? "default" : "ghost"}
+                variant={
+                  rotationEnabled && !selectedDivision ? "default" : "ghost"
+                }
                 className={cn(
                   "h-10 rounded-full px-4",
                   !rotationEnabled || selectedDivision
@@ -626,10 +630,14 @@ function BoardSettings({
               </Button>
               <Button
                 type="button"
-                variant={!rotationEnabled || selectedDivision ? "default" : "ghost"}
+                variant={
+                  !rotationEnabled || selectedDivision ? "default" : "ghost"
+                }
                 className={cn(
                   "h-10 rounded-full px-4",
-                  rotationEnabled && !selectedDivision ? "border border-border" : "",
+                  rotationEnabled && !selectedDivision
+                    ? "border border-border"
+                    : "",
                 )}
                 onClick={() => onSetRotationEnabled(false)}
               >
@@ -789,7 +797,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   const searchParams = useSearchParams();
   const requestedTournamentId = searchParams.get("tournamentId") ?? "";
   const lockedDivision = searchParams.get("division") ?? "";
-  const rotationEnabled = searchParams.get("rotate") !== "false" && !lockedDivision;
+  const rotationEnabled =
+    searchParams.get("rotate") !== "false" && !lockedDivision;
   const intervalSeconds = parseIntervalSeconds(searchParams.get("interval"));
   const playersPerPage = parsePlayersPerPage(searchParams.get("players"));
   const intervalMs = intervalSeconds * 1000;
@@ -797,10 +806,14 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeDivision, setActiveDivision] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
-  const [nextSwitchAt, setNextSwitchAt] = useState(() => Date.now() + intervalMs);
+  const [nextSwitchAt, setNextSwitchAt] = useState(
+    () => Date.now() + intervalMs,
+  );
   const [now, setNow] = useState(() => Date.now());
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(false);
+  const stepBoardRef = useRef<(direction: -1 | 1) => void>(() => undefined);
+  const rotateStepRef = useRef<(direction: -1 | 1) => void>(() => undefined);
 
   const liveQuery = useQuery({
     queryKey: ["board-live", locale, requestedTournamentId || "default"],
@@ -811,7 +824,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           : "/api/live",
       ),
     refetchInterval: (query) => {
-      const interval = (query.state.data as LiveResponse | undefined)?.updateIntervalMs;
+      const interval = (query.state.data as LiveResponse | undefined)
+        ?.updateIntervalMs;
       return interval && interval > 0 ? interval : false;
     },
     placeholderData: keepPreviousData,
@@ -830,7 +844,9 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
         ),
       enabled: Boolean(selectedTournamentId),
       refetchInterval:
-        liveData && liveData.updateIntervalMs > 0 ? liveData.updateIntervalMs : false,
+        liveData && liveData.updateIntervalMs > 0
+          ? liveData.updateIntervalMs
+          : false,
       placeholderData: keepPreviousData,
     })),
   });
@@ -838,10 +854,74 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   const leaderboardsByDivision = useMemo(() => {
     const entries: Array<[string, LeaderboardResponse | null]> = (
       liveData?.divisions ?? []
-    ).map((division, index) => [division, leaderboardQueries[index]?.data ?? null]);
+    ).map((division, index) => [
+      division,
+      leaderboardQueries[index]?.data ?? null,
+    ]);
 
     return new Map(entries);
   }, [leaderboardQueries, liveData?.divisions]);
+
+  stepBoardRef.current = (direction: -1 | 1) => {
+    const currentDivisionLeaderboard =
+      leaderboardsByDivision.get(activeDivision);
+
+    if (!currentDivisionLeaderboard || !liveData) {
+      return;
+    }
+
+    const currentPlayersPerPage = isAllPlayersMode(playersPerPage)
+      ? Math.max(1, currentDivisionLeaderboard.players.length)
+      : playersPerPage;
+    const currentTotalPages = Math.max(
+      1,
+      Math.ceil(
+        currentDivisionLeaderboard.players.length / currentPlayersPerPage,
+      ),
+    );
+    const currentSafePageIndex = Math.min(pageIndex, currentTotalPages - 1);
+
+    if (direction > 0) {
+      if (currentSafePageIndex < currentTotalPages - 1) {
+        setPageIndex(currentSafePageIndex + 1);
+        return;
+      }
+    } else if (currentSafePageIndex > 0) {
+      setPageIndex(currentSafePageIndex - 1);
+      return;
+    }
+
+    if (!liveData.divisions.length) {
+      return;
+    }
+
+    const currentDivisionIndex = liveData.divisions.indexOf(activeDivision);
+    const nextDivisionIndex =
+      currentDivisionIndex >= 0
+        ? (currentDivisionIndex + direction + liveData.divisions.length) %
+          liveData.divisions.length
+        : 0;
+    const nextDivision =
+      liveData.divisions[nextDivisionIndex] ?? liveData.divisions[0];
+    const nextDivisionLeaderboard = leaderboardsByDivision.get(nextDivision);
+
+    if (!nextDivisionLeaderboard) {
+      return;
+    }
+
+    const nextDivisionTotalPages = Math.max(
+      1,
+      Math.ceil(nextDivisionLeaderboard.players.length / currentPlayersPerPage),
+    );
+
+    setActiveDivision(nextDivision);
+    setPageIndex(direction > 0 ? 0 : nextDivisionTotalPages - 1);
+  };
+
+  rotateStepRef.current = (direction: -1 | 1) => {
+    stepBoardRef.current(direction);
+    setNextSwitchAt(Date.now() + intervalMs);
+  };
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -868,11 +948,11 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
 
   useEffect(() => {
     setNextSwitchAt(Date.now() + intervalMs);
-  }, [intervalMs, activeDivision, selectedTournamentId, pageIndex]);
+  }, [intervalMs]);
 
   useEffect(() => {
     setPageIndex(0);
-  }, [activeDivision, selectedTournamentId, playersPerPage]);
+  }, []);
 
   useEffect(() => {
     if (!liveData) {
@@ -903,16 +983,12 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     ) {
       return;
     }
-    rotateStep(1);
+    rotateStepRef.current(1);
   }, [
     activeDivision,
-    intervalMs,
-    leaderboardsByDivision,
     liveData,
     nextSwitchAt,
     now,
-    pageIndex,
-    playersPerPage,
     rotationEnabled,
     rotationPaused,
   ]);
@@ -987,7 +1063,10 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   const resolvedPlayersPerPage = isAllPlayersMode(playersPerPage)
     ? Math.max(1, totalPlayers)
     : playersPerPage;
-  const totalPages = Math.max(1, Math.ceil(totalPlayers / resolvedPlayersPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalPlayers / resolvedPlayersPerPage),
+  );
   const safePageIndex = Math.min(pageIndex, totalPages - 1);
   const pagedPlayers = currentLeaderboard.players.slice(
     safePageIndex * resolvedPlayersPerPage,
@@ -999,14 +1078,20 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     params.set("tournamentId", tournamentId);
     params.delete("division");
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+    setPageIndex(0);
+    setNextSwitchAt(Date.now() + intervalMs);
   }
 
   function updateBoardParams(updater: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
     updater(params);
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
   }
 
   function syncDivisionSetting(division: string) {
@@ -1019,6 +1104,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
       params.set("division", division);
       params.delete("rotate");
     });
+    setPageIndex(0);
+    setNextSwitchAt(Date.now() + intervalMs);
   }
 
   function syncRotationSetting(enabled: boolean) {
@@ -1037,12 +1124,15 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     updateBoardParams((params) => {
       params.set("interval", String(seconds));
     });
+    setNextSwitchAt(Date.now() + seconds * 1000);
   }
 
   function syncPlayersPerPageSetting(count: number) {
     updateBoardParams((params) => {
       params.set("players", count === -1 ? "all" : String(count));
     });
+    setPageIndex(0);
+    setNextSwitchAt(Date.now() + intervalMs);
   }
 
   async function toggleFullscreen() {
@@ -1058,75 +1148,23 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     await document.documentElement.requestFullscreen();
   }
 
-  function stepBoard(direction: -1 | 1) {
-    const currentDivisionLeaderboard = leaderboardsByDivision.get(activeDivision);
-
-    if (!currentDivisionLeaderboard) {
-      return;
-    }
-
-    const currentPlayersPerPage = isAllPlayersMode(playersPerPage)
-      ? Math.max(1, currentDivisionLeaderboard.players.length)
-      : playersPerPage;
-    const currentTotalPages = Math.max(
-      1,
-      Math.ceil(currentDivisionLeaderboard.players.length / currentPlayersPerPage),
-    );
-    const currentSafePageIndex = Math.min(pageIndex, currentTotalPages - 1);
-
-    if (direction > 0) {
-      if (currentSafePageIndex < currentTotalPages - 1) {
-        setPageIndex(currentSafePageIndex + 1);
-        return;
-      }
-    } else if (currentSafePageIndex > 0) {
-      setPageIndex(currentSafePageIndex - 1);
-      return;
-    }
-
-    if (!boardLiveData.divisions.length) {
-      return;
-    }
-
-    const currentDivisionIndex = boardLiveData.divisions.indexOf(activeDivision);
-    const nextDivisionIndex =
-      currentDivisionIndex >= 0
-        ? (currentDivisionIndex + direction + boardLiveData.divisions.length) %
-          boardLiveData.divisions.length
-        : 0;
-    const nextDivision =
-      boardLiveData.divisions[nextDivisionIndex] ?? boardLiveData.divisions[0];
-    const nextDivisionLeaderboard = leaderboardsByDivision.get(nextDivision);
-
-    if (!nextDivisionLeaderboard) {
-      return;
-    }
-
-    const nextDivisionTotalPages = Math.max(
-      1,
-      Math.ceil(nextDivisionLeaderboard.players.length / currentPlayersPerPage),
-    );
-
-    setActiveDivision(nextDivision);
-    setPageIndex(direction > 0 ? 0 : nextDivisionTotalPages - 1);
-  }
-
-  function rotateStep(direction: -1 | 1) {
-    stepBoard(direction);
-    setNextSwitchAt(Date.now() + intervalMs);
-  }
-
   const remainingSeconds = rotationEnabled
     ? Math.max(0, Math.ceil((nextSwitchAt - now) / 1000))
     : 0;
-  const rotationProgressValue = boardRotationProgress(nextSwitchAt, intervalMs, now);
+  const rotationProgressValue = boardRotationProgress(
+    nextSwitchAt,
+    intervalMs,
+    now,
+  );
 
   return (
     <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4">
       <div className="pointer-events-none fixed inset-x-0 top-0 z-50">
         <div
           role="progressbar"
-          aria-label={t("board.rotationProgress", { seconds: remainingSeconds })}
+          aria-label={t("board.rotationProgress", {
+            seconds: remainingSeconds,
+          })}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(rotationProgressValue * 100)}
@@ -1135,9 +1173,10 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           <div
             className="h-full bg-primary transition-[width] duration-1000 ease-linear"
             style={{
-              width: rotationEnabled && !rotationPaused
-                ? `${rotationProgressValue * 100}%`
-                : "0%",
+              width:
+                rotationEnabled && !rotationPaused
+                  ? `${rotationProgressValue * 100}%`
+                  : "0%",
             }}
           />
         </div>
@@ -1164,8 +1203,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           setRotationPaused((value) => !value);
           setNextSwitchAt(Date.now() + intervalMs);
         }}
-        onPreviousDivision={() => rotateStep(-1)}
-        onNextDivision={() => rotateStep(1)}
+        onPreviousDivision={() => rotateStepRef.current(-1)}
+        onNextDivision={() => rotateStepRef.current(1)}
       />
 
       {settingsOpen ? (

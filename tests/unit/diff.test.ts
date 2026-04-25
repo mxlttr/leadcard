@@ -5,8 +5,7 @@ import {
   createRecentUpdate,
   formatScore,
 } from "@/lib/server/diff";
-import type { PlayerRound } from "@/lib/types";
-import type { PlayerSnapshot } from "@/lib/types";
+import type { PlayerRound, PlayerSnapshot } from "@/lib/types";
 
 function round(totalHoles: number, thru: PlayerRound["thru"]): PlayerRound {
   return {

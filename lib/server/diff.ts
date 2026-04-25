@@ -41,7 +41,8 @@ export function createPlayerDelta(
   return {
     rankDelta: previous.rank - current.rank,
     scoreDelta: previous.scoreToPar - current.scoreToPar,
-    thruDelta: thruToNumber(current, previous) - thruToNumber(previous, current),
+    thruDelta:
+      thruToNumber(current, previous) - thruToNumber(previous, current),
   };
 }
 
@@ -205,10 +206,7 @@ function updateImportance(
     (previous.rank > 3 && current.rank <= 3) ||
     (previous.rank <= 3 && current.rank > 3);
 
-  if (
-    kind === "rank-up" &&
-    current.rank === 1
-  ) {
+  if (kind === "rank-up" && current.rank === 1) {
     return "high";
   }
 

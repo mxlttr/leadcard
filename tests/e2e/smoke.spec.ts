@@ -9,5 +9,7 @@ test("loads the localized leaderboard experience", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "DE" })).toBeVisible();
   await expect(page.getByRole("link", { name: "EN" })).toBeVisible();
-  await expect(page.getByText(/latest update|live scoring/i).first()).toBeVisible();
+  await expect(
+    page.getByText(/latest update|live scoring/i).first(),
+  ).toBeVisible();
 });

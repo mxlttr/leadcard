@@ -97,7 +97,9 @@ function buildRound(
 ): PlayerRound {
   const holeTexts = rowCells.slice(2, 2 + parValues.length);
   const holeValues = holeTexts.map((cellText) => parseHoleValue(cellText));
-  const playedCount = holeValues.filter((value): value is number => value !== null).length;
+  const playedCount = holeValues.filter(
+    (value): value is number => value !== null,
+  ).length;
   const thru: PlayerRound["thru"] =
     playedCount === 0 ? 0 : playedCount >= parValues.length ? "F" : playedCount;
 
@@ -107,8 +109,7 @@ function buildRound(
       hole: index + 1,
       par,
       score,
-      relativeToPar:
-        score === null || par === null ? null : score - par,
+      relativeToPar: score === null || par === null ? null : score - par,
     };
   });
 
@@ -209,7 +210,12 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
 
       const activeRow = groupedRows[groupedRows.length - 1];
       const rounds = groupedRows.map((row, roundIndex) =>
-        buildRound(playerIdFrom(division, nameCell), row, parValues, roundIndex + 1),
+        buildRound(
+          playerIdFrom(division, nameCell),
+          row,
+          parValues,
+          roundIndex + 1,
+        ),
       );
 
       if (hasUnsupportedStatus(firstCells) || hasUnsupportedStatus(activeRow)) {

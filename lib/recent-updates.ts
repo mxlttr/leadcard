@@ -67,7 +67,9 @@ export function buildRecentUpdatesFeed(updates: RecentUpdate[]) {
 
   return {
     keyMoments,
-    latestUpdates: deduped.filter((update) => !consumedUpdateIds.has(update.id)),
+    latestUpdates: deduped.filter(
+      (update) => !consumedUpdateIds.has(update.id),
+    ),
   };
 }
 
@@ -151,14 +153,20 @@ function canMergeIntoEvent(
   }
 
   if (type === "surge") {
-    return event.updates.some((eventUpdate) => eventUpdate.playerId === update.playerId);
+    return event.updates.some(
+      (eventUpdate) => eventUpdate.playerId === update.playerId,
+    );
   }
 
   return true;
 }
 
 function compareEventUpdates(a: RecentUpdate, b: RecentUpdate) {
-  if (typeof a.rank === "number" && typeof b.rank === "number" && a.rank !== b.rank) {
+  if (
+    typeof a.rank === "number" &&
+    typeof b.rank === "number" &&
+    a.rank !== b.rank
+  ) {
     return a.rank - b.rank;
   }
 

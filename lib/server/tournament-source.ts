@@ -297,12 +297,24 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       const startDateKey = parseDateKey(startDateLabel);
       const endDateKey = parseDateKey(endDateText);
 
-      if (!id || !startDateSort || !endDateSort || !startDateKey || !endDateKey) {
+      if (
+        !id ||
+        !startDateSort ||
+        !endDateSort ||
+        !startDateKey ||
+        !endDateKey
+      ) {
         return null;
       }
 
-      const windowStartKey = shiftDateKey(todayKeyInBerlin(now), -ACTIVE_WINDOW_DAYS);
-      const windowEndKey = shiftDateKey(todayKeyInBerlin(now), ACTIVE_WINDOW_DAYS);
+      const windowStartKey = shiftDateKey(
+        todayKeyInBerlin(now),
+        -ACTIVE_WINDOW_DAYS,
+      );
+      const windowEndKey = shiftDateKey(
+        todayKeyInBerlin(now),
+        ACTIVE_WINDOW_DAYS,
+      );
 
       if (endDateKey < windowStartKey || startDateKey > windowEndKey) {
         return null;
@@ -385,18 +397,21 @@ async function loadDynamicTournamentSnapshotHtml(
     return null;
   }
 
-  const hasPlayerRows = liveTable.find("tbody > tr").toArray().some((row) => {
-    const cells = $(row).find("td");
+  const hasPlayerRows = liveTable
+    .find("tbody > tr")
+    .toArray()
+    .some((row) => {
+      const cells = $(row).find("td");
 
-    if (cells.length < 2) {
-      return false;
-    }
+      if (cells.length < 2) {
+        return false;
+      }
 
-    const rankCell = sanitizeText(cells.eq(0).text());
-    const nameCell = sanitizeText(cells.eq(1).text());
+      const rankCell = sanitizeText(cells.eq(0).text());
+      const nameCell = sanitizeText(cells.eq(1).text());
 
-    return rankCell !== "" && nameCell !== "";
-  });
+      return rankCell !== "" && nameCell !== "";
+    });
 
   return hasPlayerRows ? html : null;
 }

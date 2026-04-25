@@ -66,6 +66,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: themeScript is a static local string used before hydration. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body

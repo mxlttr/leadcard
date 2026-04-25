@@ -1,5 +1,5 @@
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { LiveBoard } from "@/components/board/live-board";
 import { type AppLocale, getDictionary, isValidLocale } from "@/lib/i18n";

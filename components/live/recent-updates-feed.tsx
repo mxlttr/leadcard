@@ -13,12 +13,12 @@ import { useI18n } from "@/components/i18n-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import {
   buildRecentUpdatesFeed,
   leadContext,
   type MergedEvent,
 } from "@/lib/recent-updates";
-import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { RecentUpdate } from "@/lib/types";
 import { formatUpdateText } from "@/lib/update-copy";
 import {
@@ -123,13 +123,17 @@ function EventContext({ event }: { event: MergedEvent }) {
 
   if (event.type === "top3_shuffle" && event.updates.length > 1) {
     return (
-      <p className="mt-1 text-sm text-muted">{t("updates.context.topThreeReshuffled")}</p>
+      <p className="mt-1 text-sm text-muted">
+        {t("updates.context.topThreeReshuffled")}
+      </p>
     );
   }
 
   if (event.type === "finish") {
     return (
-      <p className="mt-1 text-sm text-muted">{t("updates.context.playerFinished")}</p>
+      <p className="mt-1 text-sm text-muted">
+        {t("updates.context.playerFinished")}
+      </p>
     );
   }
 
@@ -171,7 +175,9 @@ function UpdateLine({
       className={cn(
         "group relative w-full overflow-hidden rounded-[18px] border bg-background text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         accent.border,
-        compact ? "px-3.5 py-3 hover:bg-background/80" : "px-4 py-4 hover:bg-surface/70",
+        compact
+          ? "px-3.5 py-3 hover:bg-background/80"
+          : "px-4 py-4 hover:bg-surface/70",
         onSelect ? "cursor-pointer active:scale-[0.995]" : "cursor-default",
         fresh && "animate-[feed-enter_420ms_ease-out]",
       )}
@@ -213,12 +219,19 @@ function UpdateLine({
 
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
             {meta.map((part, index) => (
-              <span key={`${update.id}-${part}`} className="inline-flex items-center gap-2">
+              <span
+                key={`${update.id}-${part}`}
+                className="inline-flex items-center gap-2"
+              >
                 {index > 0 ? <span aria-hidden="true">·</span> : null}
                 <span
                   className={
-                    typeof update.scoreToPar === "number" && part === formatScore(update.scoreToPar)
-                      ? cn("score-text font-semibold", scoreTone(update.scoreToPar))
+                    typeof update.scoreToPar === "number" &&
+                    part === formatScore(update.scoreToPar)
+                      ? cn(
+                          "score-text font-semibold",
+                          scoreTone(update.scoreToPar),
+                        )
                       : undefined
                   }
                 >
@@ -382,7 +395,9 @@ export function RecentUpdatesFeed({
 
   useEffect(() => {
     if (!initialized.current) {
-      updates.forEach((update) => seenIds.current.add(update.id));
+      updates.forEach((update) => {
+        seenIds.current.add(update.id);
+      });
       initialized.current = true;
       return;
     }
@@ -391,7 +406,9 @@ export function RecentUpdatesFeed({
       .filter((update) => !seenIds.current.has(update.id))
       .map((update) => update.id);
 
-    updates.forEach((update) => seenIds.current.add(update.id));
+    updates.forEach((update) => {
+      seenIds.current.add(update.id);
+    });
 
     if (newIds.length === 0) {
       return;
@@ -402,7 +419,9 @@ export function RecentUpdatesFeed({
     const timeout = window.setTimeout(() => {
       setFreshIds((current) => {
         const next = new Set(current);
-        newIds.forEach((id) => next.delete(id));
+        newIds.forEach((id) => {
+          next.delete(id);
+        });
         return next;
       });
     }, 900);

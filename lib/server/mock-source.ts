@@ -28,7 +28,9 @@ type MockTournamentFeed = Omit<MockTournamentDefinition, "fixtures"> & {
   fixtures: string[];
 };
 
-const DEFAULT_PAR_VALUES = [3, 3, 3, 3, 4, 3, 3, 4, 3, 3, 4, 3, 3, 3, 4, 3, 3, 3];
+const DEFAULT_PAR_VALUES = [
+  3, 3, 3, 3, 4, 3, 3, 4, 3, 3, 4, 3, 3, 3, 4, 3, 3, 3,
+];
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -46,7 +48,8 @@ function buildSyntheticRound(
   thru: number | "F",
   recentRelativeScores: number[] = [],
 ): PlayerRound {
-  const playedCount = thru === "F" ? DEFAULT_PAR_VALUES.length : Math.max(0, thru);
+  const playedCount =
+    thru === "F" ? DEFAULT_PAR_VALUES.length : Math.max(0, thru);
   const relativeScores = Array.from({ length: playedCount }, () => 0);
   const recentScores = recentRelativeScores.slice(-Math.min(5, playedCount));
 
@@ -55,7 +58,8 @@ function buildSyntheticRound(
     relativeScores[holeIndex] = value;
   });
 
-  let remainingScore = scoreToPar - relativeScores.reduce((sum, value) => sum + value, 0);
+  let remainingScore =
+    scoreToPar - relativeScores.reduce((sum, value) => sum + value, 0);
 
   while (remainingScore !== 0 && playedCount > 0) {
     let changed = false;
@@ -66,7 +70,8 @@ function buildSyntheticRound(
       }
 
       if (remainingScore < 0) {
-        const absoluteScore = DEFAULT_PAR_VALUES[holeIndex] + relativeScores[holeIndex];
+        const absoluteScore =
+          DEFAULT_PAR_VALUES[holeIndex] + relativeScores[holeIndex];
 
         if (absoluteScore > 1) {
           relativeScores[holeIndex] -= 1;
@@ -120,9 +125,10 @@ function buildSyntheticRounds(player: FixturePlayer, roundCount: number) {
   }
 
   const recentTotal = player.lastFive.reduce((sum, value) => sum + value, 0);
-  const estimatedCurrentRoundScore = player.thru === "F"
-    ? Math.round(player.scoreToPar / roundCount)
-    : Math.round((player.scoreToPar / roundCount + recentTotal) / 2);
+  const estimatedCurrentRoundScore =
+    player.thru === "F"
+      ? Math.round(player.scoreToPar / roundCount)
+      : Math.round((player.scoreToPar / roundCount + recentTotal) / 2);
   const currentRoundScore = clamp(estimatedCurrentRoundScore, -8, 8);
   const previousRoundsTotal = player.scoreToPar - currentRoundScore;
   const basePreviousScore = Math.trunc(previousRoundsTotal / (roundCount - 1));
@@ -152,8 +158,7 @@ function buildSyntheticRounds(player: FixturePlayer, roundCount: number) {
 function serializeSnapshot(snapshot: FixtureSnapshot) {
   const rows = snapshot.players
     .map((player) => {
-      const rounds =
-        player.rounds ?? buildSyntheticRounds(player, 1);
+      const rounds = player.rounds ?? buildSyntheticRounds(player, 1);
       const encodedRounds = JSON.stringify(rounds).replaceAll('"', "&quot;");
 
       return `
