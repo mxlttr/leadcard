@@ -46,6 +46,8 @@
     "tournamentHint": "Turnier auswählen, das auf dem Board gezeigt werden soll.",
     "footer": "Der Board-Modus rotiert durch die Divisionen und hält die aktuell veröffentlichten Stände für Turnierbüro und TV sichtbar.",
     "rotationProgress": "Division wechselt in {{seconds}} Sekunden",
+    "enterFullscreen": "Vollbild aktivieren",
+    "exitFullscreen": "Vollbild verlassen",
     "settings": "Einstellungen",
     "allDivisions": "Alle Divisionen",
     "holeNumber": "{{hole}}",

@@ -5,6 +5,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Maximize,
+  Minimize,
   MonitorPlay,
   Moon,
   Pause,
@@ -177,7 +179,10 @@ function BoardHeader({
   rotationPaused,
   intervalSeconds,
   remainingSeconds,
+  fullscreenEnabled,
+  fullscreenActive,
   settingsOpen,
+  onToggleFullscreen,
   onToggleSettings,
   onToggleRotation,
   onPreviousDivision,
@@ -191,7 +196,10 @@ function BoardHeader({
   rotationPaused: boolean;
   intervalSeconds: number;
   remainingSeconds: number;
+  fullscreenEnabled: boolean;
+  fullscreenActive: boolean;
   settingsOpen: boolean;
+  onToggleFullscreen: () => void;
   onToggleSettings: () => void;
   onToggleRotation: () => void;
   onPreviousDivision: () => void;
@@ -265,6 +273,31 @@ function BoardHeader({
                 );
               })}
             </nav>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full border border-border p-0"
+              onClick={onToggleFullscreen}
+              aria-label={
+                fullscreenActive
+                  ? t("board.exitFullscreen")
+                  : t("board.enterFullscreen")
+              }
+              title={
+                fullscreenActive
+                  ? t("board.exitFullscreen")
+                  : t("board.enterFullscreen")
+              }
+              disabled={!fullscreenEnabled}
+            >
+              {fullscreenActive ? (
+                <Minimize className="h-4 w-4" />
+              ) : (
+                <Maximize className="h-4 w-4" />
+              )}
+            </Button>
 
             <Button
               type="button"
@@ -724,6 +757,8 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   const [pageIndex, setPageIndex] = useState(0);
   const [nextSwitchAt, setNextSwitchAt] = useState(() => Date.now() + intervalMs);
   const [now, setNow] = useState(() => Date.now());
+  const [fullscreenActive, setFullscreenActive] = useState(false);
+  const [fullscreenEnabled, setFullscreenEnabled] = useState(false);
 
   const liveQuery = useQuery({
     queryKey: ["board-live", locale, requestedTournamentId || "default"],
@@ -772,6 +807,21 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     }, 1000);
 
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    setFullscreenEnabled(Boolean(document.documentElement.requestFullscreen));
+
+    function syncFullscreenState() {
+      setFullscreenActive(Boolean(document.fullscreenElement));
+    }
+
+    syncFullscreenState();
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+    };
   }, []);
 
   useEffect(() => {
@@ -841,7 +891,10 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           rotationPaused={true}
           intervalSeconds={intervalSeconds}
           remainingSeconds={0}
+          fullscreenEnabled={fullscreenEnabled}
+          fullscreenActive={fullscreenActive}
           settingsOpen={settingsOpen}
+          onToggleFullscreen={toggleFullscreen}
           onToggleSettings={() => setSettingsOpen((value) => !value)}
           onToggleRotation={() => undefined}
           onPreviousDivision={() => undefined}
@@ -944,6 +997,19 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     });
   }
 
+  async function toggleFullscreen() {
+    if (!fullscreenEnabled) {
+      return;
+    }
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await document.documentElement.requestFullscreen();
+  }
+
   function stepBoard(direction: -1 | 1) {
     if (direction > 0) {
       if (safePageIndex < totalPages - 1) {
@@ -1023,7 +1089,10 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
         rotationPaused={rotationPaused}
         intervalSeconds={intervalSeconds}
         remainingSeconds={remainingSeconds}
+        fullscreenEnabled={fullscreenEnabled}
+        fullscreenActive={fullscreenActive}
         settingsOpen={settingsOpen}
+        onToggleFullscreen={toggleFullscreen}
         onToggleSettings={() => setSettingsOpen((value) => !value)}
         onToggleRotation={() => {
           setRotationPaused((value) => !value);

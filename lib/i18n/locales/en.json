@@ -46,6 +46,8 @@
     "tournamentHint": "Choose the tournament to show on the board.",
     "footer": "Board mode rotates through divisions and keeps the currently published standings visible for office and TV screens.",
     "rotationProgress": "Division switches in {{seconds}} seconds",
+    "enterFullscreen": "Enter fullscreen",
+    "exitFullscreen": "Exit fullscreen",
     "settings": "Settings",
     "allDivisions": "All divisions",
     "holeNumber": "{{hole}}",
