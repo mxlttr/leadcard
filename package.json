@@ -9,6 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "prepare": "git config core.hooksPath .githooks || true",
     "lint": "next lint",
     "lint:biome": "biome check .",
     "format": "biome format --write .",
