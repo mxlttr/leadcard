@@ -181,6 +181,8 @@ function hasActiveRoundInLivePage(html: string) {
   }
 
   const sections = tableNode.children().toArray();
+  const playedHolesPerPlayer: number[] = [];
+  let lastHoleCount = 0;
 
   for (let index = 0; index < sections.length; index += 2) {
     const thead = sections[index];
@@ -196,6 +198,7 @@ function hasActiveRoundInLivePage(html: string) {
     }
 
     const holeCount = $(thead).find("tr").first().find("th.th_hole").length;
+    lastHoleCount = holeCount;
 
     if (holeCount === 0) {
       continue;
@@ -246,11 +249,20 @@ function hasActiveRoundInLivePage(html: string) {
         return true;
       }
 
+      playedHolesPerPlayer.push(playedHoles);
+
       rowIndex = nextIndex - 1;
     }
   }
 
-  return false;
+  if (playedHolesPerPlayer.length === 0 || lastHoleCount === 0) {
+    return false;
+  }
+
+  const minimumPlayedHoles = Math.min(...playedHolesPerPlayer);
+  const maximumPlayedHoles = Math.max(...playedHolesPerPlayer);
+
+  return maximumPlayedHoles > 0 && minimumPlayedHoles < lastHoleCount;
 }
 
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {

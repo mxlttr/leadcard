@@ -177,6 +177,58 @@ describe("tournament-source", () => {
     );
   });
 
+  it("treats staggered tee-time starts as live once scoring has started", async () => {
+    const listingHtml = buildListingHtml([
+      buildListingRow({
+        id: "2478",
+        name: "Rolling Start Open",
+        course: "North Park",
+        startDate: new Date("2026-03-26T08:00:00.000Z"),
+        endDate: new Date("2026-03-26T17:00:00.000Z"),
+      }),
+    ]);
+
+    const staggeredLiveHtml = `
+      <table id="livescoring_">
+        <thead>
+          <tr><th colspan="2" class="text-end">Par</th><th class="th_hole">3</th><th class="th_hole">3</th></tr>
+          <tr><th>No</th><th class="th_name">Open</th><th>1</th><th>2</th><th colspan="2">sum</th><th colspan="2">total</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Finished First Card</td><td>3</td><td>2</td><td>5</td><td>-1</td><td>5</td></tr>
+          <tr><td>2</td><td>Still Waiting</td><td></td><td></td><td></td><td>0</td><td>0</td></tr>
+        </tbody>
+      </table>
+    `;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (input) => {
+        const url = typeof input === "string" ? input : input.toString();
+
+        if (url.includes("sp=live&id=2478")) {
+          return new Response(staggeredLiveHtml, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+          });
+        }
+
+        return new Response(listingHtml, {
+          status: 200,
+          headers: { "Content-Type": "text/html" },
+        });
+      }),
+    );
+
+    const tournamentSource = await import("@/lib/server/tournament-source");
+    const catalog = await tournamentSource.getTournamentCatalog();
+
+    expect(catalog[0]).toMatchObject({
+      id: "2478",
+      status: "live",
+    });
+  });
+
   it("treats empty live-score shells as no live data", async () => {
     const listingHtml = buildListingHtml([
       buildListingRow({
