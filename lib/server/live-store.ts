@@ -88,8 +88,19 @@ function nextUpdateAt(store: LiveState) {
   return new Date(store.lastAdvancedAt + UPDATE_INTERVAL_MS).toISOString();
 }
 
-function shouldAutoRefresh(players: Array<Pick<PlayerSnapshot, "thru">>) {
-  return players.length > 0 && players.some((player) => player.thru !== "F");
+function shouldAutoRefresh(
+  tournament: Pick<TournamentSummary, "status">,
+  hasLiveData: boolean,
+  players: Array<Pick<PlayerSnapshot, "thru">>,
+) {
+  if (players.length > 0 && players.some((player) => player.thru !== "F")) {
+    return true;
+  }
+
+  return (
+    hasLiveData &&
+    (tournament.status === "live" || tournament.status === "today")
+  );
 }
 
 function roundLabelFor(currentRound: number, totalRounds?: number) {
@@ -229,7 +240,11 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
       snapshot?.players ?? [],
     ),
     hasLiveData: Boolean(source.html),
-    autoRefresh: shouldAutoRefresh(snapshot?.players ?? []),
+    autoRefresh: shouldAutoRefresh(
+      source.tournament,
+      Boolean(source.html),
+      snapshot?.players ?? [],
+    ),
     fixtureIndex: source.nextFixtureIndex,
     lastAdvancedAt: Date.now(),
     generatedAt: snapshot?.generatedAt ?? new Date().toISOString(),
@@ -331,7 +346,11 @@ async function advanceStore(store: LiveState) {
   };
   store.generatedAt = nextSnapshot.generatedAt;
   store.players = nextState.players;
-  store.autoRefresh = shouldAutoRefresh(nextSnapshot.players);
+  store.autoRefresh = shouldAutoRefresh(
+    store.tournament,
+    true,
+    nextSnapshot.players,
+  );
   store.updates = [...nextState.updates.reverse(), ...store.updates].slice(
     0,
     20,

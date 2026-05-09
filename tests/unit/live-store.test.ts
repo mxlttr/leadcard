@@ -178,6 +178,88 @@ const multiRoundLiveHtml = `
   </table>
 `;
 
+const betweenRoundsLiveHtml = `
+  <div class="nav">
+    <a class="nav-link lso_btn_navigation" data-target-element="round" data-target-value="99">Gesamtübersicht</a>
+    <a class="nav-link lso_btn_navigation" data-target-element="round" data-target-value="1">Runde 1</a>
+    <a class="nav-link lso_btn_navigation" data-target-element="round" data-target-value="2">Runde 2</a>
+  </div>
+  <table id="livescoring_">
+    <thead>
+      <tr class="w-100">
+        <th colspan="2" class="text-end">Par</th>
+        <th class="text-center th_hole">3</th>
+        <th class="text-center th_hole">3</th>
+        <th class="text-center th_hole">3</th>
+        <th colspan="2"></th>
+        <th class="text-end">9</th>
+        <th colspan="2"></th>
+      </tr>
+      <tr class="w-100">
+        <th>No</th>
+        <th class="th_name">Open</th>
+        <th class="text-center th_hole">1</th>
+        <th class="text-center th_hole">2</th>
+        <th class="text-center th_hole">3</th>
+        <th class="text-end">&pm;</th>
+        <th class="text-end" style="width:20px;">Kor</th>
+        <th class="text-end">&sum;</th>
+        <th class="text-end" colspan="2">total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Alice Ace</td>
+        <td>3</td>
+        <td>3</td>
+        <td>3</td>
+        <td class="text-end">E</td>
+        <td class="text-end"></td>
+        <td class="text-end">9</td>
+        <td class="text-end">E</td>
+        <td class="text-end">9</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td class="text-end"></td>
+        <td class="text-end"></td>
+        <td class="text-end"></td>
+        <td class="text-end">E</td>
+        <td class="text-end">9</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Bob Birdie</td>
+        <td>2</td>
+        <td>3</td>
+        <td>3</td>
+        <td class="text-end">-1</td>
+        <td class="text-end"></td>
+        <td class="text-end">8</td>
+        <td class="text-end">-1</td>
+        <td class="text-end">8</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td class="text-end"></td>
+        <td class="text-end"></td>
+        <td class="text-end"></td>
+        <td class="text-end">-1</td>
+        <td class="text-end">8</td>
+      </tr>
+    </tbody>
+  </table>
+`;
+
 const unsortedDivisionLeadersHtml = serializeSnapshot(
   "2026-03-24T12:01:00.000Z",
   [
@@ -400,6 +482,44 @@ describe("live-store", () => {
     expect(liveResponse.tournament.roundLabel).toBe("Round 2 of 3");
   });
 
+  it("keeps polling between rounds so a later round start is picked up", async () => {
+    loadTournamentSnapshotSource
+      .mockResolvedValueOnce({
+        tournament: {
+          ...tournament,
+          status: "today",
+          roundLabel: "24.03.2026 - 26.03.2026",
+        },
+        html: betweenRoundsLiveHtml,
+        nextFixtureIndex: 0,
+      })
+      .mockResolvedValueOnce({
+        tournament: {
+          ...tournament,
+          roundLabel: "24.03.2026 - 26.03.2026",
+        },
+        html: multiRoundLiveHtml,
+        nextFixtureIndex: 0,
+      });
+
+    const liveStore = await import("@/lib/server/live-store");
+
+    const firstLiveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(firstLiveResponse.tournament.status).toBe("today");
+    expect(firstLiveResponse.updateIntervalMs).toBe(25_000);
+    expect(firstLiveResponse.nextUpdateAt).toBe("2026-03-24T12:00:25.000Z");
+
+    vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
+
+    const secondLiveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(secondLiveResponse.tournament.status).toBe("live");
+    expect(secondLiveResponse.tournament.currentRound).toBe(2);
+    expect(secondLiveResponse.tournament.totalRounds).toBe(3);
+    expect(secondLiveResponse.tournament.roundLabel).toBe("Round 2 of 3");
+  });
+
   it("resolves unknown tournament ids back to the default tournament", async () => {
     const liveStore = await import("@/lib/server/live-store");
 
@@ -476,7 +596,7 @@ describe("live-store", () => {
     expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(2);
   });
 
-  it("stops auto-refreshing once every player has finished", async () => {
+  it("keeps polling same-day tournaments after everyone has finished a round", async () => {
     loadTournamentSnapshotSource.mockResolvedValue({
       tournament,
       html: finishedSnapshotHtml,
@@ -486,14 +606,14 @@ describe("live-store", () => {
     const liveStore = await import("@/lib/server/live-store");
     const firstLiveResponse = await liveStore.getLiveResponse(tournament.id);
 
-    expect(firstLiveResponse.updateIntervalMs).toBe(0);
-    expect(firstLiveResponse.nextUpdateAt).toBe("2026-03-24T12:00:00.000Z");
+    expect(firstLiveResponse.updateIntervalMs).toBe(25_000);
+    expect(firstLiveResponse.nextUpdateAt).toBe("2026-03-24T12:00:25.000Z");
 
     vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
 
     const secondLiveResponse = await liveStore.getLiveResponse(tournament.id);
 
-    expect(secondLiveResponse.updateIntervalMs).toBe(0);
-    expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(1);
+    expect(secondLiveResponse.updateIntervalMs).toBe(25_000);
+    expect(loadTournamentSnapshotSource).toHaveBeenCalledTimes(2);
   });
 });
