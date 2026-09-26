@@ -32,7 +32,9 @@ npm run capture:tournament -- 2423 --interval=30
 ```
 
 The recorder saves a compact HTML scorecard and capture metadata only when the
-scorecard changes. Press Ctrl+C to stop. Files are written under
+scorecard changes. It stops when all listed players complete round 3 (or have
+an explicit DNF/DNS/DSQ status). Press Ctrl+C to stop early. Use
+`--stop-after-round=2` to choose a different completion target. Files are written under
 `tmp/tournament-captures/` and are ignored by Git; selected snapshots can later
 be moved into `tests/fixtures/live/` for offline regression tests.
 
