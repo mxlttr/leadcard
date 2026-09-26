@@ -25,6 +25,17 @@ echo 'LEADCARD_FORCE_MOCK_DATA=true' >> .env.local
 npm run dev
 ```
 
+To capture real scorecard snapshots during a tournament:
+
+```bash
+npm run capture:tournament -- 2423 --interval=30
+```
+
+The recorder saves a compact HTML scorecard and capture metadata only when the
+scorecard changes. Press Ctrl+C to stop. Files are written under
+`tmp/tournament-captures/` and are ignored by Git; selected snapshots can later
+be moved into `tests/fixtures/live/` for offline regression tests.
+
 ## Testing
 
 ```bash
