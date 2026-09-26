@@ -40,6 +40,18 @@ const spaceGrotesk = localFont({
 export const metadata: Metadata = {
   title: "Leadcard",
   description: "Mobile-first live leaderboard for disc golf tournaments.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://leadcard.lutter.lol",
+  ),
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Leadcard",
+  },
 };
 
 const themeScript = `

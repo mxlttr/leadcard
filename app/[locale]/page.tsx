@@ -1,8 +1,62 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { LiveLeaderboard } from "@/components/live/live-leaderboard";
 import { type AppLocale, getDictionary, isValidLocale } from "@/lib/i18n";
+import {
+  getDefaultTournamentId,
+  getTournamentCatalog,
+} from "@/lib/server/tournament-source";
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ tournamentId?: string }>;
+}): Promise<Metadata> {
+  const resolvedParams = await params;
+
+  if (!isValidLocale(resolvedParams.locale)) {
+    return {};
+  }
+
+  const locale = resolvedParams.locale as AppLocale;
+  const dictionary = getDictionary(locale);
+  const requestedTournamentId = (await searchParams).tournamentId;
+  let tournament: { name: string; course: string } | undefined;
+
+  try {
+    const tournaments = await getTournamentCatalog();
+    const tournamentId =
+      requestedTournamentId ?? (await getDefaultTournamentId());
+    tournament = tournaments.find((item) => item.id === tournamentId);
+  } catch {
+    tournament = undefined;
+  }
+
+  const title = tournament
+    ? `${tournament.name} · ${dictionary.app.title}`
+    : dictionary.meta.title;
+  const description = tournament
+    ? `${dictionary.app.title}: ${tournament.name} at ${tournament.course}.`
+    : dictionary.meta.description;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      locale,
+    },
+    twitter: {
+      title,
+      description,
+    },
+  };
+}
 
 export default async function LocaleHomePage({
   params,

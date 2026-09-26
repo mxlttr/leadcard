@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronDown, Info, Moon, Search, Star, Sun, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { BattleGroup } from "@/components/live/battle-group";
 import { DivisionTabs } from "@/components/live/division-tabs";
@@ -308,6 +308,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const [resolvedUpdatesData, setResolvedUpdatesData] =
     useState<UpdatesResponse | null>(null);
   const [refreshNow, setRefreshNow] = useState(() => Date.now());
+  const previousTournamentId = useRef<string | null>(null);
   const { isFollowed, togglePlayer, followedPlayers, hydrated } =
     useFollowedPlayers();
 
@@ -383,8 +384,14 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       return;
     }
 
+    if (
+      previousTournamentId.current !== null &&
+      previousTournamentId.current !== selectedTournamentId
+    ) {
+      setClubFilter("");
+    }
+    previousTournamentId.current = selectedTournamentId;
     setSearchQuery("");
-    setClubFilter("");
     setShowAllPlayers(false);
     setSelectedPlayer(null);
     setSheetOpen(false);
