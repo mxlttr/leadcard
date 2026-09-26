@@ -558,7 +558,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     } else {
       params.delete("club");
     }
-    const query = params.toString();
+    let query = params.toString();
+    if (clubFilter && clubFilter !== "__none") {
+      const encodedClub = encodeURIComponent(clubFilter).replaceAll(".", "%2E");
+      query = query.replace(/club=[^&]*/, `club=${encodedClub}`);
+    }
     const nextUrl = query ? `${pathname}?${query}` : pathname;
 
     if (nextUrl !== `${pathname}?${searchParams.toString()}`) {
