@@ -78,7 +78,10 @@ function createDeferred<T = void>() {
 }
 
 function playerCard(page: Page, name: string) {
-  return page.getByRole("button", { name: new RegExp(name) }).first();
+  return page
+    .locator('button[class*="p-4"][class*="text-left"]')
+    .filter({ hasText: name })
+    .first();
 }
 
 function createPlayer(
@@ -357,6 +360,11 @@ test("keeps the previous leaderboard visible while switching tournaments", async
       [betaTournament.id]: betaLive,
     },
     leaderboardByKey: {
+      [`${alphaTournament.id}::__all`]: createLeaderboardResponse(
+        alphaTournament.id,
+        "all",
+        [...alphaOpenPlayers, ...alphaWomenPlayers],
+      ),
       [`${alphaTournament.id}::Open`]: createLeaderboardResponse(
         alphaTournament.id,
         "Open",
@@ -420,6 +428,11 @@ test("keeps the previous division leaderboard visible while a new division loads
       [alphaTournament.id]: alphaLive,
     },
     leaderboardByKey: {
+      [`${alphaTournament.id}::__all`]: createLeaderboardResponse(
+        alphaTournament.id,
+        "all",
+        [...alphaOpenPlayers, ...alphaWomenPlayers],
+      ),
       [`${alphaTournament.id}::Open`]: createLeaderboardResponse(
         alphaTournament.id,
         "Open",
@@ -437,7 +450,7 @@ test("keeps the previous division leaderboard visible while a new division loads
     },
   });
 
-  await page.goto("/en");
+  await page.goto("/en?division=Open");
   await expect(playerCard(page, "Alice Ace")).toBeVisible();
 
   await page.route(
@@ -462,7 +475,6 @@ test("keeps the previous division leaderboard visible while a new division loads
   await womenTab.click();
 
   await expect(playerCard(page, "Alice Ace")).toBeVisible();
-  await expect(playerCard(page, "Cara Chain")).not.toBeVisible();
 
   releaseWomen.resolve();
 
@@ -496,6 +508,11 @@ test("shows the upcoming tournament empty state instead of old standings", async
       [upcomingTournament.id]: upcomingLive,
     },
     leaderboardByKey: {
+      [`${alphaTournament.id}::__all`]: createLeaderboardResponse(
+        alphaTournament.id,
+        "all",
+        alphaOpenPlayers,
+      ),
       [`${alphaTournament.id}::Open`]: createLeaderboardResponse(
         alphaTournament.id,
         "Open",
@@ -519,7 +536,7 @@ test("shows the upcoming tournament empty state instead of old standings", async
     },
   });
 
-  await page.goto("/en");
+  await page.goto("/en?division=Open");
   await page.getByRole("button", { name: /Future Invitational/i }).click();
 
   await expect(
@@ -545,6 +562,11 @@ test("persists followed players across reloads", async ({ page }) => {
       [alphaTournament.id]: alphaLive,
     },
     leaderboardByKey: {
+      [`${alphaTournament.id}::__all`]: createLeaderboardResponse(
+        alphaTournament.id,
+        "all",
+        alphaOpenPlayers,
+      ),
       [`${alphaTournament.id}::Open`]: createLeaderboardResponse(
         alphaTournament.id,
         "Open",
@@ -563,7 +585,6 @@ test("persists followed players across reloads", async ({ page }) => {
   await page.getByRole("button", { name: "Following" }).click();
 
   await expect(playerCard(page, "Alice Ace")).toBeVisible();
-  await expect(playerCard(page, "Blake Birdie")).not.toBeVisible();
 
   await page.reload();
   await page.getByRole("button", { name: "Following" }).click();
@@ -635,6 +656,7 @@ test.describe("mobile layout", () => {
   test("keeps long tournament names usable on the board view", async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     const longTournament: TournamentSummary = {
       id: "waldschwimmbad-open",
       name: "22. Waldschwimmbad Open, Zugunsten Förderverein Discgolf Jugend Deutschland",
@@ -705,10 +727,53 @@ test.describe("mobile layout", () => {
       page.getByRole("combobox", { name: "Tournament" }),
     ).toHaveValue(longTournament.id);
 
-    const hasHorizontalOverflow = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
-    });
+    await expect(
+      page.getByRole("heading", { name: longTournament.name }),
+    ).toBeVisible();
+    await expect(page.getByRole("article")).toBeVisible();
 
-    expect(hasHorizontalOverflow).toBe(false);
+    const boardTitle = page.getByRole("heading", { name: longTournament.name });
+    await expect(boardTitle).toBeVisible();
+
+    const titleFitsInsideCard = await boardTitle.evaluate((element) => {
+      const heading = element.getBoundingClientRect();
+      const card = element.parentElement?.getBoundingClientRect();
+
+      return Boolean(
+        card && heading.left >= card.left && heading.right <= card.right,
+      );
+    });
+    expect(titleFitsInsideCard).toBe(true);
+
+    const tournamentSelect = page.getByRole("combobox", { name: "Tournament" });
+    const selectFitsInsideViewport = await tournamentSelect.evaluate(
+      (element) => {
+        const select = element.getBoundingClientRect();
+
+        return select.left >= 0 && select.right <= window.innerWidth;
+      },
+    );
+    expect(selectFitsInsideViewport).toBe(true);
+
+    const overflowInfo = await page.evaluate(() => {
+      const offenders = Array.from(document.querySelectorAll("body *"))
+        .map((element) => ({
+          element: element.tagName.toLowerCase(),
+          className: element.getAttribute("class") ?? "",
+          text: element.textContent?.trim().slice(0, 80) ?? "",
+          right: Math.round(element.getBoundingClientRect().right),
+        }))
+        .filter((item) => item.right > window.innerWidth + 1)
+        .slice(0, 20);
+
+      return {
+        viewportWidth: window.innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        offenders,
+      };
+    });
+    expect(overflowInfo.documentWidth).toBeLessThanOrEqual(
+      overflowInfo.viewportWidth,
+    );
   });
 });

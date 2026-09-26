@@ -338,9 +338,9 @@ function BoardHeader({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-            <label className="min-w-0 w-full max-w-[min(100%,28rem)]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <label className="min-w-0 w-full sm:max-w-[min(100%,28rem)]">
               <span className="sr-only">{t("board.fields.tournament")}</span>
               <select
                 value={selectedTournamentId}
@@ -364,13 +364,13 @@ function BoardHeader({
               </select>
             </label>
             <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-              <span>
+              <span className="min-w-0 truncate">
                 {t("board.currentDivision")}:{" "}
                 <span className="font-medium text-foreground">
                   {translateDivisionLabel(activeDivision, locale)}
                 </span>
               </span>
-              <span>
+              <span className="min-w-0 truncate">
                 {t("board.updatedAt")}:{" "}
                 <span className="font-medium text-foreground">
                   {timestampLabel(liveData.generatedAt, locale)}
@@ -381,7 +381,7 @@ function BoardHeader({
           <Button
             type="button"
             variant="ghost"
-            className="h-10 shrink-0 rounded-full border border-border px-4"
+            className="h-10 shrink-0 self-start rounded-full border border-border px-4 sm:self-auto"
             onClick={onToggleSettings}
             aria-expanded={settingsOpen}
             aria-controls="board-settings-panel"
@@ -667,9 +667,9 @@ function BoardTable({
   const { locale, t } = useI18n();
 
   return (
-    <Card className="flex min-h-0 flex-1 border-border bg-surface">
-      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-6">
+    <Card className="flex min-h-0 min-w-0 flex-1 border-border bg-surface">
+      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col p-0">
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-6">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.18em] text-muted">
               {t("board.fullBoard")}
@@ -686,7 +686,7 @@ function BoardTable({
               </p>
             ) : null}
           </div>
-          <div className="ml-4 shrink-0 text-right">
+          <div className="shrink-0 text-right">
             <p className="text-xs uppercase tracking-[0.18em] text-muted">
               {t("board.players")}
             </p>
@@ -694,7 +694,7 @@ function BoardTable({
           </div>
         </div>
 
-        <div className="min-h-0 overflow-auto">
+        <div className="hidden min-h-0 overflow-auto sm:block">
           <table className="min-w-full border-separate border-spacing-0">
             <thead className="sticky top-0 z-10 bg-surface">
               <tr className="text-left text-xs uppercase tracking-[0.18em] text-muted">
@@ -784,6 +784,69 @@ function BoardTable({
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="space-y-3 p-3 sm:hidden">
+          {players.map((player) => {
+            const recentHoles = latestPlayedHoles(player);
+
+            return (
+              <article
+                key={player.playerId}
+                className="min-w-0 rounded-[20px] border border-border bg-background p-3"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="shrink-0 font-display text-xl font-semibold">
+                    #{player.rank}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-foreground">
+                      {player.name}
+                    </p>
+                    <p className="truncate text-xs text-muted">
+                      {translateDivisionLabel(player.division, locale)}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <ScoreDisplay
+                      scoreToPar={player.scoreToPar}
+                      className="text-2xl"
+                    />
+                    <p className="mt-0.5 text-xs text-muted">
+                      {holeToLabel(player.thru, t)}
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <RankDelta value={player.delta.rankDelta} />
+                  </div>
+                </div>
+                {recentHoles.length > 0 ? (
+                  <div className="mt-3 flex min-w-0 gap-1.5 overflow-x-auto pb-1">
+                    {recentHoles.map((hole) => (
+                      <div
+                        key={`${player.playerId}-mobile-board-hole-${hole.hole}`}
+                        className={cn(
+                          "w-10 shrink-0 rounded-[12px] border px-1 py-1.5 text-center",
+                          boardHoleTone(hole),
+                        )}
+                      >
+                        <div className="text-[9px] font-medium uppercase text-muted">
+                          {t("board.holeNumber", { hole: hole.hole })}
+                        </div>
+                        <div className="score-text mt-0.5 text-sm font-bold">
+                          {formatRelativeHoleScore(hole.relativeToPar)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-muted">
+                    {t("board.noHoleData")}
+                  </p>
+                )}
+              </article>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

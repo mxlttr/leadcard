@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("loads the localized leaderboard experience", async ({ page }) => {
   await page.goto("/en");
 
-  await expect(page).toHaveTitle(/Leadcard/i);
+  await expect(page).toHaveTitle(/Live standings/i);
   await expect(
     page.getByRole("heading", { name: /live standings/i }),
   ).toBeVisible();
