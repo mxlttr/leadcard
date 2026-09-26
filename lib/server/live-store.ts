@@ -338,10 +338,7 @@ async function advanceStore(store: LiveState) {
   };
   store.generatedAt = nextSnapshot.generatedAt;
   store.players = nextState.players;
-  store.autoRefresh = shouldAutoRefresh(
-    store.tournament,
-    nextSnapshot.players,
-  );
+  store.autoRefresh = shouldAutoRefresh(store.tournament, nextSnapshot.players);
   store.updates = [...nextState.updates.reverse(), ...store.updates].slice(
     0,
     20,

@@ -1,0 +1,9 @@
+.git
+.next
+node_modules
+test-results
+playwright-report
+.env*
+Dockerfile
+README.md
+AGENTS.md
