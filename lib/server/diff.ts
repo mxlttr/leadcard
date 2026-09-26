@@ -56,6 +56,25 @@ export function createRecentUpdate(
   }
 
   const score = formatScore(current.scoreToPar);
+  const specialHole = newlyRecordedSpecialHole(previous, current);
+
+  if (specialHole) {
+    const { hole, type } = specialHole;
+    return {
+      id: updateId(current, createdAt),
+      playerId: current.playerId,
+      playerName: current.name,
+      division: current.division,
+      text: `${current.name} ${type === "ace" ? "hits an ace" : "scores an eagle"} on hole ${hole}`,
+      importance: "high",
+      tone: "positive",
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
+      createdAt,
+    };
+  }
 
   if (previous.thru !== "F" && current.thru === "F") {
     return {
@@ -92,13 +111,18 @@ export function createRecentUpdate(
   }
 
   if (current.rank < previous.rank) {
+    const importance = updateImportance(previous, current, "rank-up");
+    if (importance === "low") {
+      return null;
+    }
+
     return {
       id: updateId(current, createdAt),
       playerId: current.playerId,
       playerName: current.name,
       division: current.division,
       text: `${current.name} climbs to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
-      importance: updateImportance(previous, current, "rank-up"),
+      importance,
       tone: "positive",
       rank: current.rank,
       previousRank: previous.rank,
@@ -109,13 +133,18 @@ export function createRecentUpdate(
   }
 
   if (current.rank > previous.rank) {
+    const importance = updateImportance(previous, current, "rank-down");
+    if (importance === "low") {
+      return null;
+    }
+
     return {
       id: updateId(current, createdAt),
       playerId: current.playerId,
       playerName: current.name,
       division: current.division,
       text: `${current.name} drops to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
-      importance: updateImportance(previous, current, "rank-down"),
+      importance,
       tone: "negative",
       rank: current.rank,
       previousRank: previous.rank,
@@ -129,6 +158,11 @@ export function createRecentUpdate(
     current.scoreToPar !== previous.scoreToPar ||
     current.thru !== previous.thru
   ) {
+    const importance = updateImportance(previous, current, "score");
+    if (importance === "low") {
+      return null;
+    }
+
     return {
       id: updateId(current, createdAt),
       playerId: current.playerId,
@@ -138,7 +172,7 @@ export function createRecentUpdate(
         current.rank === 1
           ? `${current.name} holds the lead at ${score}${throughSuffix(current.thru)}`
           : `${current.name} moves to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
-      importance: updateImportance(previous, current, "score"),
+      importance,
       tone: toneForMovement(previous, current, "score"),
       rank: current.rank,
       previousRank: previous.rank,
@@ -146,6 +180,38 @@ export function createRecentUpdate(
       thru: current.thru,
       createdAt,
     };
+  }
+
+  return null;
+}
+
+function newlyRecordedSpecialHole(
+  previous: PlayerSnapshot,
+  current: PlayerSnapshot,
+) {
+  const previousHoles = new Map(
+    (previous.rounds?.at(-1)?.holes ?? []).map((hole) => [hole.hole, hole]),
+  );
+  const currentHoles = current.rounds?.at(-1)?.holes ?? [];
+
+  for (const hole of currentHoles) {
+    const previousHole = previousHoles.get(hole.hole);
+
+    if (
+      hole.relativeToPar === null ||
+      (previousHole?.relativeToPar !== null &&
+        previousHole?.relativeToPar !== undefined)
+    ) {
+      continue;
+    }
+
+    if (hole.score === 1) {
+      return { hole: hole.hole, type: "ace" as const };
+    }
+
+    if (hole.relativeToPar <= -2) {
+      return { hole: hole.hole, type: "eagle" as const };
+    }
   }
 
   return null;

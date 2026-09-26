@@ -120,6 +120,61 @@ describe("createRecentUpdate", () => {
   it("returns null when nothing meaningful changed", () => {
     expect(createRecentUpdate(player(), player(), createdAt)).toBeNull();
   });
+
+  it("omits low-importance one-position movements", () => {
+    expect(
+      createRecentUpdate(player({ rank: 20 }), player({ rank: 19 }), createdAt),
+    ).toBeNull();
+  });
+
+  it("reports an eagle when a new hole is two under par", () => {
+    expect(
+      createRecentUpdate(
+        player({ rounds: [round(1, 1)] }),
+        player({
+          scoreToPar: -2,
+          thru: 2,
+          rounds: [
+            {
+              ...round(2, 2),
+              holes: [
+                ...round(1, 1).holes,
+                { hole: 2, par: 4, score: 2, relativeToPar: -2 },
+              ],
+            },
+          ],
+        }),
+        createdAt,
+      ),
+    ).toMatchObject({
+      text: "Test Player scores an eagle on hole 2",
+      importance: "high",
+    });
+  });
+
+  it("reports an ace when a new hole is a hole in one", () => {
+    expect(
+      createRecentUpdate(
+        player({ rounds: [round(1, 1)] }),
+        player({
+          thru: 2,
+          rounds: [
+            {
+              ...round(2, 2),
+              holes: [
+                ...round(1, 1).holes,
+                { hole: 2, par: 3, score: 1, relativeToPar: -2 },
+              ],
+            },
+          ],
+        }),
+        createdAt,
+      ),
+    ).toMatchObject({
+      text: "Test Player hits an ace on hole 2",
+      importance: "high",
+    });
+  });
 });
 
 describe("formatScore", () => {
