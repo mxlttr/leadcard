@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  parsePlayerClubs,
+  playerClubKey,
+} from "@/lib/server/tournament-source";
 
 function buildListingRow({
   id,
@@ -37,6 +41,27 @@ function buildListingHtml(rows: string[]) {
 }
 
 describe("tournament-source", () => {
+  it("parses starter-list clubs and matches live-score name ordering", () => {
+    const clubs = parsePlayerClubs(`
+      <table id="starterlist">
+        <thead><tr><th>Division</th><th>Spieler</th><th>Verein</th></tr></thead>
+        <tbody>
+          <tr><td>MPO</td><td>Weber, Jonas</td><td>Berlin Disc Golf Club</td></tr>
+          <tr><td>MPO</td><td>Müller, Anna</td><td>Disc Golf Club Potsdam</td></tr>
+          <tr><td>FPO</td><td>Weber, Jonas</td><td>Women Disc Golf</td></tr>
+        </tbody>
+      </table>
+    `);
+
+    expect(clubs[playerClubKey("MPO", "Jonas Weber")]).toBe(
+      "Berlin Disc Golf Club",
+    );
+    expect(clubs[playerClubKey("MPO", "Anna Müller")]).toBe(
+      "Disc Golf Club Potsdam",
+    );
+    expect(clubs[playerClubKey("FPO", "Jonas Weber")]).toBe("Women Disc Golf");
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-26T10:00:00.000Z"));

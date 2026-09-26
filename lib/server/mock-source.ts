@@ -3,6 +3,7 @@ import type { PlayerRound } from "@/lib/types";
 type FixturePlayer = {
   playerId: string;
   name: string;
+  club?: string;
   division: string;
   rank: number;
   scoreToPar: number;
@@ -165,6 +166,7 @@ function serializeSnapshot(snapshot: FixtureSnapshot) {
         <li
           data-player-id="${player.playerId}"
           data-name="${player.name}"
+          ${player.club ? `data-club="${player.club}"` : ""}
           data-division="${player.division}"
           data-rank="${player.rank}"
           data-score="${player.scoreToPar}"
@@ -218,6 +220,7 @@ const definitions: MockTournamentDefinition[] = [
           {
             playerId: "ber-p1",
             name: "Jonas Weber",
+            club: "Berlin Disc Golf Club",
             division: "MPO",
             rank: 3,
             scoreToPar: -4,
@@ -227,6 +230,7 @@ const definitions: MockTournamentDefinition[] = [
           {
             playerId: "ber-p2",
             name: "Lukas Hartmann",
+            club: "Berlin Disc Golf Club",
             division: "MPO",
             rank: 1,
             scoreToPar: -6,
@@ -236,6 +240,7 @@ const definitions: MockTournamentDefinition[] = [
           {
             playerId: "ber-p3",
             name: "Mika Braun",
+            club: "Disc Golf Club Potsdam",
             division: "MPO",
             rank: 2,
             scoreToPar: -5,

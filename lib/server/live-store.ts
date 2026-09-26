@@ -1,5 +1,6 @@
 import { load } from "cheerio";
 import { sortDivisionLabels } from "@/lib/i18n/divisions";
+import { playerClubKey } from "@/lib/player-club";
 import { createPlayerDelta, createRecentUpdate } from "@/lib/server/diff";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
@@ -218,8 +219,14 @@ function toLeaderboardPlayers(
 async function createInitialState(tournamentId: string): Promise<LiveState> {
   const source = await loadTournamentSnapshotSource(tournamentId, 0);
   const snapshot = source.html ? scrapeSnapshot(source.html) : null;
+  const enrichedPlayers = snapshot?.players.map((player) => ({
+    ...player,
+    club:
+      player.club ??
+      source.playerClubs?.[playerClubKey(player.division, player.name)],
+  }));
   const players =
-    snapshot?.players.map<LeaderboardPlayer>((player) => ({
+    enrichedPlayers?.map<LeaderboardPlayer>((player) => ({
       ...player,
       delta: {
         rankDelta: 0,
@@ -233,10 +240,10 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
     tournament: withInferredRound(
       source.tournament,
       source.html,
-      snapshot?.players ?? [],
+      enrichedPlayers ?? [],
     ),
     hasLiveData: Boolean(source.html),
-    autoRefresh: shouldAutoRefresh(source.tournament, snapshot?.players ?? []),
+    autoRefresh: shouldAutoRefresh(source.tournament, enrichedPlayers ?? []),
     fixtureIndex: source.nextFixtureIndex,
     lastAdvancedAt: Date.now(),
     generatedAt: snapshot?.generatedAt ?? new Date().toISOString(),
@@ -324,21 +331,27 @@ async function advanceStore(store: LiveState) {
   }
 
   const nextSnapshot = scrapeSnapshot(source.html);
+  const enrichedPlayers = nextSnapshot.players.map((player) => ({
+    ...player,
+    club:
+      player.club ??
+      source.playerClubs?.[playerClubKey(player.division, player.name)],
+  }));
   const previousSnapshot = store.players.map<PlayerSnapshot>(
     ({ delta: _delta, latestUpdate: _latestUpdate, ...player }) => player,
   );
   const nextState = toLeaderboardPlayers(
     previousSnapshot,
-    nextSnapshot.players,
+    enrichedPlayers,
     nextSnapshot.generatedAt,
   );
 
   store.tournament = {
-    ...withInferredRound(source.tournament, source.html, nextSnapshot.players),
+    ...withInferredRound(source.tournament, source.html, enrichedPlayers),
   };
   store.generatedAt = nextSnapshot.generatedAt;
   store.players = nextState.players;
-  store.autoRefresh = shouldAutoRefresh(store.tournament, nextSnapshot.players);
+  store.autoRefresh = shouldAutoRefresh(store.tournament, enrichedPlayers);
   store.updates = [...nextState.updates.reverse(), ...store.updates].slice(
     0,
     20,

@@ -13,22 +13,26 @@ export function DivisionTabs({
   selectedDivision: string;
   onChange: (value: string) => void;
 }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
 
   return (
     <Tabs value={selectedDivision} onValueChange={onChange}>
-      <div className="-mx-1 overflow-x-auto pb-1">
-        <TabsList className="h-auto w-max min-w-full gap-1 whitespace-nowrap">
-          {divisions.map((division) => (
-            <TabsTrigger
-              key={division}
-              value={division}
-              className="min-w-max flex-[1_0_max-content] px-4"
-            >
-              {translateDivisionLabel(division, locale)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <div className="-mx-1 overflow-hidden rounded-full border border-border bg-surface/80">
+        <div className="overflow-x-auto">
+          <TabsList className="h-auto min-w-full w-max gap-1 whitespace-nowrap rounded-none border-0 bg-transparent">
+            {divisions.map((division) => (
+              <TabsTrigger
+                key={division}
+                value={division}
+                className="min-w-max flex-[1_0_max-content] px-4"
+              >
+                {division === "__all"
+                  ? t("leaderboard.allDivisions")
+                  : translateDivisionLabel(division, locale)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
       </div>
     </Tabs>
   );

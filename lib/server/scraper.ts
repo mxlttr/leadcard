@@ -46,6 +46,7 @@ function parseMockSnapshot(html: string): ScrapedSnapshot {
       return {
         playerId: row.attr("data-player-id") ?? "",
         name: row.attr("data-name") ?? "",
+        club: row.attr("data-club") || undefined,
         division: row.attr("data-division") ?? "",
         rank: Number(row.attr("data-rank")),
         scoreToPar: Number(row.attr("data-score")),

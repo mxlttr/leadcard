@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Info, Moon, Search, Star, Sun, X } from "lucide-react";
+import { ChevronDown, Info, Moon, Search, Star, Sun, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -48,6 +48,7 @@ async function fetchJson<T>(url: string) {
 
 const LEAD_CARD_SIZE = 4;
 const INITIAL_PLAYER_COUNT = 8;
+const ALL_DIVISIONS = "__all";
 
 function formatRefreshCountdown(nextUpdateAt: string, now: number) {
   const remainingSeconds = Math.max(
@@ -275,10 +276,17 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const requestedTournamentId = searchParams.get("tournamentId") ?? "";
+  const requestedDivision = searchParams.get("division") ?? "";
+  const requestedClub = searchParams.get("club") ?? "";
   const hasTournamentIdInUrl = searchParams.has("tournamentId");
-  const [selectedDivision, setSelectedDivision] = useState("");
+  const [selectedDivision, setSelectedDivision] = useState(
+    requestedDivision === "all" ? ALL_DIVISIONS : requestedDivision,
+  );
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [clubFilter, setClubFilter] = useState(
+    requestedClub === "none" ? "__none" : requestedClub,
+  );
   const [showAllPlayers, setShowAllPlayers] = useState(false);
   const [tournamentPickerExpanded, setTournamentPickerExpanded] = useState(
     () => !hasTournamentIdInUrl,
@@ -348,7 +356,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       fetchJson<LeaderboardResponse>(
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent("__all")}`,
       ),
-    enabled: Boolean(selectedTournamentId && searchQuery.trim()),
+    enabled: Boolean(selectedTournamentId),
     refetchInterval:
       liveData && liveData.updateIntervalMs > 0
         ? liveData.updateIntervalMs
@@ -376,6 +384,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     }
 
     setSearchQuery("");
+    setClubFilter("");
     setShowAllPlayers(false);
     setSelectedPlayer(null);
     setSheetOpen(false);
@@ -471,7 +480,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       return;
     }
 
-    const hasDivision = liveData.divisions.includes(selectedDivision);
+    const hasDivision =
+      selectedDivision === ALL_DIVISIONS ||
+      liveData.divisions.includes(selectedDivision);
 
     if (!selectedDivision || !hasDivision) {
       setSelectedDivision(liveData.divisions[0] ?? "");
@@ -486,21 +497,78 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           followedPlayers.includes(player.playerId),
         );
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
-  const tournamentPlayers =
+  const allTournamentPlayers =
     !hydrated || filterMode === "ALL"
       ? (allPlayersData?.players ?? currentPlayers)
       : (allPlayersData?.players ?? []).filter((player) =>
           followedPlayers.includes(player.playerId),
         );
+  const tournamentPlayers =
+    normalizedSearchQuery || selectedDivision === ALL_DIVISIONS
+      ? allTournamentPlayers
+      : players;
+  const clubPlayers =
+    clubFilter === "__none"
+      ? tournamentPlayers.filter((player) => !player.club)
+      : clubFilter
+        ? tournamentPlayers.filter((player) => player.club === clubFilter)
+        : tournamentPlayers;
   const searchedPlayers = normalizedSearchQuery
-    ? tournamentPlayers.filter((player) =>
+    ? clubPlayers.filter((player) =>
         player.name.toLocaleLowerCase().includes(normalizedSearchQuery),
       )
-    : players;
+    : clubFilter
+      ? clubPlayers
+      : players;
+  const clubs = [
+    ...new Set(
+      allTournamentPlayers.map((player) => player.club).filter(Boolean),
+    ),
+  ].sort((a, b) => (a ?? "").localeCompare(b ?? "")) as string[];
+
+  useEffect(() => {
+    if (!allPlayersData || !clubFilter || clubFilter === "__none") {
+      return;
+    }
+
+    if (!allPlayersData.players.some((player) => player.club === clubFilter)) {
+      setClubFilter("");
+    }
+  }, [allPlayersData, clubFilter]);
+
+  useEffect(() => {
+    if (!selectedTournamentId || !selectedDivision) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(
+      "division",
+      selectedDivision === ALL_DIVISIONS ? "all" : selectedDivision,
+    );
+    if (clubFilter) {
+      params.set("club", clubFilter === "__none" ? "none" : clubFilter);
+    } else {
+      params.delete("club");
+    }
+    const query = params.toString();
+    const nextUrl = query ? `${pathname}?${query}` : pathname;
+
+    if (nextUrl !== `${pathname}?${searchParams.toString()}`) {
+      router.replace(nextUrl, { scroll: false });
+    }
+  }, [
+    clubFilter,
+    pathname,
+    router,
+    searchParams,
+    selectedDivision,
+    selectedTournamentId,
+  ]);
   const visiblePlayers = showAllPlayers
     ? searchedPlayers
     : searchedPlayers.slice(0, INITIAL_PLAYER_COUNT);
-  const isCrossDivisionSearch = Boolean(normalizedSearchQuery);
+  const isCrossDivisionSearch = Boolean(normalizedSearchQuery || clubFilter);
   const groupedPlayers = groupPlayers(
     visiblePlayers,
     filterMode,
@@ -741,7 +809,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         <section className="space-y-4">
           {liveData.divisions.length > 0 ? (
             <DivisionTabs
-              divisions={liveData.divisions}
+              divisions={[ALL_DIVISIONS, ...liveData.divisions]}
               selectedDivision={selectedDivision}
               onChange={setSelectedDivision}
             />
@@ -813,6 +881,31 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 </Button>
               ) : null}
             </div>
+            <label className="sr-only" htmlFor="club-filter">
+              {t("leaderboard.clubLabel")}
+            </label>
+            <div className="relative min-w-0 max-w-[11rem] flex-1">
+              <select
+                id="club-filter"
+                value={clubFilter}
+                onChange={(event) => {
+                  setClubFilter(event.target.value);
+                  setShowAllPlayers(false);
+                }}
+                className="h-11 w-full min-w-0 appearance-none truncate rounded-full border border-border bg-surface px-4 pr-10 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <option value="">{t("leaderboard.allClubs")}</option>
+                {clubs.map((club) => (
+                  <option key={club} value={club}>
+                    {club}
+                  </option>
+                ))}
+                {tournamentPlayers.some((player) => !player.club) ? (
+                  <option value="__none">{t("leaderboard.noClub")}</option>
+                ) : null}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            </div>
           </div>
 
           {!liveData.hasLiveData ? (
@@ -841,7 +934,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   title={group.title}
                   players={group.players}
                   divisionPlayers={currentPlayers}
-                  showDivision={isCrossDivisionSearch}
+                  showDivision={
+                    isCrossDivisionSearch || selectedDivision === ALL_DIVISIONS
+                  }
                   isFollowed={isFollowed}
                   onFollowToggle={togglePlayer}
                   onPlayerSelect={handlePlayerSelect}

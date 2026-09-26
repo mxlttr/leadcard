@@ -1,13 +1,17 @@
 import { load } from "cheerio";
+import { playerClubKey } from "@/lib/player-club";
 import {
   defaultMockTournamentId,
   mockTournamentFeeds,
 } from "@/lib/server/mock-source";
 import type { TournamentStatus, TournamentSummary } from "@/lib/types";
 
+export { normalizePlayerName, playerClubKey } from "@/lib/player-club";
+
 type TournamentSourceResult = {
   tournament: TournamentSummary;
   html: string | null;
+  playerClubs: Record<string, string>;
   nextFixtureIndex: number;
 };
 
@@ -24,6 +28,9 @@ declare global {
   var leadcardTournamentCatalogCache: TournamentCatalogCache | undefined;
   var leadcardTournamentCatalogPromise:
     | Promise<TournamentSummary[]>
+    | undefined;
+  var leadcardPlayerClubsCache:
+    | Map<string, { clubs: Record<string, string>; cachedAt: number }>
     | undefined;
 }
 
@@ -58,6 +65,8 @@ function getMockTournamentCatalog() {
 
 const LISTING_URL = "https://turniere.discgolf.de/index.php?p=events";
 const LIVE_URL = "https://turniere.discgolf.de/index.php?p=events&sp=live&id=";
+const PLAYER_LIST_URL =
+  "https://turniere.discgolf.de/index.php?p=events&sp=list-players&id=";
 const ACTIVE_WINDOW_DAYS = 7;
 const TOURNAMENT_CATALOG_CACHE_TTL_MS = 60_000;
 const FORCE_MOCK_DATA = process.env.LEADCARD_FORCE_MOCK_DATA === "true";
@@ -70,6 +79,79 @@ function buildHeaders() {
 
 function sanitizeText(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+export function parsePlayerClubs(html: string) {
+  const $ = load(html);
+  const clubs: Record<string, string> = {};
+  const table = $("#starterlist");
+
+  if (table.length === 0) {
+    return clubs;
+  }
+
+  const headers = table
+    .find("thead tr")
+    .first()
+    .find("th")
+    .map((_, cell) => sanitizeText($(cell).text()).toLocaleLowerCase("de-DE"))
+    .get();
+  const divisionIndex = headers.indexOf("division");
+  const playerIndex = headers.indexOf("spieler");
+  const clubIndex = headers.indexOf("verein");
+
+  if (divisionIndex < 0 || playerIndex < 0 || clubIndex < 0) {
+    return clubs;
+  }
+
+  table.find("tbody tr").each((_, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((__, cell) => sanitizeText($(cell).text()))
+      .get();
+    const division = cells[divisionIndex];
+    const name = cells[playerIndex];
+    const club = cells[clubIndex];
+
+    if (division && name && club) {
+      clubs[playerClubKey(division, name)] = club;
+    }
+  });
+
+  return clubs;
+}
+
+async function loadPlayerClubs(tournamentId: string) {
+  if (!globalThis.leadcardPlayerClubsCache) {
+    globalThis.leadcardPlayerClubsCache = new Map();
+  }
+
+  const cached = globalThis.leadcardPlayerClubsCache.get(tournamentId);
+  if (
+    cached &&
+    Date.now() - cached.cachedAt < TOURNAMENT_CATALOG_CACHE_TTL_MS
+  ) {
+    return cached.clubs;
+  }
+
+  try {
+    const response = await fetch(
+      `${PLAYER_LIST_URL}${encodeURIComponent(tournamentId)}`,
+      {
+        cache: "no-store",
+        headers: buildHeaders(),
+      },
+    );
+    if (!response.ok) return cached?.clubs ?? {};
+    const clubs = parsePlayerClubs(await response.text());
+    globalThis.leadcardPlayerClubsCache.set(tournamentId, {
+      clubs,
+      cachedAt: Date.now(),
+    });
+    return clubs;
+  } catch {
+    return cached?.clubs ?? {};
+  }
 }
 
 function dateRangeLabel(startDate: string, endDate: string) {
@@ -503,6 +585,7 @@ export async function loadTournamentSnapshotSource(
     return {
       tournament: await getTournamentSummary(tournamentId),
       html: dynamicHtml,
+      playerClubs: await loadPlayerClubs(tournamentId),
       nextFixtureIndex: fixtureIndex,
     };
   }
@@ -513,6 +596,7 @@ export async function loadTournamentSnapshotSource(
     return {
       tournament: await getTournamentSummary(tournamentId),
       html: null,
+      playerClubs: {},
       nextFixtureIndex: fixtureIndex,
     };
   }
@@ -523,6 +607,7 @@ export async function loadTournamentSnapshotSource(
   return {
     tournament: config.tournament,
     html: feed.fixtures[safeIndex],
+    playerClubs: {},
     nextFixtureIndex: (safeIndex + 1) % feed.fixtures.length,
   };
 }

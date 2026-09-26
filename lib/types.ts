@@ -10,6 +10,7 @@ export type TournamentStatus =
 export type PlayerStanding = {
   playerId: string;
   name: string;
+  club?: string;
   division: string;
   rank: number;
   scoreToPar: number;
