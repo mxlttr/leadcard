@@ -109,12 +109,16 @@ export function LeaderboardCard({
                   {translateDivisionLabel(player.division, locale)}
                 </div>
               ) : null}
-              <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-muted">
-                <span className="shrink-0">
-                  <RankDelta value={player.delta.rankDelta} />
-                </span>
-                <span className="truncate">{holeToLabel(player.thru, t)}</span>
-              </div>
+              {player.thru !== "F" ? (
+                <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-muted">
+                  <span className="shrink-0">
+                    <RankDelta value={player.delta.rankDelta} />
+                  </span>
+                  <span className="truncate">
+                    {holeToLabel(player.thru, t)}
+                  </span>
+                </div>
+              ) : null}
             </div>
             <ScoreDisplay scoreToPar={player.scoreToPar} className="shrink-0" />
           </button>

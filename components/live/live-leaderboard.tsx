@@ -284,6 +284,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   );
   const [filterMode, setFilterMode] = useState<"ALL" | "FOLLOWING">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [clubFilter, setClubFilter] = useState(
     requestedClub === "none" ? "__none" : requestedClub,
   );
@@ -826,38 +827,47 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             />
           ) : null}
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant={filterMode === "ALL" ? "default" : "ghost"}
-              className={cn(
-                "h-11 px-4",
-                filterMode === "ALL" ? "" : "border border-border",
-              )}
-              onClick={() => {
-                setFilterMode("ALL");
-                setSearchQuery("");
-                setShowAllPlayers(false);
-              }}
-            >
-              {t("leaderboard.all")}
-            </Button>
-            <Button
-              variant={filterMode === "FOLLOWING" ? "accent" : "ghost"}
-              className={cn(
-                "h-11 px-4",
-                filterMode === "FOLLOWING" ? "" : "border border-border",
-              )}
-              onClick={() => {
-                setFilterMode("FOLLOWING");
-                setSearchQuery("");
-                setShowAllPlayers(false);
-              }}
-            >
-              <Star className="mr-1 h-3.5 w-3.5" />
-              {t("leaderboard.following")}
-            </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className={cn("contents", searchFocused && "max-sm:hidden")}>
+              <Button
+                variant={filterMode === "ALL" ? "default" : "ghost"}
+                className={cn(
+                  "h-11 shrink-0 px-4",
+                  filterMode === "ALL" ? "" : "border border-border",
+                )}
+                onClick={() => {
+                  setFilterMode("ALL");
+                  setSearchQuery("");
+                  setShowAllPlayers(false);
+                }}
+              >
+                {t("leaderboard.all")}
+              </Button>
+              <Button
+                variant={filterMode === "FOLLOWING" ? "accent" : "ghost"}
+                className={cn(
+                  "h-11 shrink-0 px-4",
+                  filterMode === "FOLLOWING" ? "" : "border border-border",
+                )}
+                onClick={() => {
+                  setFilterMode("FOLLOWING");
+                  setSearchQuery("");
+                  setShowAllPlayers(false);
+                }}
+              >
+                <Star className="mr-1 h-3.5 w-3.5" />
+                {t("leaderboard.following")}
+              </Button>
+            </div>
 
-            <div className="relative min-w-0 flex-1">
+            <div
+              className={cn(
+                "relative min-w-0",
+                searchFocused
+                  ? "order-first basis-full sm:order-none sm:flex-1 sm:basis-0"
+                  : "min-w-0 flex-1 basis-0",
+              )}
+            >
               <label htmlFor="player-search" className="sr-only">
                 {t("leaderboard.searchLabel")}
               </label>
@@ -865,12 +875,17 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               <Input
                 id="player-search"
                 value={searchQuery}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
                 onChange={(event) => {
                   setSearchQuery(event.target.value);
                   setShowAllPlayers(false);
                 }}
                 placeholder={t("leaderboard.searchPlaceholder")}
-                className="h-11 truncate pl-10 pr-12"
+                className={cn(
+                  "h-11 truncate pl-10",
+                  searchQuery ? "pr-12" : "pr-4",
+                )}
                 aria-describedby="player-search-hint"
               />
               <span id="player-search-hint" className="sr-only">
@@ -895,7 +910,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             <label className="sr-only" htmlFor="club-filter">
               {t("leaderboard.clubLabel")}
             </label>
-            <div className="relative min-w-0 max-w-[11rem] flex-1">
+            <div className="relative min-w-0 basis-full sm:max-w-[11rem] sm:flex-1">
               <select
                 id="club-filter"
                 value={clubFilter}
