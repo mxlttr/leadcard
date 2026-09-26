@@ -96,7 +96,9 @@
     "overall": "Gesamt #{{rank}}",
     "divisionLeader": "{{division}} führend",
     "tiedOverall": "Gleichstand gesamt",
-    "toOverallLead": "{{score}} hinter Gesamtführung"
+    "toOverallLead": "{{score}} hinter Gesamtführung",
+    "showMoreDivisions": "{{count}} weitere Divisionen anzeigen",
+    "showFewerDivisions": "Weniger Divisionen anzeigen"
   },
   "leaderboard": {
     "leaderboard": "Leaderboard",
@@ -128,6 +130,7 @@
     "sliding": "Fällt",
     "steady": "Stabil",
     "holding": "Hält {{status}}",
+    "finishedAt": "Beendet bei {{score}}",
     "currentScore": "Aktueller Score",
     "rankSummary": "Rang {{rank}}",
     "rankDelta": "Rangveränderung {{value}}",

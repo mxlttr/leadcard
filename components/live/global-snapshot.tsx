@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,8 +16,12 @@ export function GlobalSnapshot({
   onSelectPlayer?: (player: LeaderboardPlayer) => void;
 }) {
   const { locale, t } = useI18n();
+  const [showAllDivisionLeaders, setShowAllDivisionLeaders] = useState(false);
   const overallLeader = data.leaders[0];
   const noLiveData = !data.hasLiveData;
+  const visibleDivisionLeaders = showAllDivisionLeaders
+    ? data.divisionLeaders
+    : data.divisionLeaders.slice(0, 3);
 
   return (
     <Card className="border-border bg-surface shadow-none">
@@ -77,7 +82,7 @@ export function GlobalSnapshot({
         )}
 
         <div className="grid gap-3">
-          {data.divisionLeaders.map(({ division, leader }) => {
+          {visibleDivisionLeaders.map(({ division, leader }) => {
             const gap = overallLeader
               ? leader.scoreToPar - overallLeader.scoreToPar
               : 0;
@@ -113,6 +118,19 @@ export function GlobalSnapshot({
               </button>
             );
           })}
+          {data.divisionLeaders.length > 3 ? (
+            <button
+              type="button"
+              className="rounded-[18px] border border-border px-4 py-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+              onClick={() => setShowAllDivisionLeaders((visible) => !visible)}
+            >
+              {showAllDivisionLeaders
+                ? t("snapshot.showFewerDivisions")
+                : t("snapshot.showMoreDivisions", {
+                    count: data.divisionLeaders.length - 3,
+                  })}
+            </button>
+          ) : null}
         </div>
       </CardContent>
     </Card>

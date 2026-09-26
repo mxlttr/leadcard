@@ -33,7 +33,7 @@ export const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 flex max-h-[90vh] flex-col overflow-hidden rounded-t-[28px] border border-border bg-surface p-5 shadow-panel",
+        "fixed inset-x-0 bottom-0 z-50 flex h-[90vh] max-h-[90vh] flex-col overflow-hidden rounded-t-[28px] border border-border bg-surface p-5 shadow-panel",
         className,
       )}
       {...props}

@@ -791,7 +791,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   setShowAllPlayers(false);
                 }}
                 placeholder={t("leaderboard.searchPlaceholder")}
-                className="h-11 pl-10 pr-12"
+                className="h-11 truncate pl-10 pr-12"
                 aria-describedby="player-search-hint"
               />
               <span id="player-search-hint" className="sr-only">

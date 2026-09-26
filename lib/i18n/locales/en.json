@@ -96,7 +96,9 @@
     "overall": "Overall #{{rank}}",
     "divisionLeader": "{{division}} leader",
     "tiedOverall": "Tied overall",
-    "toOverallLead": "{{score}} to overall lead"
+    "toOverallLead": "{{score}} to overall lead",
+    "showMoreDivisions": "Show {{count}} more divisions",
+    "showFewerDivisions": "Show fewer divisions"
   },
   "leaderboard": {
     "leaderboard": "Leaderboard",
@@ -128,6 +130,7 @@
     "sliding": "Sliding",
     "steady": "Steady",
     "holding": "Holding {{status}}",
+    "finishedAt": "Finished at {{score}}",
     "currentScore": "Current score",
     "rankSummary": "Rank {{rank}}",
     "rankDelta": "Rank delta {{value}}",

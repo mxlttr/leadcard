@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LeaderboardPlayer } from "@/lib/types";
 import { formatUpdateText } from "@/lib/update-copy";
-import { cn, formatDivisionRank, holeToLabel } from "@/lib/utils";
+import { cn, formatDivisionRank, formatScore, holeToLabel } from "@/lib/utils";
 
 function holeTone(value: number) {
   if (value < 0) {
@@ -139,9 +139,13 @@ export function LeaderboardCard({
         <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
           {player.latestUpdate
             ? formatUpdateText(player.latestUpdate, t)
-            : t("player.holding", {
-                status: holeToLabel(player.thru, t).toLowerCase(),
-              })}
+            : player.thru === "F"
+              ? t("player.finishedAt", {
+                  score: formatScore(player.scoreToPar),
+                })
+              : t("player.holding", {
+                  status: holeToLabel(player.thru, t).toLowerCase(),
+                })}
         </p>
       </CardContent>
     </Card>

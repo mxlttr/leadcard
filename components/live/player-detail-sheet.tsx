@@ -101,8 +101,8 @@ export function PlayerDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         {player ? (
-          <ScrollArea className="min-h-0 flex-1 pr-1">
-            <div className="min-w-0 w-full space-y-5 pb-4 pr-4">
+          <ScrollArea className="h-full min-h-0 flex-1">
+            <div className="min-w-0 w-full space-y-5 pb-4">
               <SheetHeader>
                 <SheetTitle className="truncate pr-10">
                   {player.name}
