@@ -51,10 +51,38 @@ function holeScoreTone(hole: PlayerHoleScore) {
   }
 
   if (hole.relativeToPar < 0) {
-    return "border-primary/30 bg-primary/10 text-primary";
+    return hole.relativeToPar <= -2
+      ? "border-primary/60 bg-primary/15 text-primary ring-1 ring-primary/40"
+      : "border-primary/30 bg-primary/10 text-primary";
   }
 
-  return "border-negative/30 bg-negative/10 text-negative";
+  return hole.relativeToPar >= 2
+    ? "border-negative/60 bg-negative/15 text-negative ring-1 ring-negative/40"
+    : "border-negative/30 bg-negative/10 text-negative";
+}
+
+function holeScoreLabel(hole: PlayerHoleScore, t: (key: string) => string) {
+  if (hole.score === 1) {
+    return t("player.ace");
+  }
+
+  if (hole.relativeToPar !== null && hole.relativeToPar <= -3) {
+    return t("player.albatrossPlus");
+  }
+
+  if (hole.relativeToPar === -2) {
+    return t("player.eagle");
+  }
+
+  if (hole.relativeToPar === 2) {
+    return t("player.doubleBogey");
+  }
+
+  if (hole.relativeToPar !== null && hole.relativeToPar >= 3) {
+    return t("player.doubleBogeyPlus");
+  }
+
+  return null;
 }
 
 function activeRoundId(rounds: PlayerRound[]) {
@@ -230,6 +258,11 @@ export function PlayerDetailSheet({
                                       <div className="score-text mt-2 text-lg font-bold">
                                         {hole.score ?? "—"}
                                       </div>
+                                      {holeScoreLabel(hole, t) ? (
+                                        <div className="mt-1 text-[8px] font-bold uppercase leading-tight tracking-wide">
+                                          {holeScoreLabel(hole, t)}
+                                        </div>
+                                      ) : null}
                                     </div>
                                   ))}
                                 </div>

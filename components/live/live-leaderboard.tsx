@@ -883,7 +883,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 }}
                 placeholder={t("leaderboard.searchPlaceholder")}
                 className={cn(
-                  "h-11 truncate pl-10",
+                  "h-11 truncate pl-10 text-base",
                   searchQuery ? "pr-12" : "pr-4",
                 )}
                 aria-describedby="player-search-hint"
