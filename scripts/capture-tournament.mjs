@@ -80,6 +80,7 @@ const manifestPath = path.join(outputDirectory, "manifest.jsonl");
 const sourceUrl = `${LIVE_URL}${encodeURIComponent(tournamentId)}`;
 let previousHash = "";
 let stopping = false;
+const stopController = new AbortController();
 
 await mkdir(outputDirectory, { recursive: true });
 console.log(
@@ -90,6 +91,7 @@ console.log("Press Ctrl+C to stop.");
 
 process.on("SIGINT", () => {
   stopping = true;
+  stopController.abort();
   console.log("\nStopping after the current request...");
 });
 
@@ -308,7 +310,15 @@ while (!stopping) {
   }
 
   if (!stopping) {
-    await delay(intervalSeconds * 1000);
+    try {
+      await delay(intervalSeconds * 1000, undefined, {
+        signal: stopController.signal,
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || error.name !== "AbortError") {
+        throw error;
+      }
+    }
   }
 }
 
