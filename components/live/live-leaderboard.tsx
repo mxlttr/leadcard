@@ -339,6 +339,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const selectedTournamentId =
     requestedTournamentId || liveData?.tournament.id || "";
   const resolvedTournamentId = liveData?.tournament.id || "";
+  const isSelectedTournamentLiveData =
+    Boolean(liveData) &&
+    !liveQuery.isPlaceholderData &&
+    resolvedTournamentId === selectedTournamentId;
   const selectedTournament =
     liveData?.tournaments.find(
       (tournament) => tournament.id === selectedTournamentId,
@@ -451,6 +455,18 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const leaderboardData = leaderboardQuery.data ?? resolvedLeaderboardData;
   const allPlayersData = allPlayersQuery.data ?? resolvedAllPlayersData;
   const updatesData = updatesQuery.data ?? resolvedUpdatesData;
+  const isSelectedTournamentLeaderboard =
+    leaderboardQuery.data?.tournamentId === selectedTournamentId &&
+    !leaderboardQuery.isPlaceholderData &&
+    Boolean(leaderboardQuery.data);
+  const isSelectedTournamentUpdates =
+    updatesQuery.data?.tournamentId === selectedTournamentId &&
+    !updatesQuery.isPlaceholderData &&
+    Boolean(updatesQuery.data);
+  const isSelectedTournamentDataReady =
+    isSelectedTournamentLiveData &&
+    isSelectedTournamentLeaderboard &&
+    isSelectedTournamentUpdates;
 
   const syncTournamentUrl = useCallback(
     (tournamentId: string) => {
@@ -828,7 +844,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           ) : null}
         </section>
 
-        <GlobalSnapshot data={liveData} onSelectPlayer={handlePlayerSelect} />
+        {isSelectedTournamentLiveData ? (
+          <GlobalSnapshot data={liveData} onSelectPlayer={handlePlayerSelect} />
+        ) : (
+          <Skeleton className="h-[24rem] rounded-[24px]" />
+        )}
 
         <section id="leaderboard" className="space-y-4">
           {liveData.divisions.length > 0 ? (
@@ -946,7 +966,16 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             </div>
           </div>
 
-          {!liveData.hasLiveData ? (
+          {!isSelectedTournamentDataReady ? (
+            <div
+              className="space-y-3"
+              role="status"
+              aria-label={t("leaderboard.leaderboard")}
+            >
+              <Skeleton className="h-48 rounded-[24px]" />
+              <Skeleton className="h-48 rounded-[24px]" />
+            </div>
+          ) : !liveData.hasLiveData ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
               {liveData.tournament.status === "upcoming"
                 ? t("leaderboard.noLiveData")
@@ -1000,10 +1029,14 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           )}
         </section>
 
-        <RecentUpdatesFeed
-          updates={updatesData.updates}
-          onSelectUpdate={handleUpdateSelect}
-        />
+        {isSelectedTournamentDataReady ? (
+          <RecentUpdatesFeed
+            updates={updatesData.updates}
+            onSelectUpdate={handleUpdateSelect}
+          />
+        ) : (
+          <Skeleton className="h-64 rounded-[24px]" />
+        )}
 
         <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
           {t("leaderboard.footer")}

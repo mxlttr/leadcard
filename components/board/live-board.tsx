@@ -936,6 +936,13 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   const liveData = liveQuery.data;
   const selectedTournamentId =
     requestedTournamentId || liveData?.tournament.id || "";
+  const requestedTournament = liveData?.tournaments.find(
+    (tournament) => tournament.id === selectedTournamentId,
+  );
+  const isSelectedTournamentLiveData =
+    liveData?.tournament.id === selectedTournamentId &&
+    !liveQuery.isPlaceholderData &&
+    Boolean(liveData);
 
   const leaderboardQueries = useQueries({
     queries: (liveData?.divisions ?? []).map((division) => ({
@@ -948,7 +955,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
       refetchInterval:
         liveData && liveData.updateIntervalMs > 0
           ? liveData.updateIntervalMs
-          : false,
+          : (false as const),
       placeholderData: keepPreviousData,
     })),
   });
@@ -963,6 +970,15 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
 
     return new Map(entries);
   }, [leaderboardQueries, liveData?.divisions]);
+  const hasSelectedTournamentLeaderboards =
+    Boolean(liveData?.divisions.length) &&
+    (liveData?.divisions ?? []).every((_, index) => {
+      const query = leaderboardQueries[index];
+      return (
+        query?.data?.tournamentId === selectedTournamentId &&
+        !query.isPlaceholderData
+      );
+    });
 
   stepBoardRef.current = (direction: -1 | 1) => {
     const currentDivisionLeaderboard =
@@ -1099,6 +1115,44 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     return <LoadingBoard />;
   }
 
+  if (!isSelectedTournamentLiveData) {
+    const loadingTournamentData = {
+      ...liveData,
+      tournament: requestedTournament ?? liveData.tournament,
+      divisions: [],
+      leaders: [],
+      divisionLeaders: [],
+      hasLiveData: false,
+    };
+
+    return (
+      <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4">
+        <BoardHeader
+          locale={locale}
+          searchParams={new URLSearchParams(searchParams.toString())}
+          liveData={loadingTournamentData}
+          tournaments={liveData.tournaments}
+          selectedTournamentId={selectedTournamentId}
+          activeDivision={t("board.loading")}
+          rotationEnabled={false}
+          rotationPaused={true}
+          intervalSeconds={intervalSeconds}
+          remainingSeconds={0}
+          fullscreenEnabled={fullscreenEnabled}
+          fullscreenActive={fullscreenActive}
+          settingsOpen={settingsOpen}
+          onToggleFullscreen={toggleFullscreen}
+          onSelectTournament={syncTournamentUrl}
+          onToggleSettings={() => setSettingsOpen((value) => !value)}
+          onToggleRotation={() => undefined}
+          onPreviousDivision={() => undefined}
+          onNextDivision={() => undefined}
+        />
+        <Skeleton className="h-[70vh] rounded-[28px]" />
+      </div>
+    );
+  }
+
   if (!liveData.divisions.length) {
     return (
       <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4">
@@ -1150,7 +1204,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
     );
   }
 
-  if (!activeDivision) {
+  if (!activeDivision || !hasSelectedTournamentLeaderboards) {
     return <LoadingBoard />;
   }
 

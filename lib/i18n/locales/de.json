@@ -42,6 +42,7 @@
     "latestSnapshot": "Letzter Snapshot {{time}}",
     "waitingForLiveData": "Warte auf Livescoring",
     "noDivision": "Keine Division ausgewählt",
+    "loading": "Wird geladen",
     "noLeaderboard": "Für dieses Turnier ist noch kein veröffentlichtes Leaderboard verfügbar.",
     "tournamentHint": "Turnier auswählen, das auf dem Board gezeigt werden soll.",
     "footer": "Der Board-Modus rotiert durch die Divisionen und hält die aktuell veröffentlichten Stände für Turnierbüro und TV sichtbar.",
