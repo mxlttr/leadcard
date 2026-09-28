@@ -9,6 +9,7 @@ import { I18nProvider, useI18n } from "@/components/i18n-provider";
 import { BattleGroup } from "@/components/live/battle-group";
 import { DivisionTabs } from "@/components/live/division-tabs";
 import { GlobalSnapshot } from "@/components/live/global-snapshot";
+import { MockReplayPanel } from "@/components/live/mock-replay-panel";
 import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
 import { RecentUpdatesFeed } from "@/components/live/recent-updates-feed";
 import { useTheme } from "@/components/theme-provider";
@@ -95,6 +96,7 @@ function groupPlayers(
   if (searchingAcrossDivisions) {
     return [
       {
+        id: "search-results",
         title: t("leaderboard.searchResults"),
         players,
       },
@@ -104,6 +106,7 @@ function groupPlayers(
   if (filterMode === "FOLLOWING") {
     return [
       {
+        id: "followed-players",
         title: t("leaderboard.followingGroup"),
         players,
       },
@@ -113,6 +116,7 @@ function groupPlayers(
   if (players.length <= LEAD_CARD_SIZE) {
     return [
       {
+        id: "leaderboard-players",
         title: t("leaderboard.leaderboard"),
         players,
       },
@@ -121,10 +125,12 @@ function groupPlayers(
 
   return [
     {
+      id: "lead-battle",
       title: t("leaderboard.leadBattle"),
       players: players.slice(0, LEAD_CARD_SIZE),
     },
     {
+      id: "chase-card",
       title: t("leaderboard.chaseCard"),
       players: players.slice(LEAD_CARD_SIZE),
     },
@@ -673,6 +679,12 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
   return (
     <>
+      {selectedTournamentId === "lakers-open-2026" ? (
+        <MockReplayPanel
+          tournamentId={selectedTournamentId}
+          replay={liveData.mockReplay}
+        />
+      ) : null}
       {liveData.hasLiveData ? (
         <div className="pointer-events-none fixed inset-x-0 top-0 z-50">
           <div
@@ -751,7 +763,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           </div>
         </header>
 
-        <section className="space-y-3">
+        <section id="tournament-picker" className="space-y-3">
           <div className="flex items-start justify-between gap-3 px-1">
             <div className="min-w-0">
               <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
@@ -818,7 +830,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
         <GlobalSnapshot data={liveData} onSelectPlayer={handlePlayerSelect} />
 
-        <section className="space-y-4">
+        <section id="leaderboard" className="space-y-4">
           {liveData.divisions.length > 0 ? (
             <DivisionTabs
               divisions={[ALL_DIVISIONS, ...liveData.divisions]}
@@ -957,6 +969,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               {groupedPlayers.map((group) => (
                 <BattleGroup
                   key={group.title}
+                  id={group.id}
                   title={group.title}
                   players={group.players}
                   divisionPlayers={currentPlayers}

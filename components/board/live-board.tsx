@@ -18,6 +18,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
+import { MockReplayPanel } from "@/components/live/mock-replay-panel";
 import { RankDelta } from "@/components/live/rank-delta";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { useTheme } from "@/components/theme-provider";
@@ -1260,6 +1261,12 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
 
   return (
     <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4">
+      {selectedTournamentId === "lakers-open-2026" ? (
+        <MockReplayPanel
+          tournamentId={selectedTournamentId}
+          replay={boardLiveData.mockReplay}
+        />
+      ) : null}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-50">
         <div
           role="progressbar"

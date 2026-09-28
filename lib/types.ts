@@ -91,6 +91,7 @@ export type LiveResponse = {
   generatedAt: string;
   nextUpdateAt: string;
   updateIntervalMs: number;
+  mockReplay?: { index: number; count: number; paused: boolean };
 };
 
 export type LeaderboardResponse = {

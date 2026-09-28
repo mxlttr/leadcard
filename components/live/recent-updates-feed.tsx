@@ -54,7 +54,7 @@ function toneAccent(update: RecentUpdate) {
 }
 
 function itemIcon(update: RecentUpdate) {
-  if (update.rank === 1 && update.tone === "positive") {
+  if (update.rank === 1) {
     return Crown;
   }
 
@@ -314,7 +314,7 @@ function KeyMomentsSection({
   }
 
   return (
-    <section className="space-y-3">
+    <section id="key-moments" className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
           {t("updates.keyMoments")}
@@ -351,7 +351,7 @@ function LatestUpdatesSection({
   }
 
   return (
-    <section className="space-y-3">
+    <section id="latest-updates" className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
           {t("updates.latest")}
@@ -430,7 +430,7 @@ export function RecentUpdatesFeed({
   }, [updates]);
 
   return (
-    <Card className="border-border bg-surface shadow-none">
+    <Card id="recent-updates" className="border-border bg-surface shadow-none">
       <CardContent className="space-y-5 p-5">
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">

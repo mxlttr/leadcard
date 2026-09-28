@@ -2,6 +2,7 @@ import { LeaderboardCard } from "@/components/live/leaderboard-card";
 import type { LeaderboardPlayer } from "@/lib/types";
 
 export function BattleGroup({
+  id,
   title,
   players,
   divisionPlayers,
@@ -10,6 +11,7 @@ export function BattleGroup({
   onFollowToggle,
   onPlayerSelect,
 }: {
+  id: string;
   title: string;
   players: LeaderboardPlayer[];
   divisionPlayers: LeaderboardPlayer[];
@@ -23,7 +25,7 @@ export function BattleGroup({
   }
 
   return (
-    <section className="space-y-3">
+    <section id={id} className="space-y-3">
       <div className="px-1">
         <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
           {title}

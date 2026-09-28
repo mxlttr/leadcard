@@ -85,7 +85,7 @@ describe("createRecentUpdate", () => {
       division: "Open",
       text: "Test Player finishes at -5",
       importance: "high",
-      tone: "positive",
+      tone: "neutral",
       rank: 1,
       previousRank: 1,
       scoreToPar: -5,
