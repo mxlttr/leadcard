@@ -49,13 +49,19 @@ export function GlobalSnapshot({
         </div>
 
         {noLiveData ? (
-          <div className="rounded-[20px] border border-border bg-background p-4 text-sm text-muted">
+          <div
+            id="global-leaders"
+            className="rounded-[20px] border border-border bg-background p-4 text-sm text-muted"
+          >
             {data.tournament.status === "upcoming"
               ? t("snapshot.upcomingMessage")
               : t("snapshot.unavailableMessage")}
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div
+            id="global-leaders"
+            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          >
             {data.leaders.map((leader, index) => (
               <button
                 type="button"
@@ -81,7 +87,7 @@ export function GlobalSnapshot({
           </div>
         )}
 
-        <div className="grid gap-3">
+        <div id="division-leaders" className="grid gap-3">
           {visibleDivisionLeaders.map(({ division, leader }) => {
             const gap = overallLeader
               ? leader.scoreToPar - overallLeader.scoreToPar

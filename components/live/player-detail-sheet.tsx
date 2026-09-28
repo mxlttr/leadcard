@@ -142,7 +142,7 @@ export function PlayerDetailSheet({
                 </CardContent>
               </Card>
 
-              <section className="space-y-3">
+              <section id="player-round-scores" className="space-y-3">
                 <div>
                   <h3 className="font-display text-base font-semibold">
                     {t("player.roundScores")}
@@ -243,7 +243,7 @@ export function PlayerDetailSheet({
                 )}
               </section>
 
-              <section className="space-y-3">
+              <section id="player-recent-updates" className="space-y-3">
                 <div>
                   <h3 className="font-display text-base font-semibold">
                     {t("player.recentUpdates")}

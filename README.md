@@ -25,6 +25,22 @@ echo 'LEADCARD_FORCE_MOCK_DATA=true' >> .env.local
 npm run dev
 ```
 
+In mock mode, choose **15 Years Anniversary Lakers Open** to replay a real
+Round 3 capture. The replay uses ten scoreboards sampled across the round and
+advances one snapshot on each mock refresh (about every 25 seconds). The ten
+selected snapshots each produce at least one newsworthy update from the
+previous step. A floating replay panel on the leaderboard and board pages lets
+you step or scrub through snapshots and pause or resume automatic refresh.
+
+List update messages generated from those captured scoreboards:
+
+```bash
+npm run mock:updates
+npm run mock:updates -- --format=json
+npm run mock:updates -- --output=tmp/mock-replay-update-strings.md
+npm run mock:updates -- tmp/tournament-captures/2423/2026-09-27T09-06-39-122Z
+```
+
 To capture real scorecard snapshots during a tournament:
 
 ```bash

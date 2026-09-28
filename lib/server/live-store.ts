@@ -1,10 +1,11 @@
 import { load } from "cheerio";
 import { sortDivisionLabels } from "@/lib/i18n/divisions";
 import { playerClubKey } from "@/lib/player-club";
-import { createPlayerDelta, createRecentUpdate } from "@/lib/server/diff";
+import { createPlayerDelta, createRecentUpdates } from "@/lib/server/diff";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
   getDefaultTournamentId,
+  getMockReplaySnapshotCount,
   getTournamentCatalog,
   loadTournamentSnapshotSource,
 } from "@/lib/server/tournament-source";
@@ -27,6 +28,7 @@ type LiveState = {
   hasLiveData: boolean;
   autoRefresh: boolean;
   fixtureIndex: number;
+  replayPaused: boolean;
   lastAdvancedAt: number;
   generatedAt: string;
   players: LeaderboardPlayer[];
@@ -78,6 +80,20 @@ function getDivisions(players: LeaderboardPlayer[]) {
 
       return divisions;
     }, []),
+  );
+}
+
+function divisionsWithMoreThanThreePlayers(
+  players: Array<Pick<PlayerSnapshot, "division">>,
+) {
+  const counts = new Map<string, number>();
+
+  for (const player of players) {
+    counts.set(player.division, (counts.get(player.division) ?? 0) + 1);
+  }
+
+  return new Set(
+    [...counts].filter(([, count]) => count > 3).map(([division]) => division),
   );
 }
 
@@ -191,6 +207,7 @@ function toLeaderboardPlayers(
   currentPlayers: PlayerSnapshot[],
   createdAt: string,
 ) {
+  const eligibleDivisions = divisionsWithMoreThanThreePlayers(currentPlayers);
   const previousById = new Map(
     previousPlayers.map((player) => [player.playerId, player]),
   );
@@ -199,16 +216,16 @@ function toLeaderboardPlayers(
   const players = sortPlayers(
     currentPlayers.map((player) => {
       const previous = previousById.get(player.playerId);
-      const latestUpdate = createRecentUpdate(previous, player, createdAt);
+      const playerUpdates = eligibleDivisions.has(player.division)
+        ? createRecentUpdates(previous, player, createdAt)
+        : [];
 
-      if (latestUpdate) {
-        updates.push(latestUpdate);
-      }
+      updates.push(...playerUpdates);
 
       return {
         ...player,
         delta: createPlayerDelta(previous, player),
-        latestUpdate,
+        latestUpdate: playerUpdates[0] ?? null,
       };
     }),
   );
@@ -245,6 +262,7 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
     hasLiveData: Boolean(source.html),
     autoRefresh: shouldAutoRefresh(source.tournament, enrichedPlayers ?? []),
     fixtureIndex: source.nextFixtureIndex,
+    replayPaused: false,
     lastAdvancedAt: Date.now(),
     generatedAt: snapshot?.generatedAt ?? new Date().toISOString(),
     players: sortPlayers(players),
@@ -363,6 +381,7 @@ async function refreshIfNeeded(tournamentId: string) {
 
   if (
     store.autoRefresh &&
+    !store.replayPaused &&
     Date.now() - store.lastAdvancedAt >= UPDATE_INTERVAL_MS
   ) {
     return refreshStore(store);
@@ -372,7 +391,10 @@ async function refreshIfNeeded(tournamentId: string) {
 }
 
 function divisionLeaders(players: LeaderboardPlayer[]): DivisionLeader[] {
+  const eligibleDivisions = divisionsWithMoreThanThreePlayers(players);
+
   return getDivisions(players)
+    .filter((division) => eligibleDivisions.has(division))
     .reduce<DivisionLeader[]>((leaders, division) => {
       const leader = players.find((player) => player.division === division);
 
@@ -395,6 +417,10 @@ export async function getLiveResponse(
   const store = await refreshIfNeeded(tournamentId);
   const tournaments = await getTournamentCatalog();
   const divisions = getDivisions(store.players);
+  const mockReplayCount =
+    store.tournament.id === "lakers-open-2026"
+      ? getMockReplaySnapshotCount(store.tournament.id)
+      : 0;
 
   return {
     tournament: store.tournament,
@@ -405,8 +431,51 @@ export async function getLiveResponse(
     divisionLeaders: divisionLeaders(store.players),
     generatedAt: store.generatedAt,
     nextUpdateAt: nextUpdateAt(store),
-    updateIntervalMs: store.autoRefresh ? UPDATE_INTERVAL_MS : 0,
+    updateIntervalMs:
+      store.autoRefresh && !store.replayPaused ? UPDATE_INTERVAL_MS : 0,
+    ...(mockReplayCount > 0
+      ? {
+          mockReplay: {
+            index: (store.fixtureIndex + mockReplayCount - 1) % mockReplayCount,
+            count: mockReplayCount,
+            paused: store.replayPaused,
+          },
+        }
+      : {}),
   };
+}
+
+export async function controlMockReplay(
+  tournamentId: string,
+  action: "play" | "pause" | "step",
+  index?: number,
+) {
+  if (tournamentId !== "lakers-open-2026") {
+    throw new Error("Mock replay controls are unavailable for this tournament");
+  }
+
+  const store = await ensureStore(tournamentId);
+  const snapshotCount = getMockReplaySnapshotCount(tournamentId);
+
+  if (action === "pause") {
+    store.replayPaused = true;
+  } else if (action === "play") {
+    store.replayPaused = false;
+    store.lastAdvancedAt = Date.now();
+  } else {
+    if (
+      !Number.isInteger(index) ||
+      index === undefined ||
+      index < 0 ||
+      index >= snapshotCount
+    ) {
+      throw new Error("Invalid mock replay snapshot index");
+    }
+    store.fixtureIndex = index;
+    await advanceStore(store);
+  }
+
+  return getLiveResponse(tournamentId);
 }
 
 export async function getResolvedTournamentId(tournamentId?: string | null) {
@@ -445,10 +514,13 @@ export async function getUpdatesResponse(
   tournamentId: string,
 ): Promise<UpdatesResponse> {
   const store = await refreshIfNeeded(tournamentId);
+  const eligibleDivisions = divisionsWithMoreThanThreePlayers(store.players);
 
   return {
     tournamentId: store.tournament.id,
-    updates: store.updates,
+    updates: store.updates.filter((update) =>
+      eligibleDivisions.has(update.division),
+    ),
     generatedAt: store.generatedAt,
   };
 }

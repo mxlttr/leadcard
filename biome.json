@@ -26,6 +26,8 @@
       "!node_modules",
       "!.next",
       "!tests/fixtures",
+      "!lib/server/fixtures",
+      "!tmp",
       "!tsconfig.tsbuildinfo"
     ]
   }

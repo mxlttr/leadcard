@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { load } from "cheerio";
 import { playerClubKey } from "@/lib/player-club";
 import {
@@ -17,6 +19,7 @@ type TournamentSourceResult = {
 
 type TournamentSourceConfig = {
   tournament: TournamentSummary;
+  fixtureFiles?: string[];
 };
 
 type TournamentCatalogCache = {
@@ -54,6 +57,27 @@ const tournamentSourceConfig: Record<string, TournamentSourceConfig> = {
   },
   "munich-masters": {
     tournament: toSummary("munich-masters"),
+  },
+  "lakers-open-2026": {
+    tournament: {
+      id: "lakers-open-2026",
+      name: "15 Years Anniversary Lakers Open presented by Latitude 64",
+      course: "Lakers Disc Golf Course",
+      roundLabel: "Round 3 of 3",
+      status: "mock",
+    },
+    fixtureFiles: [
+      "snapshot-2026-09-27T09-06-39-130Z.html",
+      "snapshot-2026-09-27T09-16-36-183Z.html",
+      "snapshot-2026-09-27T09-37-33-575Z.html",
+      "snapshot-2026-09-27T09-48-34-475Z.html",
+      "snapshot-2026-09-27T09-59-35-327Z.html",
+      "snapshot-2026-09-27T10-20-35-011Z.html",
+      "snapshot-2026-09-27T10-30-34-762Z.html",
+      "snapshot-2026-09-27T10-40-35-339Z.html",
+      "snapshot-2026-09-27T10-50-35-790Z.html",
+      "snapshot-2026-09-27T11-03-14-307Z.html",
+    ],
   },
 };
 
@@ -601,6 +625,23 @@ export async function loadTournamentSnapshotSource(
     };
   }
 
+  if (config.fixtureFiles) {
+    const safeIndex = fixtureIndex % config.fixtureFiles.length;
+    return {
+      tournament: config.tournament,
+      html: readFileSync(
+        join(
+          process.cwd(),
+          "lib/server/fixtures/lakers-open",
+          config.fixtureFiles[safeIndex],
+        ),
+        "utf8",
+      ),
+      playerClubs: {},
+      nextFixtureIndex: (safeIndex + 1) % config.fixtureFiles.length,
+    };
+  }
+
   const feed = mockTournamentFeeds[config.tournament.id];
   const safeIndex = fixtureIndex % feed.fixtures.length;
 
@@ -610,4 +651,18 @@ export async function loadTournamentSnapshotSource(
     playerClubs: {},
     nextFixtureIndex: (safeIndex + 1) % feed.fixtures.length,
   };
+}
+
+export function getMockReplaySnapshotCount(tournamentId: string) {
+  const config = tournamentSourceConfig[tournamentId];
+
+  if (!config) {
+    return 0;
+  }
+
+  if (config.fixtureFiles) {
+    return config.fixtureFiles.length;
+  }
+
+  return mockTournamentFeeds[config.tournament.id]?.fixtures.length ?? 0;
 }
