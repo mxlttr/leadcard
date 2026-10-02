@@ -104,6 +104,7 @@
     "search": "Vereine suchen",
     "follow": "{{name}} folgen",
     "unfollow": "{{name}} entfolgen",
+    "showFollowed": "Alle gefolgten Vereine",
     "empty": "Wähle oben einen Verein aus, um sein Turnierwochenende zu sehen.",
     "tournamentCount": "{{count}} Turniere"
   },

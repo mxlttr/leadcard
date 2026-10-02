@@ -104,6 +104,7 @@
     "search": "Search clubs",
     "follow": "Follow {{name}}",
     "unfollow": "Unfollow {{name}}",
+    "showFollowed": "All followed clubs",
     "empty": "Follow a club above to see its tournament weekend.",
     "tournamentCount": "{{count}} tournaments"
   },

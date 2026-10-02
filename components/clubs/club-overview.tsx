@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Search, Star } from "lucide-react";
+import { ArrowLeft, Search, Star, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -113,6 +113,13 @@ function ClubOverviewContent() {
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
+  function clearSelectedClub() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("club");
+    const query = params.toString();
+    router.replace(query ? `?${query}` : "?", { scroll: false });
+  }
+
   return (
     <div className="space-y-5">
       <header className="space-y-2">
@@ -133,8 +140,20 @@ function ClubOverviewContent() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("clubs.search")}
             aria-label={t("clubs.search")}
-            className="h-11 pl-10"
+            className={cn("h-11 pl-10", query ? "pr-12" : "pr-4")}
           />
+          {query ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-0.5 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full"
+              onClick={() => setQuery("")}
+              aria-label={t("leaderboard.clearSearch")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
         <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
           {filteredClubs.map((club) => (
@@ -189,78 +208,95 @@ function ClubOverviewContent() {
           {t("clubs.empty")}
         </div>
       ) : (
-        visibleClubs.map((club) => (
-          <section key={club.name} className="space-y-3">
-            <div className="flex items-center justify-between gap-3 px-1">
-              <h2 className="font-display text-xl font-semibold">
-                {club.name}
-              </h2>
-              <span className="shrink-0 text-xs uppercase tracking-[0.16em] text-muted">
-                {t("clubs.tournamentCount", { count: club.tournaments.length })}
-              </span>
-            </div>
-            {club.tournaments.map((entry) => (
-              <article
-                key={entry.tournament.id}
-                className="rounded-[24px] border border-border bg-surface p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border pb-3">
-                  <div>
-                    <Link
-                      href={`/${locale}?tournamentId=${encodeURIComponent(entry.tournament.id)}&club=${encodeURIComponent(club.name)}`}
-                      className="font-display text-lg font-semibold hover:text-foreground"
+        <>
+          {selectedClub ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={clearSelectedClub}
+              className="-ml-2"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+              {t("clubs.showFollowed")}
+            </Button>
+          ) : null}
+          {visibleClubs.map((club) => (
+            <section key={club.name} className="space-y-3">
+              <div className="flex items-center justify-between gap-3 px-1">
+                <h2 className="font-display text-xl font-semibold">
+                  {club.name}
+                </h2>
+                <span className="shrink-0 text-xs uppercase tracking-[0.16em] text-muted">
+                  {t("clubs.tournamentCount", {
+                    count: club.tournaments.length,
+                  })}
+                </span>
+              </div>
+              {club.tournaments.map((entry) => (
+                <article
+                  key={entry.tournament.id}
+                  className="rounded-[24px] border border-border bg-surface p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border pb-3">
+                    <div>
+                      <Link
+                        href={`/${locale}?tournamentId=${encodeURIComponent(entry.tournament.id)}&club=${encodeURIComponent(club.name)}`}
+                        className="font-display text-lg font-semibold hover:text-foreground"
+                      >
+                        {entry.tournament.name}
+                      </Link>
+                      <p className="mt-1 text-sm text-muted">
+                        {entry.tournament.course} ·{" "}
+                        {entry.tournament.roundLabel}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-xs font-semibold uppercase tracking-[0.16em]",
+                        entry.tournament.status === "live"
+                          ? "text-negative"
+                          : "text-muted",
+                      )}
                     >
-                      {entry.tournament.name}
-                    </Link>
-                    <p className="mt-1 text-sm text-muted">
-                      {entry.tournament.course} · {entry.tournament.roundLabel}
-                    </p>
+                      {t(`tournaments.status.${entry.tournament.status}`)}
+                    </span>
                   </div>
-                  <span
-                    className={cn(
-                      "text-xs font-semibold uppercase tracking-[0.16em]",
-                      entry.tournament.status === "live"
-                        ? "text-negative"
-                        : "text-muted",
-                    )}
-                  >
-                    {t(`tournaments.status.${entry.tournament.status}`)}
-                  </span>
-                </div>
-                <div className="divide-y divide-border">
-                  {entry.players.map((player) => (
-                    <button
-                      key={player.playerId}
-                      type="button"
-                      className="flex w-full items-center gap-3 py-3 text-left first:pt-4 last:pb-0"
-                      onClick={() =>
-                        setSelectedPlayer({
-                          player,
-                          divisionPlayers: entry.players,
-                        })
-                      }
-                    >
-                      <span className="w-8 shrink-0 font-display text-lg font-semibold">
-                        #{player.rank}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium">
-                          {player.name}
+                  <div className="divide-y divide-border">
+                    {entry.players.map((player) => (
+                      <button
+                        key={player.playerId}
+                        type="button"
+                        className="flex w-full items-center gap-3 py-3 text-left first:pt-4 last:pb-0"
+                        onClick={() =>
+                          setSelectedPlayer({
+                            player,
+                            divisionPlayers: entry.players,
+                          })
+                        }
+                      >
+                        <span className="w-8 shrink-0 font-display text-lg font-semibold">
+                          #{player.rank}
                         </span>
-                        <span className="block truncate text-xs text-muted">
-                          {player.division} · {holeToLabel(player.thru, t)}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">
+                            {player.name}
+                          </span>
+                          <span className="block truncate text-xs text-muted">
+                            {player.division} · {holeToLabel(player.thru, t)}
+                          </span>
                         </span>
-                      </span>
-                      <span className="shrink-0 font-display text-xl font-semibold">
-                        {formatScore(player.scoreToPar)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </section>
-        ))
+                        <span className="shrink-0 font-display text-xl font-semibold">
+                          {formatScore(player.scoreToPar)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </section>
+          ))}
+        </>
       )}
       <PlayerDetailSheet
         player={selectedPlayer?.player ?? null}
