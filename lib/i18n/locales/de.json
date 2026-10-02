@@ -18,6 +18,15 @@
   "language": {
     "switcherLabel": "Sprache"
   },
+  "navigation": {
+    "label": "Hauptnavigation",
+    "home": "Live-Rangliste",
+    "clubs": "Vereine",
+    "board": "Board",
+    "menu": "Menü",
+    "description": "Ansicht auswählen",
+    "openMenu": "Navigationsmenü öffnen"
+  },
   "theme": {
     "switchToLight": "Zum hellen Modus wechseln",
     "switchToDark": "Zum dunklen Modus wechseln"
@@ -87,6 +96,16 @@
       "upcoming": "Demnächst",
       "mock": "Mock"
     }
+  },
+  "clubs": {
+    "eyebrow": "Vereinsübersicht",
+    "title": "Vereinsübersicht",
+    "description": "Folge Vereinen und sieh ihre Spieler:innen in allen Turnieren mit veröffentlichten Ergebnissen.",
+    "search": "Vereine suchen",
+    "follow": "{{name}} folgen",
+    "unfollow": "{{name}} entfolgen",
+    "empty": "Wähle oben einen Verein aus, um sein Turnierwochenende zu sehen.",
+    "tournamentCount": "{{count}} Turniere"
   },
   "snapshot": {
     "heading": "Gesamtübersicht",

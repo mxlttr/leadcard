@@ -10,6 +10,8 @@ import {
   loadTournamentSnapshotSource,
 } from "@/lib/server/tournament-source";
 import type {
+  ClubOverview,
+  ClubsResponse,
   DivisionLeader,
   LeaderboardPlayer,
   LeaderboardResponse,
@@ -507,6 +509,70 @@ export async function getLeaderboardResponse(
     division: resolvedDivision,
     players,
     generatedAt: store.generatedAt,
+  };
+}
+
+const clubTournamentStatusOrder: Record<TournamentSummary["status"], number> = {
+  live: 0,
+  today: 1,
+  tomorrow: 2,
+  upcoming: 3,
+  recent: 4,
+  mock: 5,
+};
+
+export async function getClubsResponse(): Promise<ClubsResponse> {
+  const tournaments = await getTournamentCatalog();
+  const results = await Promise.all(
+    tournaments.map(async (tournament) => {
+      try {
+        const leaderboard = await getLeaderboardResponse(
+          tournament.id,
+          "__all",
+        );
+        const playersByClub = new Map<string, LeaderboardPlayer[]>();
+
+        for (const player of leaderboard.players) {
+          if (!player.club) continue;
+          const players = playersByClub.get(player.club) ?? [];
+          players.push(player);
+          playersByClub.set(player.club, players);
+        }
+
+        return { tournament, leaderboard, playersByClub };
+      } catch {
+        return { tournament, leaderboard: null, playersByClub: new Map() };
+      }
+    }),
+  );
+  const clubs = new Map<string, ClubOverview>();
+
+  for (const result of results) {
+    for (const [name, players] of result.playersByClub) {
+      const club: ClubOverview = clubs.get(name) ?? { name, tournaments: [] };
+      club.tournaments.push({
+        tournament: result.tournament,
+        players,
+        generatedAt:
+          result.leaderboard?.generatedAt ?? new Date().toISOString(),
+      });
+      clubs.set(name, club);
+    }
+  }
+
+  return {
+    clubs: [...clubs.values()]
+      .map((club) => ({
+        ...club,
+        tournaments: club.tournaments.sort(
+          (a, b) =>
+            clubTournamentStatusOrder[a.tournament.status] -
+              clubTournamentStatusOrder[b.tournament.status] ||
+            a.tournament.name.localeCompare(b.tournament.name),
+        ),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    generatedAt: new Date().toISOString(),
   };
 }
 

@@ -1,8 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronDown, Info, Moon, Search, Star, Sun, X } from "lucide-react";
-import Link from "next/link";
+import { ChevronDown, Info, Search, Star, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
@@ -12,7 +11,6 @@ import { GlobalSnapshot } from "@/components/live/global-snapshot";
 import { MockReplayPanel } from "@/components/live/mock-replay-panel";
 import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
 import { RecentUpdatesFeed } from "@/components/live/recent-updates-feed";
-import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollowedPlayers } from "@/hooks/use-followed-players";
-import { type AppLocale, type Dictionary, locales } from "@/lib/i18n";
+import { type AppLocale, type Dictionary } from "@/lib/i18n";
 import type {
   LeaderboardPlayer,
   LeaderboardResponse,
@@ -216,63 +214,6 @@ function TournamentListItem({
         {tournamentStatusLabel(tournament.status, t)}
       </span>
     </div>
-  );
-}
-
-function LanguageSwitcher({ locale }: { locale: AppLocale }) {
-  const { t } = useI18n();
-
-  return (
-    <nav
-      className="flex items-center gap-1 rounded-full border border-border bg-surface p-1"
-      aria-label={t("language.switcherLabel")}
-    >
-      {locales.map((item) => {
-        const active = item === locale;
-
-        return (
-          <Link
-            key={item}
-            href={`/${item}`}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] transition-colors",
-              active
-                ? "bg-background text-foreground"
-                : "text-muted hover:text-foreground",
-            )}
-          >
-            {item}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
-function ThemeToggle() {
-  const { t } = useI18n();
-  const { theme, toggleTheme } = useTheme();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
-      onClick={toggleTheme}
-      aria-label={
-        theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")
-      }
-      title={
-        theme === "dark" ? t("theme.switchToLight") : t("theme.switchToDark")
-      }
-    >
-      {theme === "dark" ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
-    </Button>
   );
 }
 
@@ -737,8 +678,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <LanguageSwitcher locale={locale} />
-              <ThemeToggle />
               <Dialog>
                 <DialogTrigger asChild>
                   <Button

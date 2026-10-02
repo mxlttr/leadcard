@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { AppNavigation } from "@/components/app-navigation";
 import { LiveLeaderboard } from "@/components/live/live-leaderboard";
 import { type AppLocale, getDictionary, isValidLocale } from "@/lib/i18n";
 import {
@@ -75,6 +76,7 @@ export default async function LocaleHomePage({
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-5 sm:px-6 sm:py-8">
+        <AppNavigation locale={locale} dictionary={dictionary} />
         <Suspense fallback={null}>
           <LiveLeaderboard locale={locale} dictionary={dictionary} />
         </Suspense>

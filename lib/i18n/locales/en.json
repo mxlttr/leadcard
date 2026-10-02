@@ -18,6 +18,15 @@
   "language": {
     "switcherLabel": "Language"
   },
+  "navigation": {
+    "label": "Main navigation",
+    "home": "Live standings",
+    "clubs": "Clubs",
+    "board": "Board",
+    "menu": "Menu",
+    "description": "Choose a view",
+    "openMenu": "Open navigation menu"
+  },
   "theme": {
     "switchToLight": "Switch to light mode",
     "switchToDark": "Switch to dark mode"
@@ -87,6 +96,16 @@
       "upcoming": "Upcoming",
       "mock": "Mock"
     }
+  },
+  "clubs": {
+    "eyebrow": "Club watch",
+    "title": "Club overview",
+    "description": "Follow clubs and see their players across every tournament with published results.",
+    "search": "Search clubs",
+    "follow": "Follow {{name}}",
+    "unfollow": "Unfollow {{name}}",
+    "empty": "Follow a club above to see its tournament weekend.",
+    "tournamentCount": "{{count}} tournaments"
   },
   "snapshot": {
     "heading": "Global snapshot",

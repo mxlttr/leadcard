@@ -101,6 +101,22 @@ export type LeaderboardResponse = {
   generatedAt: string;
 };
 
+export type ClubTournamentEntry = {
+  tournament: TournamentSummary;
+  players: LeaderboardPlayer[];
+  generatedAt: string;
+};
+
+export type ClubOverview = {
+  name: string;
+  tournaments: ClubTournamentEntry[];
+};
+
+export type ClubsResponse = {
+  clubs: ClubOverview[];
+  generatedAt: string;
+};
+
 export type UpdatesResponse = {
   tournamentId: string;
   updates: RecentUpdate[];
