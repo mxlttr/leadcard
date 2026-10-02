@@ -3,9 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Search, Star } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
+import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +24,8 @@ async function fetchClubs() {
 
 function ClubOverviewContent() {
   const { locale, t } = useI18n();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, isPending } = useQuery({
     queryKey: ["clubs"],
     queryFn: fetchClubs,
@@ -29,6 +33,10 @@ function ClubOverviewContent() {
   });
   const { hydrated, isFollowed, toggleClub } = useFollowedClubs();
   const [query, setQuery] = useState("");
+  const [selectedPlayer, setSelectedPlayer] = useState<{
+    player: ClubsResponse["clubs"][number]["tournaments"][number]["players"][number];
+    divisionPlayers: ClubsResponse["clubs"][number]["tournaments"][number]["players"];
+  } | null>(null);
 
   if (isPending || !data || !hydrated) {
     return <Skeleton className="h-[32rem] rounded-[28px]" />;
@@ -37,7 +45,17 @@ function ClubOverviewContent() {
   const filteredClubs = data.clubs.filter((club) =>
     club.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
-  const visibleClubs = data.clubs.filter((club) => isFollowed(club.name));
+  const requestedClub = searchParams.get("club");
+  const selectedClub = data.clubs.find((club) => club.name === requestedClub);
+  const visibleClubs = selectedClub
+    ? [selectedClub]
+    : data.clubs.filter((club) => isFollowed(club.name));
+
+  function selectClub(clubName: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("club", clubName);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
 
   return (
     <div className="space-y-5">
@@ -64,29 +82,46 @@ function ClubOverviewContent() {
         </div>
         <div className="flex max-h-48 flex-wrap gap-2 overflow-y-auto">
           {filteredClubs.map((club) => (
-            <Button
+            <div
               key={club.name}
-              type="button"
-              variant={isFollowed(club.name) ? "accent" : "ghost"}
               className={cn(
-                "h-10 rounded-full border px-3",
-                !isFollowed(club.name) && "border-border",
+                "flex h-10 items-center overflow-hidden rounded-full border",
+                selectedClub?.name === club.name
+                  ? "border-primary/40 bg-background"
+                  : "border-border",
               )}
-              onClick={() => toggleClub(club.name)}
-              aria-label={
-                isFollowed(club.name)
-                  ? t("clubs.unfollow", { name: club.name })
-                  : t("clubs.follow", { name: club.name })
-              }
             >
-              <Star
-                className={cn(
-                  "mr-2 h-3.5 w-3.5",
-                  isFollowed(club.name) && "fill-current",
-                )}
-              />
-              <span className="max-w-[16rem] truncate">{club.name}</span>
-            </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-full min-w-0 rounded-none px-3 text-left"
+                onClick={() => selectClub(club.name)}
+                aria-current={
+                  selectedClub?.name === club.name ? "page" : undefined
+                }
+              >
+                <span className="max-w-[16rem] truncate">{club.name}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-full"
+                onClick={() => toggleClub(club.name)}
+                aria-label={
+                  isFollowed(club.name)
+                    ? t("clubs.unfollow", { name: club.name })
+                    : t("clubs.follow", { name: club.name })
+                }
+              >
+                <Star
+                  className={cn(
+                    "h-3.5 w-3.5",
+                    isFollowed(club.name) && "fill-primary text-primary",
+                  )}
+                />
+              </Button>
+            </div>
           ))}
         </div>
       </section>
@@ -115,7 +150,7 @@ function ClubOverviewContent() {
                   <div>
                     <Link
                       href={`/${locale}?tournamentId=${encodeURIComponent(entry.tournament.id)}&club=${encodeURIComponent(club.name)}`}
-                      className="font-display text-lg font-semibold hover:text-primary"
+                      className="font-display text-lg font-semibold hover:text-foreground"
                     >
                       {entry.tournament.name}
                     </Link>
@@ -136,10 +171,16 @@ function ClubOverviewContent() {
                 </div>
                 <div className="divide-y divide-border">
                   {entry.players.map((player) => (
-                    <Link
+                    <button
                       key={player.playerId}
-                      href={`/${locale}?tournamentId=${encodeURIComponent(entry.tournament.id)}&division=${encodeURIComponent(player.division)}`}
-                      className="flex items-center gap-3 py-3 first:pt-4 last:pb-0"
+                      type="button"
+                      className="flex w-full items-center gap-3 py-3 text-left first:pt-4 last:pb-0"
+                      onClick={() =>
+                        setSelectedPlayer({
+                          player,
+                          divisionPlayers: entry.players,
+                        })
+                      }
                     >
                       <span className="w-8 shrink-0 font-display text-lg font-semibold">
                         #{player.rank}
@@ -155,7 +196,7 @@ function ClubOverviewContent() {
                       <span className="shrink-0 font-display text-xl font-semibold">
                         {formatScore(player.scoreToPar)}
                       </span>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               </article>
@@ -163,6 +204,15 @@ function ClubOverviewContent() {
           </section>
         ))
       )}
+      <PlayerDetailSheet
+        player={selectedPlayer?.player ?? null}
+        divisionPlayers={selectedPlayer?.divisionPlayers ?? []}
+        updates={[]}
+        open={Boolean(selectedPlayer)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPlayer(null);
+        }}
+      />
     </div>
   );
 }

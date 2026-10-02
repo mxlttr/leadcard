@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { AppNavigation } from "@/components/app-navigation";
 import { ClubOverview } from "@/components/clubs/club-overview";
@@ -17,7 +18,9 @@ export default async function ClubsPage({
     <main className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-5 sm:px-6 sm:py-8">
         <AppNavigation locale={locale} dictionary={getDictionary(locale)} />
-        <ClubOverview locale={locale} dictionary={getDictionary(locale)} />
+        <Suspense fallback={null}>
+          <ClubOverview locale={locale} dictionary={getDictionary(locale)} />
+        </Suspense>
       </div>
     </main>
   );

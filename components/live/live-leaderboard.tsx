@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollowedPlayers } from "@/hooks/use-followed-players";
-import { type AppLocale, type Dictionary } from "@/lib/i18n";
+import type { AppLocale, Dictionary } from "@/lib/i18n";
 import type {
   LeaderboardPlayer,
   LeaderboardResponse,
