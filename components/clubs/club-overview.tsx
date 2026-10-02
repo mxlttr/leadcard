@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Search, Star } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -13,43 +13,99 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollowedClubs } from "@/hooks/use-followed-clubs";
 import type { AppLocale, Dictionary } from "@/lib/i18n";
-import type { ClubsResponse } from "@/lib/types";
+import type {
+  ClubOverview as ClubOverviewData,
+  ClubTournamentResponse,
+  TournamentSummary,
+} from "@/lib/types";
 import { cn, formatScore, holeToLabel } from "@/lib/utils";
 
-async function fetchClubs() {
-  const response = await fetch("/api/clubs", { cache: "no-store" });
-  if (!response.ok) throw new Error("Failed to fetch clubs");
-  return (await response.json()) as ClubsResponse;
+async function fetchTournamentCatalog() {
+  const response = await fetch("/api/tournaments", { cache: "no-store" });
+  if (!response.ok) throw new Error("Failed to fetch tournaments");
+  return (await response.json()) as { tournaments: TournamentSummary[] };
+}
+
+async function fetchTournamentClubs(tournamentId: string) {
+  const response = await fetch(
+    `/api/clubs?tournamentId=${encodeURIComponent(tournamentId)}`,
+    { cache: "no-store" },
+  );
+  if (!response.ok) throw new Error("Failed to fetch tournament clubs");
+  return (await response.json()) as ClubTournamentResponse;
+}
+
+function clubLabel(name: string) {
+  return name
+    .replace(/disc\s*golf/gi, "DG")
+    .replace(/\s+e\.\s*v\.?$/i, "")
+    .trim();
 }
 
 function ClubOverviewContent() {
   const { locale, t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, isPending } = useQuery({
-    queryKey: ["clubs"],
-    queryFn: fetchClubs,
-    refetchInterval: 25_000,
+  const { data: catalog, isPending: catalogPending } = useQuery({
+    queryKey: ["tournament-catalog"],
+    queryFn: fetchTournamentCatalog,
+    staleTime: 60_000,
+  });
+  const tournamentQueries = useQueries({
+    queries: (catalog?.tournaments ?? []).map((tournament) => ({
+      queryKey: ["clubs", tournament.id],
+      queryFn: () => fetchTournamentClubs(tournament.id),
+      refetchInterval: 25_000,
+    })),
   });
   const { hydrated, isFollowed, toggleClub } = useFollowedClubs();
   const [query, setQuery] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState<{
-    player: ClubsResponse["clubs"][number]["tournaments"][number]["players"][number];
-    divisionPlayers: ClubsResponse["clubs"][number]["tournaments"][number]["players"];
+    player: ClubOverviewData["tournaments"][number]["players"][number];
+    divisionPlayers: ClubOverviewData["tournaments"][number]["players"];
   } | null>(null);
 
-  if (isPending || !data || !hydrated) {
+  const clubMap = new Map<string, ClubOverviewData>();
+  for (const queryResult of tournamentQueries) {
+    const result = queryResult.data;
+    if (!result) continue;
+    for (const player of result.players) {
+      if (!player.club) continue;
+      const club = clubMap.get(player.club) ?? {
+        name: player.club,
+        tournaments: [],
+      };
+      let entry = club.tournaments.find(
+        (item) => item.tournament.id === result.tournament.id,
+      );
+      if (!entry) {
+        entry = {
+          tournament: result.tournament,
+          players: [],
+          generatedAt: result.generatedAt,
+        };
+        club.tournaments.push(entry);
+      }
+      entry.players.push(player);
+      clubMap.set(player.club, club);
+    }
+  }
+  const data = [...clubMap.values()].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+
+  if (catalogPending || !catalog || !hydrated) {
     return <Skeleton className="h-[32rem] rounded-[28px]" />;
   }
 
-  const filteredClubs = data.clubs.filter((club) =>
+  const filteredClubs = data.filter((club) =>
     club.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
   const requestedClub = searchParams.get("club");
-  const selectedClub = data.clubs.find((club) => club.name === requestedClub);
+  const selectedClub = data.find((club) => club.name === requestedClub);
   const visibleClubs = selectedClub
     ? [selectedClub]
-    : data.clubs.filter((club) => isFollowed(club.name));
+    : data.filter((club) => isFollowed(club.name));
 
   function selectClub(clubName: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -100,7 +156,9 @@ function ClubOverviewContent() {
                   selectedClub?.name === club.name ? "page" : undefined
                 }
               >
-                <span className="max-w-[16rem] truncate">{club.name}</span>
+                <span className="max-w-[16rem] truncate">
+                  {clubLabel(club.name)}
+                </span>
               </Button>
               <Button
                 type="button"

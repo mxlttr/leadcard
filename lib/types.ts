@@ -112,6 +112,12 @@ export type ClubOverview = {
   tournaments: ClubTournamentEntry[];
 };
 
+export type ClubTournamentResponse = {
+  tournament: TournamentSummary;
+  players: LeaderboardPlayer[];
+  generatedAt: string;
+};
+
 export type ClubsResponse = {
   clubs: ClubOverview[];
   generatedAt: string;

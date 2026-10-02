@@ -6,7 +6,11 @@ import {
   defaultMockTournamentId,
   mockTournamentFeeds,
 } from "@/lib/server/mock-source";
-import type { TournamentStatus, TournamentSummary } from "@/lib/types";
+import type {
+  PlayerSnapshot,
+  TournamentStatus,
+  TournamentSummary,
+} from "@/lib/types";
 
 export { normalizePlayerName, playerClubKey } from "@/lib/player-club";
 
@@ -14,6 +18,7 @@ type TournamentSourceResult = {
   tournament: TournamentSummary;
   html: string | null;
   playerClubs: Record<string, string>;
+  registeredPlayers?: PlayerSnapshot[];
   nextFixtureIndex: number;
 };
 
@@ -145,6 +150,53 @@ export function parsePlayerClubs(html: string) {
   return clubs;
 }
 
+export function parseRegisteredPlayers(html: string, tournamentId = "") {
+  const $ = load(html);
+  const table = $("#starterlist");
+  const headers = table
+    .find("thead tr")
+    .first()
+    .find("th")
+    .map((_, cell) => sanitizeText($(cell).text()).toLocaleLowerCase("de-DE"))
+    .get();
+  const divisionIndex = headers.indexOf("division");
+  const playerIndex = headers.indexOf("spieler");
+  const clubIndex = headers.indexOf("verein");
+
+  if (divisionIndex < 0 || playerIndex < 0) {
+    return [] as PlayerSnapshot[];
+  }
+
+  return table
+    .find("tbody tr")
+    .map((index, row) => {
+      const cells = $(row)
+        .find("td")
+        .map((__, cell) => sanitizeText($(cell).text()))
+        .get();
+      const division = cells[divisionIndex] ?? "";
+      const name = cells[playerIndex] ?? "";
+      const club = clubIndex >= 0 ? cells[clubIndex] : "";
+
+      if (!division || !name) {
+        return null;
+      }
+
+      return {
+        playerId: `${tournamentId}:${playerClubKey(division, name)}`,
+        name,
+        club: club || undefined,
+        division,
+        rank: index + 1,
+        scoreToPar: 0,
+        thru: 0,
+        lastFive: [],
+      } satisfies PlayerSnapshot;
+    })
+    .get()
+    .filter(Boolean) as PlayerSnapshot[];
+}
+
 async function loadPlayerClubs(tournamentId: string) {
   if (!globalThis.leadcardPlayerClubsCache) {
     globalThis.leadcardPlayerClubsCache = new Map();
@@ -175,6 +227,20 @@ async function loadPlayerClubs(tournamentId: string) {
     return clubs;
   } catch {
     return cached?.clubs ?? {};
+  }
+}
+
+async function loadRegisteredPlayers(tournamentId: string) {
+  try {
+    const response = await fetch(
+      `${PLAYER_LIST_URL}${encodeURIComponent(tournamentId)}`,
+      { cache: "no-store", headers: buildHeaders() },
+    );
+    return response.ok
+      ? parseRegisteredPlayers(await response.text(), tournamentId)
+      : [];
+  } catch {
+    return [];
   }
 }
 
@@ -467,13 +533,18 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
 
   return tournaments
     .sort((a, b) => {
+      const weekday = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Europe/Berlin",
+        weekday: "short",
+      }).format(now);
+      const upcomingBeforePast = ["Thu", "Fri", "Sat"].includes(weekday);
       const statusOrder: Record<TournamentStatus, number> = {
         live: 0,
-        today: 1,
-        recent: 2,
-        tomorrow: 3,
-        upcoming: 4,
-        mock: 5,
+        today: 0,
+        ...(upcomingBeforePast
+          ? { tomorrow: 1, upcoming: 1, recent: 2 }
+          : { recent: 1, tomorrow: 2, upcoming: 2 }),
+        mock: 3,
       };
 
       if (statusOrder[a.status] !== statusOrder[b.status]) {
@@ -610,6 +681,7 @@ export async function loadTournamentSnapshotSource(
       tournament: await getTournamentSummary(tournamentId),
       html: dynamicHtml,
       playerClubs: await loadPlayerClubs(tournamentId),
+      registeredPlayers: [],
       nextFixtureIndex: fixtureIndex,
     };
   }
@@ -617,10 +689,18 @@ export async function loadTournamentSnapshotSource(
   const config = tournamentSourceConfig[tournamentId];
 
   if (!config) {
+    const registeredPlayers = await loadRegisteredPlayers(tournamentId);
     return {
       tournament: await getTournamentSummary(tournamentId),
       html: null,
-      playerClubs: {},
+      playerClubs: Object.fromEntries(
+        registeredPlayers.flatMap((player) =>
+          player.club
+            ? [[playerClubKey(player.division, player.name), player.club]]
+            : [],
+        ),
+      ),
+      registeredPlayers,
       nextFixtureIndex: fixtureIndex,
     };
   }
@@ -638,6 +718,7 @@ export async function loadTournamentSnapshotSource(
         "utf8",
       ),
       playerClubs: {},
+      registeredPlayers: [],
       nextFixtureIndex: (safeIndex + 1) % config.fixtureFiles.length,
     };
   }
@@ -649,6 +730,7 @@ export async function loadTournamentSnapshotSource(
     tournament: config.tournament,
     html: feed.fixtures[safeIndex],
     playerClubs: {},
+    registeredPlayers: [],
     nextFixtureIndex: (safeIndex + 1) % feed.fixtures.length,
   };
 }

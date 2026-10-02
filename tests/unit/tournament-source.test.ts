@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   parsePlayerClubs,
+  parseRegisteredPlayers,
   playerClubKey,
 } from "@/lib/server/tournament-source";
 
@@ -62,6 +63,30 @@ describe("tournament-source", () => {
     expect(clubs[playerClubKey("FPO", "Jonas Weber")]).toBe("Women Disc Golf");
   });
 
+  it("parses registered players for tournaments without live scoring", () => {
+    const players = parseRegisteredPlayers(
+      `<table id="starterlist">
+        <thead><tr><th>Division</th><th>Spieler</th><th>Verein</th></tr></thead>
+        <tbody>
+          <tr><td>Open</td><td>Weber, Jonas</td><td>Berlin Disc Golf Club</td></tr>
+          <tr><td>FPO</td><td>Müller, Anna</td><td></td></tr>
+        </tbody>
+      </table>`,
+      "2660",
+    );
+
+    expect(players).toHaveLength(2);
+    expect(players[0]).toMatchObject({
+      playerId: "2660:open|jonas weber",
+      name: "Weber, Jonas",
+      club: "Berlin Disc Golf Club",
+      division: "Open",
+      scoreToPar: 0,
+      thru: 0,
+    });
+    expect(players[1].club).toBeUndefined();
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-26T10:00:00.000Z"));
@@ -77,7 +102,7 @@ describe("tournament-source", () => {
     globalThis.leadcardTournamentCatalogPromise = undefined;
   });
 
-  it("returns active tournaments sorted as live, today, recent, tomorrow, then upcoming", async () => {
+  it("sorts Thursday tournaments as ongoing, upcoming, then past", async () => {
     const listingHtml = buildListingHtml([
       buildListingRow({
         id: "future-far",
@@ -186,20 +211,60 @@ describe("tournament-source", () => {
     expect(catalog.map((tournament) => tournament.id)).toEqual([
       "live-event",
       "today-event",
-      "recent-event",
       "tomorrow-event",
       "upcoming-event",
+      "recent-event",
     ]);
     expect(catalog.map((tournament) => tournament.status)).toEqual([
       "live",
       "today",
-      "recent",
       "tomorrow",
       "upcoming",
+      "recent",
     ]);
     await expect(tournamentSource.getDefaultTournamentId()).resolves.toBe(
       "live-event",
     );
+  });
+
+  it("sorts Sunday tournaments as ongoing, past, then upcoming", async () => {
+    vi.setSystemTime(new Date("2026-03-29T10:00:00.000Z"));
+    const listingHtml = buildListingHtml([
+      buildListingRow({
+        id: "future-event",
+        name: "Future Event",
+        course: "Future Course",
+        startDate: new Date("2026-03-30T08:00:00.000Z"),
+        endDate: new Date("2026-03-30T17:00:00.000Z"),
+      }),
+      buildListingRow({
+        id: "past-event",
+        name: "Past Event",
+        course: "Past Course",
+        startDate: new Date("2026-03-28T08:00:00.000Z"),
+        endDate: new Date("2026-03-28T17:00:00.000Z"),
+      }),
+      buildListingRow({
+        id: "ongoing-event",
+        name: "Ongoing Event",
+        course: "Ongoing Course",
+        startDate: new Date("2026-03-29T08:00:00.000Z"),
+        endDate: new Date("2026-03-29T17:00:00.000Z"),
+      }),
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(listingHtml, { status: 200 })),
+    );
+
+    const tournamentSource = await import("@/lib/server/tournament-source");
+    const catalog = await tournamentSource.getTournamentCatalog();
+
+    expect(catalog.map((tournament) => tournament.id)).toEqual([
+      "ongoing-event",
+      "past-event",
+      "future-event",
+    ]);
   });
 
   it("treats staggered tee-time starts as live once scoring has started", async () => {

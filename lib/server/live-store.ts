@@ -12,6 +12,7 @@ import {
 import type {
   ClubOverview,
   ClubsResponse,
+  ClubTournamentResponse,
   DivisionLeader,
   LeaderboardPlayer,
   LeaderboardResponse,
@@ -238,31 +239,34 @@ function toLeaderboardPlayers(
 async function createInitialState(tournamentId: string): Promise<LiveState> {
   const source = await loadTournamentSnapshotSource(tournamentId, 0);
   const snapshot = source.html ? scrapeSnapshot(source.html) : null;
-  const enrichedPlayers = snapshot?.players.map((player) => ({
+  const enrichedPlayers = (
+    snapshot?.players ??
+    source.registeredPlayers ??
+    []
+  ).map((player) => ({
     ...player,
     club:
       player.club ??
       source.playerClubs?.[playerClubKey(player.division, player.name)],
   }));
-  const players =
-    enrichedPlayers?.map<LeaderboardPlayer>((player) => ({
-      ...player,
-      delta: {
-        rankDelta: 0,
-        scoreDelta: 0,
-        thruDelta: 0,
-      },
-      latestUpdate: null,
-    })) ?? [];
+  const players = enrichedPlayers.map<LeaderboardPlayer>((player) => ({
+    ...player,
+    delta: {
+      rankDelta: 0,
+      scoreDelta: 0,
+      thruDelta: 0,
+    },
+    latestUpdate: null,
+  }));
 
   return {
     tournament: withInferredRound(
       source.tournament,
       source.html,
-      enrichedPlayers ?? [],
+      enrichedPlayers,
     ),
     hasLiveData: Boolean(source.html),
-    autoRefresh: shouldAutoRefresh(source.tournament, enrichedPlayers ?? []),
+    autoRefresh: shouldAutoRefresh(source.tournament, enrichedPlayers),
     fixtureIndex: source.nextFixtureIndex,
     replayPaused: false,
     lastAdvancedAt: Date.now(),
@@ -344,9 +348,18 @@ async function advanceStore(store: LiveState) {
   if (!source.html) {
     store.tournament = source.tournament;
     store.generatedAt = new Date().toISOString();
-    store.players = [];
+    store.players = (source.registeredPlayers ?? []).map<LeaderboardPlayer>(
+      (player) => ({
+        ...player,
+        delta: { rankDelta: 0, scoreDelta: 0, thruDelta: 0 },
+        latestUpdate: null,
+      }),
+    );
     store.updates = [];
-    store.autoRefresh = shouldAutoRefresh(source.tournament, []);
+    store.autoRefresh = shouldAutoRefresh(
+      source.tournament,
+      source.registeredPlayers ?? [],
+    );
     return;
   }
 
@@ -573,6 +586,26 @@ export async function getClubsResponse(): Promise<ClubsResponse> {
       }))
       .sort((a, b) => a.name.localeCompare(b.name)),
     generatedAt: new Date().toISOString(),
+  };
+}
+
+export async function getClubTournamentResponse(
+  tournamentId: string,
+): Promise<ClubTournamentResponse> {
+  const tournament = (await getTournamentCatalog()).find(
+    (item) => item.id === tournamentId,
+  );
+
+  if (!tournament) {
+    throw new Error("Unknown tournament");
+  }
+
+  const leaderboard = await getLeaderboardResponse(tournamentId, "__all");
+
+  return {
+    tournament,
+    players: leaderboard.players.filter((player) => Boolean(player.club)),
+    generatedAt: leaderboard.generatedAt,
   };
 }
 
