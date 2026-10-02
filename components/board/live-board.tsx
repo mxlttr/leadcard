@@ -37,6 +37,7 @@ import {
   cn,
   formatRelativeTime,
   holeToLabel,
+  isStartingListStatus,
   timestampLabel,
 } from "@/lib/utils";
 
@@ -683,12 +684,14 @@ function BoardSettings({
 function BoardTable({
   division,
   players,
+  upcoming,
   pageIndex,
   totalPages,
   totalPlayers,
 }: {
   division: string;
   players: LeaderboardPlayer[];
+  upcoming: boolean;
   pageIndex: number;
   totalPages: number;
   totalPlayers: number;
@@ -727,24 +730,32 @@ function BoardTable({
           <table className="min-w-full border-separate border-spacing-0">
             <thead className="sticky top-0 z-10 bg-surface">
               <tr className="text-left text-xs uppercase tracking-[0.18em] text-muted">
-                <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
-                  {t("board.columns.rank")}
-                </th>
+                {!upcoming ? (
+                  <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
+                    {t("board.columns.rank")}
+                  </th>
+                ) : null}
                 <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
                   {t("board.columns.player")}
                 </th>
-                <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
-                  {t("board.columns.delta")}
-                </th>
-                <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
-                  {t("board.columns.score")}
-                </th>
-                <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
-                  {t("board.columns.thru")}
-                </th>
-                <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
-                  {t("board.columns.lastNine")}
-                </th>
+                {!upcoming ? (
+                  <>
+                    <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
+                      {t("board.columns.delta")}
+                    </th>
+                    <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
+                      {t("board.columns.score")}
+                    </th>
+                    <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
+                      {t("board.columns.thru")}
+                    </th>
+                  </>
+                ) : null}
+                {!upcoming ? (
+                  <th className="border-b border-border px-5 py-3 font-medium sm:px-6">
+                    {t("board.columns.lastNine")}
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -753,66 +764,76 @@ function BoardTable({
 
                 return (
                   <tr key={player.playerId} className="align-middle">
-                    <td className="border-b border-border px-5 py-4 sm:px-6">
-                      <span className="font-display text-2xl font-semibold">
-                        #{player.rank}
-                      </span>
-                    </td>
+                    {!upcoming ? (
+                      <td className="border-b border-border px-5 py-4 sm:px-6">
+                        <span className="font-display text-2xl font-semibold">
+                          #{player.rank}
+                        </span>
+                      </td>
+                    ) : null}
                     <td className="border-b border-border px-5 py-4 sm:px-6">
                       <div className="min-w-0">
                         <div className="truncate font-body text-lg font-medium text-foreground">
                           {player.name}
                         </div>
-                        <div className="mt-1 text-sm text-muted">
-                          {translateDivisionLabel(player.division, locale)}
-                        </div>
+                        {!upcoming ? (
+                          <div className="mt-1 text-sm text-muted">
+                            {translateDivisionLabel(player.division, locale)}
+                          </div>
+                        ) : null}
                       </div>
                     </td>
-                    <td className="border-b border-border px-5 py-4 sm:px-6">
-                      <RankDelta value={player.delta.rankDelta} />
-                    </td>
-                    <td className="border-b border-border px-5 py-4 sm:px-6">
-                      <ScoreDisplay
-                        scoreToPar={player.scoreToPar}
-                        className="text-3xl"
-                      />
-                    </td>
-                    <td className="border-b border-border px-5 py-4 sm:px-6">
-                      <span className="text-base text-foreground">
-                        {holeToLabel(player.thru, t)}
-                      </span>
-                    </td>
-                    <td className="border-b border-border px-5 py-4 sm:px-6">
-                      {recentHoles.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {recentHoles.map((hole) => (
-                            <div
-                              key={`${player.playerId}-board-hole-${hole.hole}`}
-                              className={cn(
-                                "w-14 rounded-[14px] border px-2 py-2 text-center",
-                                boardHoleTone(hole),
-                              )}
-                            >
-                              <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted">
-                                {t("board.holeNumber", { hole: hole.hole })}
-                              </div>
-                              <div className="score-text mt-1 text-base font-bold">
-                                {formatRelativeHoleScore(hole.relativeToPar)}
-                              </div>
-                              {holeScoreLabel(hole, t) ? (
-                                <div className="mt-1 text-[8px] font-bold uppercase tracking-wide">
-                                  {holeScoreLabel(hole, t)}
+                    {!upcoming ? (
+                      <>
+                        <td className="border-b border-border px-5 py-4 sm:px-6">
+                          <RankDelta value={player.delta.rankDelta} />
+                        </td>
+                        <td className="border-b border-border px-5 py-4 sm:px-6">
+                          <ScoreDisplay
+                            scoreToPar={player.scoreToPar}
+                            className="text-3xl"
+                          />
+                        </td>
+                        <td className="border-b border-border px-5 py-4 sm:px-6">
+                          <span className="text-base text-foreground">
+                            {holeToLabel(player.thru, t)}
+                          </span>
+                        </td>
+                      </>
+                    ) : null}
+                    {!upcoming ? (
+                      <td className="border-b border-border px-5 py-4 sm:px-6">
+                        {recentHoles.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {recentHoles.map((hole) => (
+                              <div
+                                key={`${player.playerId}-board-hole-${hole.hole}`}
+                                className={cn(
+                                  "w-14 rounded-[14px] border px-2 py-2 text-center",
+                                  boardHoleTone(hole),
+                                )}
+                              >
+                                <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted">
+                                  {t("board.holeNumber", { hole: hole.hole })}
                                 </div>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-muted">
-                          {t("board.noHoleData")}
-                        </div>
-                      )}
-                    </td>
+                                <div className="score-text mt-1 text-base font-bold">
+                                  {formatRelativeHoleScore(hole.relativeToPar)}
+                                </div>
+                                {holeScoreLabel(hole, t) ? (
+                                  <div className="mt-1 text-[8px] font-bold uppercase tracking-wide">
+                                    {holeScoreLabel(hole, t)}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted">
+                            {t("board.noHoleData")}
+                          </div>
+                        )}
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })}
@@ -829,32 +850,45 @@ function BoardTable({
                 key={player.playerId}
                 className="min-w-0 rounded-[20px] border border-border bg-background p-3"
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="shrink-0 font-display text-xl font-semibold">
-                    #{player.rank}
-                  </span>
+                <div
+                  className={cn(
+                    "flex min-w-0 items-center gap-3",
+                    upcoming && "py-0.5",
+                  )}
+                >
+                  {!upcoming ? (
+                    <span className="shrink-0 font-display text-xl font-semibold">
+                      #{player.rank}
+                    </span>
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-foreground">
                       {player.name}
                     </p>
-                    <p className="truncate text-xs text-muted">
-                      {translateDivisionLabel(player.division, locale)}
-                    </p>
+                    {!upcoming ? (
+                      <p className="truncate text-xs text-muted">
+                        {translateDivisionLabel(player.division, locale)}
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="shrink-0 text-right">
-                    <ScoreDisplay
-                      scoreToPar={player.scoreToPar}
-                      className="text-2xl"
-                    />
-                    <p className="mt-0.5 text-xs text-muted">
-                      {holeToLabel(player.thru, t)}
-                    </p>
-                  </div>
-                  <div className="shrink-0">
-                    <RankDelta value={player.delta.rankDelta} />
-                  </div>
+                  {!upcoming ? (
+                    <div className="shrink-0 text-right">
+                      <ScoreDisplay
+                        scoreToPar={player.scoreToPar}
+                        className="text-2xl"
+                      />
+                      <p className="mt-0.5 text-xs text-muted">
+                        {holeToLabel(player.thru, t)}
+                      </p>
+                    </div>
+                  ) : null}
+                  {!upcoming ? (
+                    <div className="shrink-0">
+                      <RankDelta value={player.delta.rankDelta} />
+                    </div>
+                  ) : null}
                 </div>
-                {recentHoles.length > 0 ? (
+                {!upcoming && recentHoles.length > 0 ? (
                   <div className="mt-3 flex min-w-0 gap-1.5 overflow-x-auto pb-1">
                     {recentHoles.map((hole) => (
                       <div
@@ -1389,6 +1423,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
       <BoardTable
         division={activeDivision}
         players={pagedPlayers}
+        upcoming={isStartingListStatus(boardLiveData.tournament.status)}
         pageIndex={safePageIndex}
         totalPages={totalPages}
         totalPlayers={totalPlayers}

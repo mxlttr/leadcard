@@ -18,7 +18,12 @@ import type {
   ClubTournamentResponse,
   TournamentSummary,
 } from "@/lib/types";
-import { cn, formatScore, holeToLabel } from "@/lib/utils";
+import {
+  cn,
+  formatScore,
+  holeToLabel,
+  isStartingListStatus,
+} from "@/lib/utils";
 
 async function fetchTournamentCatalog() {
   const response = await fetch("/api/tournaments", { cache: "no-store" });
@@ -91,7 +96,7 @@ function ClubOverviewContent() {
     }
   }
   const data = [...clubMap.values()].sort((a, b) =>
-    a.name.localeCompare(b.name),
+    clubLabel(a.name).localeCompare(clubLabel(b.name)),
   );
 
   if (catalogPending || !catalog || !hydrated) {
@@ -169,19 +174,6 @@ function ClubOverviewContent() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-full min-w-0 rounded-none px-3 text-left"
-                onClick={() => selectClub(club.name)}
-                aria-current={
-                  selectedClub?.name === club.name ? "page" : undefined
-                }
-              >
-                <span className="max-w-[16rem] truncate">
-                  {clubLabel(club.name)}
-                </span>
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-full"
                 onClick={() => toggleClub(club.name)}
@@ -197,6 +189,19 @@ function ClubOverviewContent() {
                     isFollowed(club.name) && "fill-primary text-primary",
                   )}
                 />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-full min-w-0 rounded-none px-3 text-left"
+                onClick={() => selectClub(club.name)}
+                aria-current={
+                  selectedClub?.name === club.name ? "page" : undefined
+                }
+              >
+                <span className="max-w-[16rem] truncate">
+                  {clubLabel(club.name)}
+                </span>
               </Button>
             </div>
           ))}
@@ -267,7 +272,12 @@ function ClubOverviewContent() {
                       <button
                         key={player.playerId}
                         type="button"
-                        className="flex w-full items-center gap-3 py-3 text-left first:pt-4 last:pb-0"
+                        className={cn(
+                          "flex w-full items-center gap-3 text-left",
+                          isStartingListStatus(entry.tournament.status)
+                            ? "py-2 first:pt-3 last:pb-0"
+                            : "py-3 first:pt-4 last:pb-0",
+                        )}
                         onClick={() =>
                           setSelectedPlayer({
                             player,
@@ -275,20 +285,28 @@ function ClubOverviewContent() {
                           })
                         }
                       >
-                        <span className="w-8 shrink-0 font-display text-lg font-semibold">
-                          #{player.rank}
-                        </span>
+                        {!isStartingListStatus(entry.tournament.status) ? (
+                          <span className="w-8 shrink-0 font-display text-lg font-semibold">
+                            #{player.rank}
+                          </span>
+                        ) : null}
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium">
                             {player.name}
                           </span>
-                          <span className="block truncate text-xs text-muted">
-                            {player.division} · {holeToLabel(player.thru, t)}
+                          {isStartingListStatus(
+                            entry.tournament.status,
+                          ) ? null : (
+                            <span className="block truncate text-xs text-muted">
+                              {player.division} · {holeToLabel(player.thru, t)}
+                            </span>
+                          )}
+                        </span>
+                        {!isStartingListStatus(entry.tournament.status) ? (
+                          <span className="shrink-0 font-display text-xl font-semibold">
+                            {formatScore(player.scoreToPar)}
                           </span>
-                        </span>
-                        <span className="shrink-0 font-display text-xl font-semibold">
-                          {formatScore(player.scoreToPar)}
-                        </span>
+                        ) : null}
                       </button>
                     ))}
                   </div>

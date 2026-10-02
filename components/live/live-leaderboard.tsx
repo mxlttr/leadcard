@@ -31,7 +31,12 @@ import type {
   RecentUpdate,
   UpdatesResponse,
 } from "@/lib/types";
-import { cn, holeToLabel, timestampLabel } from "@/lib/utils";
+import {
+  cn,
+  holeToLabel,
+  isStartingListStatus,
+  timestampLabel,
+} from "@/lib/utils";
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url, {
@@ -944,6 +949,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   showDivision={
                     isCrossDivisionSearch || selectedDivision === ALL_DIVISIONS
                   }
+                  upcoming={isStartingListStatus(liveData.tournament.status)}
                   isFollowed={isFollowed}
                   onFollowToggle={togglePlayer}
                   onPlayerSelect={handlePlayerSelect}

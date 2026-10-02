@@ -8,6 +8,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+import type { TournamentStatus } from "@/lib/types";
+
+export function isStartingListStatus(status: TournamentStatus) {
+  return status === "upcoming" || status === "tomorrow" || status === "today";
+}
+
 export function formatScore(scoreToPar: number) {
   if (scoreToPar === 0) {
     return "E";

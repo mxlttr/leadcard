@@ -74,6 +74,7 @@ function playerMomentum(
 export function LeaderboardCard({
   player,
   divisionPlayers,
+  upcoming = false,
   showDivision,
   followed,
   onFollowToggle,
@@ -81,6 +82,7 @@ export function LeaderboardCard({
 }: {
   player: LeaderboardPlayer;
   divisionPlayers: LeaderboardPlayer[];
+  upcoming?: boolean;
   showDivision?: boolean;
   followed: boolean;
   onFollowToggle: () => void;
@@ -90,16 +92,23 @@ export function LeaderboardCard({
 
   return (
     <Card className="border-border bg-surface shadow-none">
-      <CardContent className="space-y-4 p-4">
+      <CardContent className={upcoming ? "p-3" : "space-y-4 p-4"}>
         <div className="flex items-start gap-3">
           <button
             type="button"
             onClick={onSelect}
-            className="grid min-w-0 flex-1 grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2 text-left"
+            className={cn(
+              "grid min-w-0 flex-1 text-left",
+              upcoming
+                ? "grid-cols-[1fr_auto] items-center gap-x-3"
+                : "grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2",
+            )}
           >
-            <span className="score-text text-xl font-bold text-foreground">
-              {formatDivisionRank(player, divisionPlayers)}
-            </span>
+            {upcoming ? null : (
+              <span className="score-text text-xl font-bold text-foreground">
+                {formatDivisionRank(player, divisionPlayers)}
+              </span>
+            )}
             <div className="min-w-0">
               <div className="truncate text-base font-medium text-foreground">
                 {player.name}
@@ -109,7 +118,7 @@ export function LeaderboardCard({
                   {translateDivisionLabel(player.division, locale)}
                 </div>
               ) : null}
-              {player.thru !== "F" ? (
+              {!upcoming && player.thru !== "F" ? (
                 <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-muted">
                   <span className="shrink-0">
                     <RankDelta value={player.delta.rankDelta} />
@@ -120,37 +129,48 @@ export function LeaderboardCard({
                 </div>
               ) : null}
             </div>
-            <ScoreDisplay scoreToPar={player.scoreToPar} className="shrink-0" />
-          </button>
-          <FollowToggle active={followed} onToggle={onFollowToggle} />
-        </div>
-
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            {stableHoleKeys(player.lastFive, player.playerId).map(
-              ({ key, value }) => (
-                <span
-                  key={key}
-                  className={cn("h-3.5 w-3.5 rounded-full", holeTone(value))}
-                  aria-hidden="true"
-                />
-              ),
+            {upcoming ? null : (
+              <ScoreDisplay
+                scoreToPar={player.scoreToPar}
+                className="shrink-0"
+              />
             )}
-          </div>
-          {playerMomentum(player, t)}
+          </button>
+          {!upcoming ? (
+            <FollowToggle active={followed} onToggle={onFollowToggle} />
+          ) : null}
         </div>
 
-        <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-          {player.latestUpdate
-            ? formatUpdateText(player.latestUpdate, t)
-            : player.thru === "F"
-              ? t("player.finishedAt", {
-                  score: formatScore(player.scoreToPar),
-                })
-              : t("player.holding", {
-                  status: holeToLabel(player.thru, t).toLowerCase(),
-                })}
-        </p>
+        {!upcoming ? (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {stableHoleKeys(player.lastFive, player.playerId).map(
+                ({ key, value }) => (
+                  <span
+                    key={key}
+                    className={cn("h-3.5 w-3.5 rounded-full", holeTone(value))}
+                    aria-hidden="true"
+                  />
+                ),
+              )}
+            </div>
+            {playerMomentum(player, t)}
+          </div>
+        ) : null}
+
+        {!upcoming ? (
+          <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+            {player.latestUpdate
+              ? formatUpdateText(player.latestUpdate, t)
+              : player.thru === "F"
+                ? t("player.finishedAt", {
+                    score: formatScore(player.scoreToPar),
+                  })
+                : t("player.holding", {
+                    status: holeToLabel(player.thru, t).toLowerCase(),
+                  })}
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );
