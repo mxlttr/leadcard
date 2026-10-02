@@ -297,7 +297,7 @@ function ClubOverviewContent() {
                           {isStartingListStatus(
                             entry.tournament.status,
                           ) ? null : (
-                            <span className="block truncate text-xs text-muted">
+                            <span className="block -mt-0.5 truncate text-xs leading-tight text-muted">
                               {player.division} · {holeToLabel(player.thru, t)}
                             </span>
                           )}
