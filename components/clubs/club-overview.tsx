@@ -175,7 +175,7 @@ function ClubOverviewContent() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 shrink-0 rounded-full"
+                className="ml-1 h-9 w-9 shrink-0 rounded-full"
                 onClick={() => toggleClub(club.name)}
                 aria-label={
                   isFollowed(club.name)
@@ -193,7 +193,7 @@ function ClubOverviewContent() {
               <Button
                 type="button"
                 variant="ghost"
-                className="h-full min-w-0 rounded-none px-3 text-left"
+                className="h-full min-w-0 rounded-none pl-1 pr-3 text-left"
                 onClick={() => selectClub(club.name)}
                 aria-current={
                   selectedClub?.name === club.name ? "page" : undefined
