@@ -20,6 +20,7 @@ import type {
 } from "@/lib/types";
 import {
   cn,
+  formatDivisionRank,
   formatScore,
   holeToLabel,
   isStartingListStatus,
@@ -287,7 +288,7 @@ function ClubOverviewContent() {
                       >
                         {!isStartingListStatus(entry.tournament.status) ? (
                           <span className="w-8 shrink-0 font-display text-lg font-semibold">
-                            #{player.rank}
+                            {formatDivisionRank(player, entry.players)}
                           </span>
                         ) : null}
                         <span className="min-w-0 flex-1">
