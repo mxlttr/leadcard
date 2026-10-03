@@ -31,7 +31,7 @@ describe("scrapeSnapshot", () => {
     const html = `
       <table id="livescoring_">
         <thead>
-          <tr><th colspan="2">Par</th><th class="th_hole">4</th><th class="th_hole">3</th><th class="th_hole">3</th></tr>
+          <tr><th colspan="2">Par</th><th class="th_hole">4</th><th class="th_hole">3</th><th class="th_hole">-3</th></tr>
           <tr><th>No</th><th class="th_name">Open</th><th class="th_hole">1</th><th class="th_hole">2</th><th class="th_hole">3</th></tr>
         </thead>
         <tbody>
@@ -43,6 +43,11 @@ describe("scrapeSnapshot", () => {
     const player = scrapeSnapshot(html).players[0];
 
     expect(player?.lastFive).toEqual([0, 0]);
+    expect(player?.rounds?.[0]?.holes[2]).toMatchObject({
+      par: 3,
+      score: 3,
+      relativeToPar: 0,
+    });
   });
 
   it("does not treat empty hole cells as finished holes", () => {

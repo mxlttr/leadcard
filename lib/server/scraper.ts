@@ -166,7 +166,8 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
       .find("th.th_hole")
       .map((_, hole) => parseHoleValue(sanitizeText($(hole).text())))
       .get()
-      .filter((value): value is number => value !== null);
+      .filter((value): value is number => value !== null)
+      .map(Math.abs);
 
     const rows = $(tbody).find("> tr").toArray();
     let rowIndex = 0;
