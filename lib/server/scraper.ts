@@ -172,8 +172,7 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
     let rowIndex = 0;
 
     while (rowIndex < rows.length) {
-      const firstRow = $(rows[rowIndex]);
-      const firstCells = firstRow
+      const firstCells = $(rows[rowIndex])
         .find("td")
         .toArray()
         .map((cell) => sanitizeText($(cell).text()));
@@ -234,8 +233,15 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
       const scoreToPar = extractScoreToPar(summaryCells);
 
       if (Number.isFinite(scoreToPar)) {
-        const lastFive = playedHoles
-          .map((score, holeIndex) => score - (parValues[holeIndex] ?? score))
+        const lastFive = holeTexts
+          .map((cellText, holeIndex) => {
+            const score = parseHoleValue(cellText);
+            const par = parValues[holeIndex];
+            return score === null || par === null || par === undefined
+              ? null
+              : score - par;
+          })
+          .filter((value): value is number => value !== null)
           .slice(-5);
 
         players.push({
