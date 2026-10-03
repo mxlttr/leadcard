@@ -110,10 +110,32 @@ function nextUpdateAt(store: LiveState) {
 
 function shouldAutoRefresh(
   tournament: Pick<TournamentSummary, "status">,
-  players: Array<Pick<PlayerSnapshot, "thru">>,
+  players: Array<Pick<PlayerSnapshot, "thru" | "rounds">>,
+  html: string | null,
 ) {
   if (players.length > 0 && players.some((player) => player.thru !== "F")) {
     return true;
+  }
+
+  const totalRounds = inferTotalRounds(html);
+  const observedRounds = Math.max(
+    0,
+    ...players.map((player) => player.rounds?.length ?? 0),
+  );
+  const hasRoundInProgress = players.some((player) =>
+    player.rounds?.some((round) => round.thru !== 0 && round.thru !== "F"),
+  );
+  const hasUnplayedRound = players.some((player) =>
+    player.rounds?.some((round) => round.thru === 0),
+  );
+
+  if (
+    totalRounds !== undefined &&
+    observedRounds >= totalRounds &&
+    !hasRoundInProgress &&
+    !hasUnplayedRound
+  ) {
+    return false;
   }
 
   return tournament.status === "live" || tournament.status === "today";
@@ -266,7 +288,11 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
       enrichedPlayers,
     ),
     hasLiveData: Boolean(source.html),
-    autoRefresh: shouldAutoRefresh(source.tournament, enrichedPlayers),
+    autoRefresh: shouldAutoRefresh(
+      source.tournament,
+      enrichedPlayers,
+      source.html,
+    ),
     fixtureIndex: source.nextFixtureIndex,
     replayPaused: false,
     lastAdvancedAt: Date.now(),
@@ -359,6 +385,7 @@ async function advanceStore(store: LiveState) {
     store.autoRefresh = shouldAutoRefresh(
       source.tournament,
       source.registeredPlayers ?? [],
+      source.html,
     );
     return;
   }
@@ -384,7 +411,11 @@ async function advanceStore(store: LiveState) {
   };
   store.generatedAt = nextSnapshot.generatedAt;
   store.players = nextState.players;
-  store.autoRefresh = shouldAutoRefresh(store.tournament, enrichedPlayers);
+  store.autoRefresh = shouldAutoRefresh(
+    store.tournament,
+    enrichedPlayers,
+    source.html,
+  );
   store.updates = [...nextState.updates.reverse(), ...store.updates].slice(
     0,
     20,

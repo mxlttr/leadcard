@@ -1423,7 +1423,10 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
       <BoardTable
         division={activeDivision}
         players={pagedPlayers}
-        upcoming={isStartingListStatus(boardLiveData.tournament.status)}
+        upcoming={
+          isStartingListStatus(boardLiveData.tournament.status) &&
+          !currentLeaderboard.players.some((player) => player.thru !== 0)
+        }
         pageIndex={safePageIndex}
         totalPages={totalPages}
         totalPlayers={totalPlayers}

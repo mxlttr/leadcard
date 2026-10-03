@@ -53,7 +53,8 @@ export function GlobalSnapshot({
             id="global-leaders"
             className="rounded-[20px] border border-border bg-background p-4 text-sm text-muted"
           >
-            {data.tournament.status === "upcoming"
+            {data.tournament.status === "upcoming" ||
+            data.tournament.status === "tomorrow"
               ? t("snapshot.upcomingMessage")
               : t("snapshot.unavailableMessage")}
           </div>

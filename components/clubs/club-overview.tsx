@@ -275,7 +275,8 @@ function ClubOverviewContent() {
                         type="button"
                         className={cn(
                           "flex w-full items-center gap-3 text-left",
-                          isStartingListStatus(entry.tournament.status)
+                          isStartingListStatus(entry.tournament.status) &&
+                            !entry.players.some((player) => player.thru !== 0)
                             ? "py-2 first:pt-3 last:pb-0"
                             : "py-3 first:pt-4 last:pb-0",
                         )}
@@ -286,7 +287,8 @@ function ClubOverviewContent() {
                           })
                         }
                       >
-                        {!isStartingListStatus(entry.tournament.status) ? (
+                        {!isStartingListStatus(entry.tournament.status) ||
+                        entry.players.some((player) => player.thru !== 0) ? (
                           <span className="w-8 shrink-0 font-display text-lg font-semibold">
                             {formatDivisionRank(player, entry.players)}
                           </span>
@@ -295,15 +297,17 @@ function ClubOverviewContent() {
                           <span className="block truncate font-medium">
                             {player.name}
                           </span>
-                          {isStartingListStatus(
-                            entry.tournament.status,
+                          {isStartingListStatus(entry.tournament.status) &&
+                          !entry.players.some(
+                            (player) => player.thru !== 0,
                           ) ? null : (
                             <span className="block -mt-0.5 truncate text-xs leading-tight text-muted">
                               {player.division} · {holeToLabel(player.thru, t)}
                             </span>
                           )}
                         </span>
-                        {!isStartingListStatus(entry.tournament.status) ? (
+                        {!isStartingListStatus(entry.tournament.status) ||
+                        entry.players.some((player) => player.thru !== 0) ? (
                           <span className="shrink-0 font-display text-xl font-semibold">
                             {formatScore(player.scoreToPar)}
                           </span>

@@ -413,6 +413,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     isSelectedTournamentLiveData &&
     isSelectedTournamentLeaderboard &&
     isSelectedTournamentUpdates;
+  const hasScoredPlayers = (allPlayersData?.players ?? []).some(
+    (player) => player.thru !== 0,
+  );
 
   const syncTournamentUrl = useCallback(
     (tournamentId: string) => {
@@ -712,7 +715,8 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   ? t("app.latestUpdate", {
                       time: timestampLabel(liveData.generatedAt, locale),
                     })
-                  : liveData.tournament.status === "upcoming"
+                  : liveData.tournament.status === "upcoming" ||
+                      liveData.tournament.status === "tomorrow"
                     ? t("app.upcomingTournament")
                     : t("app.liveScoringUnavailable")}
               </span>
@@ -921,7 +925,8 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             </div>
           ) : !liveData.hasLiveData ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
-              {liveData.tournament.status === "upcoming"
+              {liveData.tournament.status === "upcoming" ||
+              liveData.tournament.status === "tomorrow"
                 ? t("leaderboard.noLiveData")
                 : t("leaderboard.noLiveScoring")}
             </div>
@@ -949,7 +954,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   showDivision={
                     isCrossDivisionSearch || selectedDivision === ALL_DIVISIONS
                   }
-                  upcoming={isStartingListStatus(liveData.tournament.status)}
+                  upcoming={
+                    isStartingListStatus(liveData.tournament.status) &&
+                    !hasScoredPlayers
+                  }
                   isFollowed={isFollowed}
                   onFollowToggle={togglePlayer}
                   onPlayerSelect={handlePlayerSelect}
