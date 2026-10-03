@@ -110,6 +110,10 @@ function sanitizeText(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function hasUnsupportedStatus(cells: string[]) {
+  return cells.some((cell) => /^(DNF|DNS|DSQ)$/i.test(cell));
+}
+
 export function parsePlayerClubs(html: string) {
   const $ = load(html);
   const clubs: Record<string, string> = {};
@@ -390,6 +394,10 @@ function hasActiveRoundInLivePage(html: string) {
         continue;
       }
 
+      if (hasUnsupportedStatus(firstCells)) {
+        continue;
+      }
+
       const groupedRows: string[][] = [firstCells];
       let nextIndex = rowIndex + 1;
 
@@ -413,6 +421,11 @@ function hasActiveRoundInLivePage(html: string) {
       }
 
       const activeRow = groupedRows[groupedRows.length - 1];
+      if (hasUnsupportedStatus(activeRow)) {
+        rowIndex = nextIndex - 1;
+        continue;
+      }
+
       const playedHoles = activeRow
         .slice(2, 2 + holeCount)
         .filter((value) => value !== "").length;
