@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
+import { InstallAppOption } from "@/components/install-app-option";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -170,6 +171,7 @@ function NavigationContent() {
                   ? t("theme.switchToLight")
                   : t("theme.switchToDark")}
               </Button>
+              <InstallAppOption locale={locale} />
             </div>
           </SheetContent>
         </Sheet>
