@@ -254,8 +254,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const [resolvedLiveData, setResolvedLiveData] = useState<LiveResponse | null>(
     null,
   );
-  const [resolvedLeaderboardData, setResolvedLeaderboardData] =
-    useState<LeaderboardResponse | null>(null);
   const [resolvedAllPlayersData, setResolvedAllPlayersData] =
     useState<LeaderboardResponse | null>(null);
   const [resolvedUpdatesData, setResolvedUpdatesData] =
@@ -296,19 +294,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const shouldRefreshSelectedTournament =
     selectedTournament?.status === "live" &&
     Boolean(liveData && liveData.updateIntervalMs > 0);
-
-  const leaderboardQuery = useQuery({
-    queryKey: ["leaderboard", locale, selectedTournamentId, selectedDivision],
-    queryFn: () =>
-      fetchJson<LeaderboardResponse>(
-        `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent(selectedDivision)}`,
-      ),
-    enabled: Boolean(selectedTournamentId),
-    refetchInterval: shouldRefreshSelectedTournament
-      ? liveData?.updateIntervalMs
-      : false,
-    placeholderData: keepPreviousData,
-  });
 
   const allPlayersQuery = useQuery({
     queryKey: ["leaderboard", "all", locale, selectedTournamentId],
@@ -373,12 +358,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   }, [liveQuery.data, liveQuery.isPlaceholderData]);
 
   useEffect(() => {
-    if (leaderboardQuery.data && !leaderboardQuery.isPlaceholderData) {
-      setResolvedLeaderboardData(leaderboardQuery.data);
-    }
-  }, [leaderboardQuery.data, leaderboardQuery.isPlaceholderData]);
-
-  useEffect(() => {
     if (allPlayersQuery.data && !allPlayersQuery.isPlaceholderData) {
       setResolvedAllPlayersData(allPlayersQuery.data);
     }
@@ -398,13 +377,24 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const leaderboardData = leaderboardQuery.data ?? resolvedLeaderboardData;
   const allPlayersData = allPlayersQuery.data ?? resolvedAllPlayersData;
+  const leaderboardData = allPlayersData
+    ? {
+        ...allPlayersData,
+        division: selectedDivision,
+        players:
+          selectedDivision === ALL_DIVISIONS
+            ? allPlayersData.players
+            : allPlayersData.players.filter(
+                (player) => player.division === selectedDivision,
+              ),
+      }
+    : null;
   const updatesData = updatesQuery.data ?? resolvedUpdatesData;
   const isSelectedTournamentLeaderboard =
-    leaderboardQuery.data?.tournamentId === selectedTournamentId &&
-    !leaderboardQuery.isPlaceholderData &&
-    Boolean(leaderboardQuery.data);
+    allPlayersQuery.data?.tournamentId === selectedTournamentId &&
+    !allPlayersQuery.isPlaceholderData &&
+    Boolean(allPlayersQuery.data);
   const isSelectedTournamentUpdates =
     updatesQuery.data?.tournamentId === selectedTournamentId &&
     !updatesQuery.isPlaceholderData &&
