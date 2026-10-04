@@ -293,6 +293,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     liveData?.tournaments.find(
       (tournament) => tournament.id === selectedTournamentId,
     ) ?? liveData?.tournament;
+  const shouldRefreshSelectedTournament =
+    selectedTournament?.status === "live" &&
+    Boolean(liveData && liveData.updateIntervalMs > 0);
 
   const leaderboardQuery = useQuery({
     queryKey: ["leaderboard", locale, selectedTournamentId, selectedDivision],
@@ -301,10 +304,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent(selectedDivision)}`,
       ),
     enabled: Boolean(selectedTournamentId),
-    refetchInterval:
-      liveData && liveData.updateIntervalMs > 0
-        ? liveData.updateIntervalMs
-        : false,
+    refetchInterval: shouldRefreshSelectedTournament
+      ? liveData?.updateIntervalMs
+      : false,
     placeholderData: keepPreviousData,
   });
 
@@ -315,10 +317,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent("__all")}`,
       ),
     enabled: Boolean(selectedTournamentId),
-    refetchInterval:
-      liveData && liveData.updateIntervalMs > 0
-        ? liveData.updateIntervalMs
-        : false,
+    refetchInterval: shouldRefreshSelectedTournament
+      ? liveData?.updateIntervalMs
+      : false,
     placeholderData: keepPreviousData,
   });
 
@@ -329,10 +330,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`,
       ),
     enabled: Boolean(selectedTournamentId),
-    refetchInterval:
-      liveData && liveData.updateIntervalMs > 0
-        ? liveData.updateIntervalMs
-        : false,
+    refetchInterval: shouldRefreshSelectedTournament
+      ? liveData?.updateIntervalMs
+      : false,
     placeholderData: keepPreviousData,
   });
 
@@ -559,16 +559,18 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     t,
   );
   const canShowAllPlayers = searchedPlayers.length > INITIAL_PLAYER_COUNT;
-  const refreshCountdown = liveData
-    ? formatRefreshCountdown(liveData.nextUpdateAt, refreshNow)
-    : 0;
-  const refreshProgressValue = liveData
-    ? refreshProgress(
-        liveData.nextUpdateAt,
-        liveData.updateIntervalMs,
-        refreshNow,
-      )
-    : 0;
+  const refreshCountdown =
+    shouldRefreshSelectedTournament && liveData
+      ? formatRefreshCountdown(liveData.nextUpdateAt, refreshNow)
+      : 0;
+  const refreshProgressValue =
+    shouldRefreshSelectedTournament && liveData
+      ? refreshProgress(
+          liveData.nextUpdateAt,
+          liveData.updateIntervalMs,
+          refreshNow,
+        )
+      : 0;
   const showTournamentList = !hasTournamentIdInUrl || tournamentPickerExpanded;
 
   useEffect(() => {
@@ -650,7 +652,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           replay={liveData.mockReplay}
         />
       ) : null}
-      {liveData.hasLiveData ? (
+      {shouldRefreshSelectedTournament && liveData?.hasLiveData ? (
         <div className="pointer-events-none fixed inset-x-0 top-0 z-50">
           <div
             role="progressbar"
