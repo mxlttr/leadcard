@@ -42,6 +42,62 @@ declare global {
   var leadcardStore: Map<string, LiveState> | undefined;
   var leadcardStoreInitialization: Map<string, Promise<LiveState>> | undefined;
   var leadcardStoreRefreshes: Map<string, Promise<LiveState>> | undefined;
+  var leadcardStoreListeners: Map<string, Set<() => void>> | undefined;
+  var leadcardStorePollers:
+    | Map<string, ReturnType<typeof setTimeout>>
+    | undefined;
+}
+
+function notifyStoreListeners(tournamentId: string) {
+  globalThis.leadcardStoreListeners?.get(tournamentId)?.forEach((listener) => {
+    listener();
+  });
+}
+
+function ensureStorePoller(store: LiveState) {
+  if (!globalThis.leadcardStorePollers) {
+    globalThis.leadcardStorePollers = new Map();
+  }
+  if (globalThis.leadcardStorePollers.has(store.tournament.id)) return;
+
+  const schedule = () => {
+    const timer = setTimeout(async () => {
+      globalThis.leadcardStorePollers?.delete(store.tournament.id);
+      try {
+        if (store.autoRefresh && !store.replayPaused) {
+          await refreshStore(store);
+        }
+      } catch (error) {
+        console.error("Live store background refresh failed", error);
+      } finally {
+        if (store.autoRefresh && !store.replayPaused) schedule();
+      }
+    }, UPDATE_INTERVAL_MS);
+    timer.unref?.();
+    globalThis.leadcardStorePollers?.set(store.tournament.id, timer);
+  };
+  schedule();
+}
+
+export async function subscribeToLiveUpdates(
+  tournamentId: string,
+  listener: () => void,
+) {
+  const store = await ensureStore(tournamentId);
+  ensureStorePoller(store);
+  if (!globalThis.leadcardStoreListeners) {
+    globalThis.leadcardStoreListeners = new Map();
+  }
+  const listeners =
+    globalThis.leadcardStoreListeners.get(tournamentId) ?? new Set();
+  listeners.add(listener);
+  globalThis.leadcardStoreListeners.set(tournamentId, listeners);
+
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0)
+      globalThis.leadcardStoreListeners?.delete(tournamentId);
+  };
 }
 
 function sortPlayers(players: LeaderboardPlayer[]) {
@@ -387,6 +443,7 @@ async function advanceStore(store: LiveState) {
       source.registeredPlayers ?? [],
       source.html,
     );
+    notifyStoreListeners(store.tournament.id);
     return;
   }
 
@@ -420,10 +477,12 @@ async function advanceStore(store: LiveState) {
     0,
     20,
   );
+  notifyStoreListeners(store.tournament.id);
 }
 
 async function refreshIfNeeded(tournamentId: string) {
   const store = await ensureStore(tournamentId);
+  ensureStorePoller(store);
 
   if (
     store.autoRefresh &&

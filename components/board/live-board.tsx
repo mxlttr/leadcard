@@ -25,6 +25,7 @@ import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLiveEvents } from "@/hooks/use-live-events";
 import { type AppLocale, type Dictionary, locales } from "@/lib/i18n";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type {
@@ -73,19 +74,6 @@ function parsePlayersPerPage(value: string | null) {
   }
 
   return Math.min(30, Math.max(4, Math.round(parsed)));
-}
-
-function boardRotationProgress(
-  nextSwitchAt: number,
-  intervalMs: number,
-  now: number,
-) {
-  if (intervalMs <= 0) {
-    return 0;
-  }
-
-  const remainingMs = Math.max(0, nextSwitchAt - now);
-  return Math.max(0, Math.min(1, remainingMs / intervalMs));
 }
 
 function LoadingBoard() {
@@ -959,17 +947,17 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           ? `/api/live?tournamentId=${encodeURIComponent(requestedTournamentId)}`
           : "/api/live",
       ),
-    refetchInterval: (query) => {
-      const interval = (query.state.data as LiveResponse | undefined)
-        ?.updateIntervalMs;
-      return interval && interval > 0 ? interval : false;
-    },
+    refetchInterval: (query) =>
+      (query.state.data as LiveResponse | undefined)?.updateIntervalMs
+        ? 120_000
+        : false,
     placeholderData: keepPreviousData,
   });
 
   const liveData = liveQuery.data;
   const selectedTournamentId =
     requestedTournamentId || liveData?.tournament.id || "";
+  useLiveEvents(selectedTournamentId);
   const requestedTournament = liveData?.tournaments.find(
     (tournament) => tournament.id === selectedTournamentId,
   );
@@ -987,9 +975,7 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
         ),
       enabled: Boolean(selectedTournamentId),
       refetchInterval:
-        liveData && liveData.updateIntervalMs > 0
-          ? liveData.updateIntervalMs
-          : (false as const),
+        liveData && liveData.updateIntervalMs > 0 ? 120_000 : (false as const),
       placeholderData: keepPreviousData,
     })),
   });
@@ -1341,11 +1327,6 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
   const remainingSeconds = rotationEnabled
     ? Math.max(0, Math.ceil((nextSwitchAt - now) / 1000))
     : 0;
-  const rotationProgressValue = boardRotationProgress(
-    nextSwitchAt,
-    intervalMs,
-    now,
-  );
 
   return (
     <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4">
@@ -1355,28 +1336,6 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
           replay={boardLiveData.mockReplay}
         />
       ) : null}
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-50">
-        <div
-          role="progressbar"
-          aria-label={t("board.rotationProgress", {
-            seconds: remainingSeconds,
-          })}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(rotationProgressValue * 100)}
-          className="h-1.5 w-screen bg-border/70"
-        >
-          <div
-            className="h-full bg-primary transition-[width] duration-1000 ease-linear"
-            style={{
-              width:
-                rotationEnabled && !rotationPaused
-                  ? `${rotationProgressValue * 100}%`
-                  : "0%",
-            }}
-          />
-        </div>
-      </div>
 
       <BoardHeader
         locale={locale}
@@ -1402,6 +1361,9 @@ function LiveBoardContent({ locale }: { locale: AppLocale }) {
         onPreviousDivision={() => rotateStepRef.current(-1)}
         onNextDivision={() => rotateStepRef.current(1)}
       />
+      {boardLiveData.updateIntervalMs > 0 && boardLiveData.hasLiveData ? (
+        <p className="-mt-2 text-xs text-muted">{t("app.liveUpdatesHint")}</p>
+      ) : null}
 
       {settingsOpen ? (
         <BoardSettings

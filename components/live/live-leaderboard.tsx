@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFollowedPlayers } from "@/hooks/use-followed-players";
+import { useLiveEvents } from "@/hooks/use-live-events";
 import type { AppLocale, Dictionary } from "@/lib/i18n";
 import type {
   LeaderboardPlayer,
@@ -53,30 +54,6 @@ async function fetchJson<T>(url: string) {
 const LEAD_CARD_SIZE = 4;
 const INITIAL_PLAYER_COUNT = 8;
 const ALL_DIVISIONS = "__all";
-
-function formatRefreshCountdown(nextUpdateAt: string, now: number) {
-  const remainingSeconds = Math.max(
-    0,
-    Math.ceil((new Date(nextUpdateAt).getTime() - now) / 1000),
-  );
-
-  return remainingSeconds;
-}
-
-function refreshProgress(
-  nextUpdateAt: string,
-  updateIntervalMs: number,
-  now: number,
-) {
-  const nextUpdateAtMs = new Date(nextUpdateAt).getTime();
-
-  if (Number.isNaN(nextUpdateAtMs) || updateIntervalMs <= 0) {
-    return 0;
-  }
-
-  const remainingMs = Math.max(0, nextUpdateAtMs - now);
-  return Math.max(0, Math.min(1, remainingMs / updateIntervalMs));
-}
 
 function LoadingShell() {
   return (
@@ -258,7 +235,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     useState<LeaderboardResponse | null>(null);
   const [resolvedUpdatesData, setResolvedUpdatesData] =
     useState<UpdatesResponse | null>(null);
-  const [refreshNow, setRefreshNow] = useState(() => Date.now());
   const previousTournamentId = useRef<string | null>(null);
   const { isFollowed, togglePlayer, followedPlayers, hydrated } =
     useFollowedPlayers();
@@ -271,11 +247,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           ? `/api/live?tournamentId=${encodeURIComponent(requestedTournamentId)}`
           : "/api/live",
       ),
-    refetchInterval: (query) => {
-      const interval = (query.state.data as LiveResponse | undefined)
-        ?.updateIntervalMs;
-      return interval && interval > 0 ? interval : false;
-    },
+    refetchInterval: (query) =>
+      (query.state.data as LiveResponse | undefined)?.updateIntervalMs
+        ? 120_000
+        : false,
     placeholderData: keepPreviousData,
   });
 
@@ -294,6 +269,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const shouldRefreshSelectedTournament =
     selectedTournament?.status === "live" &&
     Boolean(liveData && liveData.updateIntervalMs > 0);
+  useLiveEvents(selectedTournamentId);
 
   const allPlayersQuery = useQuery({
     queryKey: ["leaderboard", "all", locale, selectedTournamentId],
@@ -302,9 +278,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/leaderboard?tournamentId=${encodeURIComponent(selectedTournamentId)}&division=${encodeURIComponent("__all")}`,
       ),
     enabled: Boolean(selectedTournamentId),
-    refetchInterval: shouldRefreshSelectedTournament
-      ? liveData?.updateIntervalMs
-      : false,
+    refetchInterval: shouldRefreshSelectedTournament ? 120_000 : false,
     placeholderData: keepPreviousData,
   });
 
@@ -315,9 +289,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         `/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`,
       ),
     enabled: Boolean(selectedTournamentId),
-    refetchInterval: shouldRefreshSelectedTournament
-      ? liveData?.updateIntervalMs
-      : false,
+    refetchInterval: shouldRefreshSelectedTournament ? 120_000 : false,
     placeholderData: keepPreviousData,
   });
 
@@ -368,14 +340,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       setResolvedUpdatesData(updatesQuery.data);
     }
   }, [updatesQuery.data, updatesQuery.isPlaceholderData]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setRefreshNow(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, []);
 
   const allPlayersData = allPlayersQuery.data ?? resolvedAllPlayersData;
   const leaderboardData = allPlayersData
@@ -549,18 +513,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     t,
   );
   const canShowAllPlayers = searchedPlayers.length > INITIAL_PLAYER_COUNT;
-  const refreshCountdown =
-    shouldRefreshSelectedTournament && liveData
-      ? formatRefreshCountdown(liveData.nextUpdateAt, refreshNow)
-      : 0;
-  const refreshProgressValue =
-    shouldRefreshSelectedTournament && liveData
-      ? refreshProgress(
-          liveData.nextUpdateAt,
-          liveData.updateIntervalMs,
-          refreshNow,
-        )
-      : 0;
   const showTournamentList = !hasTournamentIdInUrl || tournamentPickerExpanded;
 
   useEffect(() => {
@@ -642,27 +594,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           replay={liveData.mockReplay}
         />
       ) : null}
-      {shouldRefreshSelectedTournament && liveData?.hasLiveData ? (
-        <div className="pointer-events-none fixed inset-x-0 top-0 z-50">
-          <div
-            role="progressbar"
-            aria-label={
-              refreshCountdown > 0
-                ? t("app.nextRefresh", { seconds: refreshCountdown })
-                : t("app.refreshingNow")
-            }
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(refreshProgressValue * 100)}
-            className="h-1.5 w-screen bg-border/70"
-          >
-            <div
-              className="h-full bg-primary transition-[width] duration-1000 ease-linear"
-              style={{ width: `${refreshProgressValue * 100}%` }}
-            />
-          </div>
-        </div>
-      ) : null}
       <div className="space-y-5">
         <header className="space-y-3">
           <div className="flex items-start justify-between gap-4">
@@ -676,6 +607,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               <p className="mt-2 max-w-[34rem] text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
                 {t("app.tagline")}
               </p>
+              {shouldRefreshSelectedTournament && liveData?.hasLiveData ? (
+                <p className="mt-1 text-xs text-muted">
+                  {t("app.liveUpdatesHint")}
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Dialog>
