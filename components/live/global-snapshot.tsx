@@ -48,43 +48,15 @@ export function GlobalSnapshot({
           </p>
         </div>
 
-        {noLiveData ? (
+        {noLiveData && (
           <div
-            id="global-leaders"
+            id="live-scoring-status"
             className="rounded-[20px] border border-border bg-background p-4 text-sm text-muted"
           >
             {data.tournament.status === "upcoming" ||
             data.tournament.status === "tomorrow"
               ? t("snapshot.upcomingMessage")
               : t("snapshot.unavailableMessage")}
-          </div>
-        ) : (
-          <div
-            id="global-leaders"
-            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-          >
-            {data.leaders.map((leader, index) => (
-              <button
-                type="button"
-                key={leader.playerId}
-                className="rounded-[20px] border border-border bg-background p-4 text-left"
-                onClick={() => onSelectPlayer?.(leader)}
-              >
-                <p className="text-xs uppercase tracking-[0.18em] text-muted">
-                  {t("snapshot.overall", { rank: index + 1 })}
-                </p>
-                <p className="mt-3 truncate font-body text-lg font-medium">
-                  {leader.name}
-                </p>
-                <p className="mt-1 truncate text-sm text-muted">
-                  {translateDivisionLabel(leader.division, locale)}
-                </p>
-                <ScoreDisplay
-                  scoreToPar={leader.scoreToPar}
-                  className="mt-4 block text-2xl"
-                />
-              </button>
-            ))}
           </div>
         )}
 
