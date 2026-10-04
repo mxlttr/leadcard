@@ -3,6 +3,7 @@ import {
   getResolvedTournamentId,
   subscribeToLiveUpdates,
 } from "@/lib/server/live-store";
+import { reportServerError } from "@/lib/server/report-error";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,12 @@ export async function GET(request: NextRequest) {
           heartbeat = setInterval(() => send("heartbeat"), 20_000);
           heartbeat.unref?.();
         })
-        .catch(() => controller.close());
+        .catch((error) => {
+          reportServerError(error, "live-events-subscription", {
+            "tournament.id": tournamentId,
+          });
+          controller.close();
+        });
     },
     cancel() {
       cleanup();

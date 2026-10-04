@@ -6,6 +6,7 @@ import {
   defaultMockTournamentId,
   mockTournamentFeeds,
 } from "@/lib/server/mock-source";
+import { reportServerError } from "@/lib/server/report-error";
 import type {
   PlayerSnapshot,
   TournamentStatus,
@@ -222,14 +223,26 @@ async function loadPlayerClubs(tournamentId: string) {
         headers: buildHeaders(),
       },
     );
-    if (!response.ok) return cached?.clubs ?? {};
+    if (!response.ok) {
+      if (response.status >= 500) {
+        reportServerError(
+          new Error(`Player club source returned HTTP ${response.status}`),
+          "tournament-player-clubs",
+          { "tournament.id": tournamentId },
+        );
+      }
+      return cached?.clubs ?? {};
+    }
     const clubs = parsePlayerClubs(await response.text());
     globalThis.leadcardPlayerClubsCache.set(tournamentId, {
       clubs,
       cachedAt: Date.now(),
     });
     return clubs;
-  } catch {
+  } catch (error) {
+    reportServerError(error, "tournament-player-clubs", {
+      "tournament.id": tournamentId,
+    });
     return cached?.clubs ?? {};
   }
 }
@@ -240,10 +253,20 @@ async function loadRegisteredPlayers(tournamentId: string) {
       `${PLAYER_LIST_URL}${encodeURIComponent(tournamentId)}`,
       { cache: "no-store", headers: buildHeaders() },
     );
+    if (!response.ok && response.status >= 500) {
+      reportServerError(
+        new Error(`Registered player source returned HTTP ${response.status}`),
+        "tournament-registered-players",
+        { "tournament.id": tournamentId },
+      );
+    }
     return response.ok
       ? parseRegisteredPlayers(await response.text(), tournamentId)
       : [];
-  } catch {
+  } catch (error) {
+    reportServerError(error, "tournament-registered-players", {
+      "tournament.id": tournamentId,
+    });
     return [];
   }
 }
@@ -343,7 +366,10 @@ async function resolveLiveTournamentStatus(
       ...tournament,
       status: scoringStatus,
     };
-  } catch {
+  } catch (error) {
+    reportServerError(error, "tournament-live-status", {
+      "tournament.id": tournament.id,
+    });
     return tournament;
   }
 }
@@ -589,6 +615,13 @@ async function loadDynamicTournamentSnapshotHtml(
   );
 
   if (!response.ok) {
+    if (response.status >= 500) {
+      reportServerError(
+        new Error(`Live scoring source returned HTTP ${response.status}`),
+        "tournament-live-scoring",
+        { "tournament.id": tournamentId },
+      );
+    }
     return null;
   }
 
@@ -647,7 +680,8 @@ export async function getTournamentCatalog() {
         cachedAt: Date.now(),
       };
       return tournaments;
-    } catch {
+    } catch (error) {
+      reportServerError(error, "tournament-catalog");
       if (cachedCatalog) {
         return cachedCatalog.tournaments;
       }

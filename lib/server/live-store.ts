@@ -2,6 +2,7 @@ import { load } from "cheerio";
 import { sortDivisionLabels } from "@/lib/i18n/divisions";
 import { playerClubKey } from "@/lib/player-club";
 import { createPlayerDelta, createRecentUpdates } from "@/lib/server/diff";
+import { reportServerError } from "@/lib/server/report-error";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
   getDefaultTournamentId,
@@ -74,6 +75,9 @@ function ensureStorePoller(store: LiveState) {
         }
       } catch (error) {
         console.error("Live store background refresh failed", error);
+        reportServerError(error, "live-store-refresh", {
+          "tournament.id": store.tournament.id,
+        });
       } finally {
         if (globalThis.leadcardStoreListeners?.get(store.tournament.id)?.size) {
           schedule();
@@ -656,7 +660,10 @@ export async function getClubsResponse(): Promise<ClubsResponse> {
         }
 
         return { tournament, leaderboard, playersByClub };
-      } catch {
+      } catch (error) {
+        reportServerError(error, "club-overview-aggregation", {
+          "tournament.id": tournament.id,
+        });
         return { tournament, leaderboard: null, playersByClub: new Map() };
       }
     }),
