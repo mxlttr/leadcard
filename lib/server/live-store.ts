@@ -63,14 +63,21 @@ function ensureStorePoller(store: LiveState) {
   const schedule = () => {
     const timer = setTimeout(async () => {
       globalThis.leadcardStorePollers?.delete(store.tournament.id);
+      if (!globalThis.leadcardStoreListeners?.get(store.tournament.id)?.size) {
+        return;
+      }
       try {
-        if (store.autoRefresh && !store.replayPaused) {
+        // Poll even when autoRefresh is false so an upcoming event can become
+        // live while its SSE subscribers remain connected.
+        if (!store.replayPaused) {
           await refreshStore(store);
         }
       } catch (error) {
         console.error("Live store background refresh failed", error);
       } finally {
-        if (store.autoRefresh && !store.replayPaused) schedule();
+        if (globalThis.leadcardStoreListeners?.get(store.tournament.id)?.size) {
+          schedule();
+        }
       }
     }, UPDATE_INTERVAL_MS);
     timer.unref?.();
@@ -84,7 +91,6 @@ export async function subscribeToLiveUpdates(
   listener: () => void,
 ) {
   const store = await ensureStore(tournamentId);
-  ensureStorePoller(store);
   if (!globalThis.leadcardStoreListeners) {
     globalThis.leadcardStoreListeners = new Map();
   }
@@ -92,11 +98,18 @@ export async function subscribeToLiveUpdates(
     globalThis.leadcardStoreListeners.get(tournamentId) ?? new Set();
   listeners.add(listener);
   globalThis.leadcardStoreListeners.set(tournamentId, listeners);
+  ensureStorePoller(store);
 
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0)
+    if (listeners.size === 0) {
       globalThis.leadcardStoreListeners?.delete(tournamentId);
+      const timer = globalThis.leadcardStorePollers?.get(tournamentId);
+      if (timer) {
+        clearTimeout(timer);
+        globalThis.leadcardStorePollers?.delete(tournamentId);
+      }
+    }
   };
 }
 
@@ -482,7 +495,6 @@ async function advanceStore(store: LiveState) {
 
 async function refreshIfNeeded(tournamentId: string) {
   const store = await ensureStore(tournamentId);
-  ensureStorePoller(store);
 
   if (
     store.autoRefresh &&
