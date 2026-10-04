@@ -1,5 +1,6 @@
 export type ThruValue = number | "F";
 export type TournamentStatus =
+  | "finished"
   | "live"
   | "today"
   | "tomorrow"

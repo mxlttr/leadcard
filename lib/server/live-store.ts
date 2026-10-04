@@ -170,7 +170,7 @@ function inferLiveRound(
   html: string | null,
   players: Array<Pick<PlayerSnapshot, "rounds">>,
 ) {
-  if (tournament.status !== "live") {
+  if (tournament.status !== "live" && tournament.status !== "finished") {
     return {
       roundLabel: tournament.roundLabel,
       currentRound: tournament.currentRound,
@@ -562,6 +562,7 @@ const clubTournamentStatusOrder: Record<TournamentSummary["status"], number> = {
   tomorrow: 2,
   upcoming: 3,
   recent: 4,
+  finished: 4,
   mock: 5,
 };
 

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   parsePlayerClubs,
@@ -267,7 +268,64 @@ describe("tournament-source", () => {
     ]);
   });
 
-  it("treats staggered tee-time starts as live once scoring has started", async () => {
+  it.each([
+    {
+      scenario: "all full cards",
+      scores: "<td>3</td><td>2</td>",
+      otherScores: "<td>3</td><td>3</td>",
+      rounds: 1,
+      status: "finished",
+    },
+    {
+      scenario: "full card followed by partial card",
+      scores: "<td>3</td><td>2</td>",
+      otherScores: "<td>3</td><td></td>",
+      rounds: 1,
+      status: "live",
+    },
+    {
+      scenario: "full and empty cards",
+      scores: "<td>3</td><td>2</td>",
+      rounds: 1,
+      status: "finished",
+    },
+    {
+      scenario: "partial and empty cards",
+      scores: "<td>3</td><td></td>",
+      rounds: 1,
+      status: "live",
+    },
+    {
+      scenario: "all empty cards",
+      scores: "<td></td><td></td>",
+      rounds: 1,
+      status: "today",
+    },
+    {
+      scenario: "completed earlier round",
+      scores: "<td>3</td><td>2</td>",
+      rounds: 3,
+      status: "today",
+    },
+    {
+      scenario: "captured Hessenmeisterschaft",
+      scores: "",
+      rounds: 3,
+      status: "finished",
+    },
+    {
+      scenario: "captured Waldstadt Masters",
+      scores: "",
+      rounds: 2,
+      status: "finished",
+    },
+  ])("classifies $scenario as $status", async ({
+    scenario,
+    scores,
+    otherScores = "<td></td><td></td>",
+    rounds,
+    status,
+  }) => {
     const listingHtml = buildListingHtml([
       buildListingRow({
         id: "2478",
@@ -278,15 +336,27 @@ describe("tournament-source", () => {
       }),
     ]);
 
-    const staggeredLiveHtml = `
+    const staggeredLiveHtml =
+      scenario === "captured Hessenmeisterschaft"
+        ? readFileSync(
+            "tests/fixtures/live/hessenmeisterschaft-2678-finished.html",
+            "utf8",
+          )
+        : scenario === "captured Waldstadt Masters"
+          ? readFileSync(
+              "tests/fixtures/live/waldstadt-2661-finished.html",
+              "utf8",
+            )
+          : `
+      <a class="lso_btn_navigation" data-target-element="round" data-target-value="${rounds}"></a>
       <table id="livescoring_">
         <thead>
           <tr><th colspan="2" class="text-end">Par</th><th class="th_hole">3</th><th class="th_hole">3</th></tr>
           <tr><th>No</th><th class="th_name">Open</th><th>1</th><th>2</th><th colspan="2">sum</th><th colspan="2">total</th></tr>
         </thead>
         <tbody>
-          <tr><td>1</td><td>Finished First Card</td><td>3</td><td>2</td><td>5</td><td>-1</td><td>5</td></tr>
-          <tr><td>2</td><td>Still Waiting</td><td></td><td></td><td></td><td>0</td><td>0</td></tr>
+          <tr><td>1</td><td>Finished First Card</td>${scores}<td>5</td><td>-1</td><td>5</td></tr>
+          <tr><td>2</td><td>Other Player</td>${otherScores}<td></td><td>0</td><td>0</td></tr>
         </tbody>
       </table>
     `;
@@ -315,7 +385,7 @@ describe("tournament-source", () => {
 
     expect(catalog[0]).toMatchObject({
       id: "2478",
-      status: "live",
+      status,
     });
   });
 

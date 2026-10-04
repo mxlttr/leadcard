@@ -90,6 +90,7 @@
     "roundProgress": "Runde {{current}} von {{total}}",
     "status": {
       "live": "Live",
+      "finished": "Beendet",
       "today": "Heute",
       "tomorrow": "Morgen",
       "recent": "Aktuell",

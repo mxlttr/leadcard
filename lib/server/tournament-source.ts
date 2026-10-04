@@ -337,28 +337,34 @@ async function resolveLiveTournamentStatus(
       return tournament;
     }
 
-    const hasActiveRound = hasActiveRoundInLivePage(html);
+    const scoringStatus = scoringStatusInLivePage(html);
 
     return {
       ...tournament,
-      status: hasActiveRound ? ("live" as const) : ("today" as const),
+      status: scoringStatus,
     };
   } catch {
     return tournament;
   }
 }
 
-function hasActiveRoundInLivePage(html: string) {
+function scoringStatusInLivePage(html: string): TournamentStatus {
   const $ = load(html);
   const tableNode = $("#livescoring_");
 
   if (tableNode.length === 0) {
-    return false;
+    return "today";
   }
 
   const sections = tableNode.children().toArray();
-  const playedHolesPerPlayer: number[] = [];
-  let lastHoleCount = 0;
+  const totalRounds = Math.max(
+    1,
+    ...$(".lso_btn_navigation[data-target-element='round']")
+      .toArray()
+      .map((link) => Number($(link).attr("data-target-value")))
+      .filter((round) => Number.isInteger(round) && round > 0 && round !== 99),
+  );
+  let hasCompletedFinalRound = false;
 
   for (let index = 0; index < sections.length; index += 2) {
     const thead = sections[index];
@@ -374,7 +380,6 @@ function hasActiveRoundInLivePage(html: string) {
     }
 
     const holeCount = $(thead).find("tr").first().find("th.th_hole").length;
-    lastHoleCount = holeCount;
 
     if (holeCount === 0) {
       continue;
@@ -431,23 +436,18 @@ function hasActiveRoundInLivePage(html: string) {
         .filter((value) => value !== "").length;
 
       if (playedHoles > 0 && playedHoles < holeCount) {
-        return true;
+        return "live";
       }
 
-      playedHolesPerPlayer.push(playedHoles);
+      if (playedHoles === holeCount && groupedRows.length >= totalRounds) {
+        hasCompletedFinalRound = true;
+      }
 
       rowIndex = nextIndex - 1;
     }
   }
 
-  if (playedHolesPerPlayer.length === 0 || lastHoleCount === 0) {
-    return false;
-  }
-
-  const minimumPlayedHoles = Math.min(...playedHolesPerPlayer);
-  const maximumPlayedHoles = Math.max(...playedHolesPerPlayer);
-
-  return maximumPlayedHoles > 0 && minimumPlayedHoles < lastHoleCount;
+  return hasCompletedFinalRound ? "finished" : "today";
 }
 
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
@@ -554,6 +554,7 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       const statusOrder: Record<TournamentStatus, number> = {
         live: 0,
         today: 0,
+        finished: 0,
         ...(upcomingBeforePast
           ? { tomorrow: 1, upcoming: 1, recent: 2 }
           : { recent: 1, tomorrow: 2, upcoming: 2 }),
