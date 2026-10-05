@@ -1,7 +1,10 @@
 {
   "meta": {
     "title": "Leadcard",
-    "description": "Mobile-first Live-Leaderboard für Discgolf-Turniere."
+    "description": "Mobile-first Live-Leaderboard für Discgolf-Turniere.",
+    "tournamentTitle": "{{name}} · {{app}}",
+    "tournamentDescription": "Verfolge die Live-Ergebnisse von {{name}} auf dem {{course}} mit Leadcard.",
+    "tournamentContext": "LIVE-DISCGOLF-ERGEBNISSE"
   },
   "app": {
     "name": "Leadcard",

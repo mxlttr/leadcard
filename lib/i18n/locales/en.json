@@ -1,7 +1,10 @@
 {
   "meta": {
     "title": "Leadcard",
-    "description": "Mobile-first live leaderboard for disc golf tournaments."
+    "description": "Mobile-first live leaderboard for disc golf tournaments.",
+    "tournamentTitle": "{{name}} · {{app}}",
+    "tournamentDescription": "Follow live disc golf tournament standings for {{name}} at {{course}} on Leadcard.",
+    "tournamentContext": "LIVE DISC GOLF STANDINGS"
   },
   "app": {
     "name": "Leadcard",

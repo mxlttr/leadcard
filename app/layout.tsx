@@ -57,6 +57,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Leadcard",
+    images: [
+      {
+        url: "/api/og",
+        width: 1200,
+        height: 630,
+        alt: "Leadcard live disc golf standings",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
   },
 };
 

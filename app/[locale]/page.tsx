@@ -4,7 +4,12 @@ import { Suspense } from "react";
 
 import { AppNavigation } from "@/components/app-navigation";
 import { LiveLeaderboard } from "@/components/live/live-leaderboard";
-import { type AppLocale, getDictionary, isValidLocale } from "@/lib/i18n";
+import {
+  type AppLocale,
+  createTranslator,
+  getDictionary,
+  isValidLocale,
+} from "@/lib/i18n";
 import {
   getDefaultTournamentId,
   getTournamentCatalog,
@@ -25,8 +30,9 @@ export async function generateMetadata({
 
   const locale = resolvedParams.locale as AppLocale;
   const dictionary = getDictionary(locale);
+  const translate = createTranslator(dictionary);
   const requestedTournamentId = (await searchParams).tournamentId;
-  let tournament: { name: string; course: string } | undefined;
+  let tournament: { id: string; name: string; course: string } | undefined;
 
   try {
     const tournaments = await getTournamentCatalog();
@@ -38,23 +44,54 @@ export async function generateMetadata({
   }
 
   const title = tournament
-    ? `${tournament.name} · ${dictionary.app.title}`
+    ? translate("meta.tournamentTitle", {
+        name: tournament.name,
+        app: dictionary.app.title,
+      })
     : dictionary.meta.title;
   const description = tournament
-    ? `${dictionary.app.title}: ${tournament.name} at ${tournament.course}.`
+    ? translate("meta.tournamentDescription", {
+        name: tournament.name,
+        course: tournament.course,
+      })
     : dictionary.meta.description;
+  const pageUrl = `/${locale}${
+    tournament ? `?tournamentId=${encodeURIComponent(tournament.id)}` : ""
+  }`;
+  const imageUrl = new URL(
+    "/api/og",
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://leadcard.lutter.lol",
+  );
+  imageUrl.searchParams.set("locale", locale);
+  if (tournament) {
+    imageUrl.searchParams.set("tournamentId", tournament.id);
+  }
 
   return {
     title,
     description,
+    alternates: {
+      canonical: pageUrl,
+    },
     openGraph: {
       title,
       description,
       locale,
+      url: pageUrl,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: tournament ? `${tournament.name} · Leadcard` : "Leadcard",
+        },
+      ],
     },
     twitter: {
+      card: "summary_large_image",
       title,
       description,
+      images: [imageUrl],
     },
   };
 }
