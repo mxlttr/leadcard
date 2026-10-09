@@ -464,6 +464,38 @@ describe("live-store", () => {
     expect(updates.updates).toEqual([]);
   });
 
+  it("shows registered players when a live page has no scored rows", async () => {
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament: upcomingTournament,
+      html: `<table id="livescoring_"><thead><tr><th colspan="2">Par</th><th class="th_hole">3</th></tr><tr><th>No</th><th class="th_name">Open</th><th class="th_hole">1</th></tr></thead><tbody><tr><td colspan="3"></td></tr></tbody></table>`,
+      registeredPlayers: [
+        {
+          playerId: "2638:open|alice ace",
+          name: "Alice Ace",
+          division: "Open",
+          rank: 1,
+          scoreToPar: 0,
+          thru: 0,
+          lastFive: [],
+          club: "Example Disc Golf Club",
+        },
+      ],
+      nextFixtureIndex: 0,
+    });
+
+    const liveStore = await import("@/lib/server/live-store");
+    const liveResponse = await liveStore.getLiveResponse(upcomingTournament.id);
+    const leaderboard = await liveStore.getLeaderboardResponse(
+      upcomingTournament.id,
+      "Open",
+    );
+
+    expect(liveResponse.hasLiveData).toBe(false);
+    expect(leaderboard.players).toMatchObject([
+      { name: "Alice Ace", club: "Example Disc Golf Club", thru: 0 },
+    ]);
+  });
+
   it("relabels live tournaments with the inferred current round", async () => {
     loadTournamentSnapshotSource.mockResolvedValue({
       tournament: {

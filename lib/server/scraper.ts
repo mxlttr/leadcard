@@ -261,10 +261,6 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
     }
   }
 
-  if (players.length === 0) {
-    throw new Error("No player rows found in live scoreboard page.");
-  }
-
   return { generatedAt, players };
 }
 

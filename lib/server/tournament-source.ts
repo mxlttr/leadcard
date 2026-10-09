@@ -752,7 +752,7 @@ export async function loadTournamentSnapshotSource(
       tournament: await getTournamentSummary(tournamentId),
       html: dynamicHtml,
       playerClubs: await loadPlayerClubs(tournamentId),
-      registeredPlayers: [],
+      registeredPlayers: await loadRegisteredPlayers(tournamentId),
       nextFixtureIndex: fixtureIndex,
     };
   }

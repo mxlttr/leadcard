@@ -335,7 +335,7 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
   const source = await loadTournamentSnapshotSource(tournamentId, 0);
   const snapshot = source.html ? scrapeSnapshot(source.html) : null;
   const enrichedPlayers = (
-    snapshot?.players ??
+    (snapshot?.players.length ? snapshot.players : null) ??
     source.registeredPlayers ??
     []
   ).map((player) => ({
@@ -360,7 +360,7 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
       source.html,
       enrichedPlayers,
     ),
-    hasLiveData: Boolean(source.html),
+    hasLiveData: Boolean(snapshot?.players.length),
     autoRefresh: shouldAutoRefresh(
       source.tournament,
       enrichedPlayers,

@@ -27,6 +27,20 @@ function requirePlayer(
 }
 
 describe("scrapeSnapshot", () => {
+  it("accepts a live table with no scored players yet", () => {
+    const snapshot = scrapeSnapshot(`
+      <table id="livescoring_">
+        <thead>
+          <tr><th colspan="2">Par</th><th class="th_hole">3</th></tr>
+          <tr><th>No</th><th class="th_name">Open</th><th class="th_hole">1</th></tr>
+        </thead>
+        <tbody><tr><td colspan="3"></td></tr></tbody>
+      </table>
+    `);
+
+    expect(snapshot.players).toEqual([]);
+  });
+
   it("matches recent scores to their actual holes for a shotgun start", () => {
     const html = `
       <table id="livescoring_">
