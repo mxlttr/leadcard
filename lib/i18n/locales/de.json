@@ -90,6 +90,11 @@
     "heading": "Turniere",
     "subheading": "Aktive Events von einer Woche rückwirkend bis eine Woche im Voraus.",
     "changeTournament": "Turnier wechseln",
+    "tabs": {
+      "live": "Live",
+      "upcoming": "Demnächst",
+      "past": "Vergangen"
+    },
     "roundProgress": "Runde {{current}} von {{total}}",
     "status": {
       "live": "Live",
@@ -122,6 +127,7 @@
     "unavailableMessage": "Für dieses Turnier ist aktuell kein Livescoring verfügbar.",
     "overall": "Gesamt #{{rank}}",
     "divisionLeader": "{{division}} führend",
+    "overallLeader": "Gesamtführend",
     "tiedOverall": "Gleichstand gesamt",
     "toOverallLead": "{{score}} hinter Gesamtführung",
     "showMoreDivisions": "{{count}} weitere Divisionen anzeigen",

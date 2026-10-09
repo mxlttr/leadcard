@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFollowedPlayers } from "@/hooks/use-followed-players";
 import { useLiveEvents } from "@/hooks/use-live-events";
 import type { AppLocale, Dictionary } from "@/lib/i18n";
@@ -49,6 +50,7 @@ async function fetchJson<T>(url: string) {
 const LEAD_CARD_SIZE = 4;
 const INITIAL_PLAYER_COUNT = 8;
 const ALL_DIVISIONS = "__all";
+const LAST_SELECTED_TOURNAMENT_KEY = "leadcard:lastSelectedTournament";
 
 function LoadingShell() {
   return (
@@ -234,7 +236,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const requestedTournamentId = searchParams.get("tournamentId") ?? "";
   const requestedDivision = searchParams.get("division") ?? "";
   const requestedClub = searchParams.get("club") ?? "";
-  const hasTournamentIdInUrl = searchParams.has("tournamentId");
   const [selectedDivision, setSelectedDivision] = useState(
     requestedDivision === "all" ? ALL_DIVISIONS : requestedDivision,
   );
@@ -245,9 +246,14 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     requestedClub === "none" ? "__none" : requestedClub,
   );
   const [showAllPlayers, setShowAllPlayers] = useState(false);
-  const [tournamentPickerExpanded, setTournamentPickerExpanded] = useState(
-    () => !hasTournamentIdInUrl,
-  );
+  const [tournamentPickerExpanded, setTournamentPickerExpanded] =
+    useState(false);
+  const [lastSelectedTournamentId, setLastSelectedTournamentId] = useState("");
+  const [lastSelectedTournamentLoaded, setLastSelectedTournamentLoaded] =
+    useState(false);
+  const [tournamentTab, setTournamentTab] = useState<
+    "live" | "upcoming" | "past"
+  >("live");
   const [selectedPlayer, setSelectedPlayer] =
     useState<LeaderboardPlayer | null>(null);
   const [pendingUpdateTarget, setPendingUpdateTarget] = useState<{
@@ -266,6 +272,13 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const { isFollowed, togglePlayer, followedPlayers, hydrated } =
     useFollowedPlayers();
 
+  useEffect(() => {
+    setLastSelectedTournamentId(
+      window.localStorage.getItem(LAST_SELECTED_TOURNAMENT_KEY) ?? "",
+    );
+    setLastSelectedTournamentLoaded(true);
+  }, []);
+
   const liveQuery = useQuery({
     queryKey: ["live", locale, requestedTournamentId || "default"],
     queryFn: () =>
@@ -282,8 +295,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   });
 
   const liveData = liveQuery.data ?? resolvedLiveData;
-  const selectedTournamentId =
-    requestedTournamentId || liveData?.tournament.id || "";
+  const selectedTournamentId = requestedTournamentId;
   const resolvedTournamentId = liveData?.tournament.id || "";
   const isSelectedTournamentLiveData =
     Boolean(liveData) &&
@@ -292,7 +304,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const selectedTournament =
     liveData?.tournaments.find(
       (tournament) => tournament.id === selectedTournamentId,
-    ) ?? liveData?.tournament;
+    ) ??
+    (liveData?.tournament.id === selectedTournamentId
+      ? liveData.tournament
+      : undefined);
   const shouldRefreshSelectedTournament =
     selectedTournament?.status === "live" &&
     Boolean(liveData && liveData.updateIntervalMs > 0);
@@ -430,10 +445,34 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   ]);
 
   useEffect(() => {
-    if (!hasTournamentIdInUrl) {
-      setTournamentPickerExpanded(true);
+    if (
+      requestedTournamentId ||
+      !lastSelectedTournamentId ||
+      !liveData?.tournaments.some(
+        (tournament) => tournament.id === lastSelectedTournamentId,
+      )
+    ) {
+      return;
     }
-  }, [hasTournamentIdInUrl]);
+
+    syncTournamentUrl(lastSelectedTournamentId);
+  }, [
+    lastSelectedTournamentId,
+    liveData,
+    requestedTournamentId,
+    syncTournamentUrl,
+  ]);
+
+  useEffect(() => {
+    if (!requestedTournamentId) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      LAST_SELECTED_TOURNAMENT_KEY,
+      requestedTournamentId,
+    );
+  }, [requestedTournamentId]);
 
   useEffect(() => {
     if (!liveData) {
@@ -548,7 +587,16 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const canShowAllPlayers =
     selectedDivision !== ALL_DIVISIONS &&
     orderedPlayers.length > INITIAL_PLAYER_COUNT;
-  const showTournamentList = !hasTournamentIdInUrl || tournamentPickerExpanded;
+  const showTournamentList = !selectedTournamentId || tournamentPickerExpanded;
+  const restoringLastTournament =
+    !requestedTournamentId &&
+    (!lastSelectedTournamentLoaded ||
+      Boolean(
+        lastSelectedTournamentId &&
+          liveData?.tournaments.some(
+            (tournament) => tournament.id === lastSelectedTournamentId,
+          ),
+      ));
 
   useEffect(() => {
     if (!pendingUpdateTarget) {
@@ -568,7 +616,34 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     setPendingUpdateTarget(null);
   }, [currentPlayers, pendingUpdateTarget]);
 
-  if (!liveData || !leaderboardData || !updatesData) {
+  if (!liveData) {
+    return (
+      <section
+        id="tournament-picker"
+        className="rounded-[24px] border border-border bg-surface p-4"
+      >
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="mt-3 h-11 w-full rounded-full" />
+        <Skeleton className="mt-3 h-20 rounded-[20px]" />
+      </section>
+    );
+  }
+
+  if (restoringLastTournament) {
+    return (
+      <section
+        id="tournament-picker"
+        className="rounded-[24px] border border-border bg-surface p-4"
+        aria-label={t("tournaments.heading")}
+      >
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="mt-3 h-11 w-full rounded-full" />
+        <Skeleton className="mt-3 h-20 rounded-[20px]" />
+      </section>
+    );
+  }
+
+  if (selectedTournamentId && (!leaderboardData || !updatesData)) {
     return <LoadingShell />;
   }
 
@@ -621,6 +696,22 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     setSelectedDivision(update.division);
   }
 
+  const tournamentTabs = ["live", "upcoming", "past"] as const;
+  const tournamentTabHasItems = (tab: (typeof tournamentTabs)[number]) =>
+    liveData.tournaments.some((tournament) => {
+      if (tab === "live") {
+        return tournament.status === "live" || tournament.status === "mock";
+      }
+      if (tab === "upcoming") {
+        return ["today", "tomorrow", "upcoming"].includes(tournament.status);
+      }
+      return tournament.status === "finished" || tournament.status === "recent";
+    });
+  const availableTournamentTabs = tournamentTabs.filter(tournamentTabHasItems);
+  const activeTournamentTab = availableTournamentTabs.includes(tournamentTab)
+    ? tournamentTab
+    : (availableTournamentTabs[0] ?? "live");
+
   return (
     <>
       {selectedTournamentId === "lakers-open-2026" ? (
@@ -630,40 +721,42 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         />
       ) : null}
       <div className="space-y-5">
-        <header className="space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h1 className="truncate font-display text-3xl font-semibold tracking-tight">
-                {t("app.title")}
-              </h1>
+        {selectedTournamentId ? (
+          <header className="space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h1 className="truncate font-display text-3xl font-semibold tracking-tight">
+                  {t("app.title")}
+                </h1>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
+                    >
+                      <Info className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{t("app.nearLiveTitle")}</DialogTitle>
+                      <DialogDescription>
+                        {t("app.nearLiveDescription")}
+                      </DialogDescription>
+                    </DialogHeader>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 shrink-0 rounded-full border border-border p-0"
-                  >
-                    <Info className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{t("app.nearLiveTitle")}</DialogTitle>
-                    <DialogDescription>
-                      {t("app.nearLiveDescription")}
-                    </DialogDescription>
-                  </DialogHeader>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </header>
+          </header>
+        ) : null}
 
         <section id="tournament-picker" className="space-y-3">
           {showTournamentList ? (
-            <div className="flex max-h-[300px] flex-col overflow-hidden rounded-[24px] border border-border bg-surface">
+            <div className="rounded-[24px] border border-border bg-surface">
               <div className="shrink-0 border-b border-border bg-surface px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -675,33 +768,66 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                     </p>
                   </div>
                 </div>
+                <Tabs
+                  value={activeTournamentTab}
+                  onValueChange={(value) =>
+                    setTournamentTab(value as "live" | "upcoming" | "past")
+                  }
+                  className="mt-3"
+                >
+                  <TabsList>
+                    {availableTournamentTabs.map((tab) => (
+                      <TabsTrigger key={tab} value={tab}>
+                        {t(`tournaments.tabs.${tab}`)}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
               </div>
-              <div className="min-h-0 space-y-2 overflow-y-auto p-2">
-                {liveData.tournaments.map((tournament) => {
-                  const selected = selectedTournamentId === tournament.id;
+              <div className="space-y-2 p-2">
+                {liveData.tournaments
+                  .filter((tournament) => {
+                    if (activeTournamentTab === "live") {
+                      return (
+                        tournament.status === "live" ||
+                        tournament.status === "mock"
+                      );
+                    }
+                    if (activeTournamentTab === "upcoming") {
+                      return ["today", "tomorrow", "upcoming"].includes(
+                        tournament.status,
+                      );
+                    }
+                    return (
+                      tournament.status === "finished" ||
+                      tournament.status === "recent"
+                    );
+                  })
+                  .map((tournament) => {
+                    const selected = selectedTournamentId === tournament.id;
 
-                  return (
-                    <Button
-                      key={tournament.id}
-                      variant="ghost"
-                      className={cn(
-                        "h-auto w-full justify-between rounded-[20px] border px-4 py-3 text-left",
-                        selected
-                          ? "border-primary/30 bg-background text-foreground"
-                          : "border-border bg-transparent text-muted hover:bg-background hover:text-foreground",
-                      )}
-                      onClick={() => {
-                        setTournamentPickerExpanded(false);
-                        syncTournamentUrl(tournament.id);
-                      }}
-                    >
-                      <TournamentListItem
-                        tournament={tournament}
-                        selected={selected}
-                      />
-                    </Button>
-                  );
-                })}
+                    return (
+                      <Button
+                        key={tournament.id}
+                        variant="ghost"
+                        className={cn(
+                          "h-auto w-full justify-between rounded-[20px] border px-4 py-3 text-left",
+                          selected
+                            ? "border-primary/30 bg-background text-foreground"
+                            : "border-border bg-transparent text-muted hover:bg-background hover:text-foreground",
+                        )}
+                        onClick={() => {
+                          setTournamentPickerExpanded(false);
+                          syncTournamentUrl(tournament.id);
+                        }}
+                      >
+                        <TournamentListItem
+                          tournament={tournament}
+                          selected={selected}
+                        />
+                      </Button>
+                    );
+                  })}
               </div>
             </div>
           ) : selectedTournament ? (
@@ -738,225 +864,237 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
           ) : null}
         </section>
 
-        {isSelectedTournamentLiveData ? (
-          <GlobalSnapshot data={liveData} onSelectPlayer={handlePlayerSelect} />
-        ) : (
-          <Skeleton className="h-[24rem] rounded-[24px]" />
-        )}
-
-        <section id="leaderboard" className="space-y-4">
-          {liveData.divisions.length > 0 ? (
-            <DivisionTabs
-              divisions={[ALL_DIVISIONS, ...liveData.divisions]}
-              selectedDivision={selectedDivision}
-              onChange={setSelectedDivision}
-            />
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className={cn("contents", searchFocused && "max-sm:hidden")}>
-              <Button
-                variant={filterMode === "ALL" ? "default" : "ghost"}
-                className={cn(
-                  "h-11 shrink-0 px-4",
-                  filterMode === "ALL" ? "" : "border border-border",
-                )}
-                onClick={() => {
-                  setFilterMode("ALL");
-                  setSearchQuery("");
-                  setShowAllPlayers(false);
-                }}
-              >
-                {t("leaderboard.all")}
-              </Button>
-              <Button
-                variant={filterMode === "FOLLOWING" ? "accent" : "ghost"}
-                className={cn(
-                  "h-11 shrink-0 px-4",
-                  filterMode === "FOLLOWING" ? "" : "border border-border",
-                )}
-                onClick={() => {
-                  setFilterMode("FOLLOWING");
-                  setSearchQuery("");
-                  setShowAllPlayers(false);
-                }}
-              >
-                <Star className="mr-1 h-3.5 w-3.5" />
-                {t("leaderboard.following")}
-              </Button>
-            </div>
-
-            <div
-              className={cn(
-                "relative min-w-0",
-                searchFocused
-                  ? "order-first basis-full sm:order-none sm:flex-1 sm:basis-0"
-                  : "min-w-0 flex-1 basis-0",
-              )}
-            >
-              <label htmlFor="player-search" className="sr-only">
-                {t("leaderboard.searchLabel")}
-              </label>
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input
-                id="player-search"
-                value={searchQuery}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                onChange={(event) => {
-                  setSearchQuery(event.target.value);
-                  setShowAllPlayers(false);
-                }}
-                placeholder={t("leaderboard.searchPlaceholder")}
-                className={cn(
-                  "h-11 truncate pl-10 text-base",
-                  searchQuery ? "pr-12" : "pr-4",
-                )}
-                aria-describedby="player-search-hint"
+        {selectedTournamentId ? (
+          <>
+            {isSelectedTournamentLiveData ? (
+              <GlobalSnapshot
+                data={liveData}
+                onSelectPlayer={handlePlayerSelect}
               />
-              <span id="player-search-hint" className="sr-only">
-                {t("leaderboard.searchHint")}
-              </span>
-              {searchQuery ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0.5 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setShowAllPlayers(false);
-                  }}
-                  aria-label={t("leaderboard.clearSearch")}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              ) : null}
-            </div>
-            <label className="sr-only" htmlFor="club-filter">
-              {t("leaderboard.clubLabel")}
-            </label>
-            <div className="relative min-w-0 basis-full sm:max-w-[11rem] sm:flex-1">
-              <select
-                id="club-filter"
-                value={clubFilter}
-                onChange={(event) => {
-                  setClubFilter(event.target.value);
-                  setShowAllPlayers(false);
-                }}
-                className="h-11 w-full min-w-0 appearance-none truncate rounded-full border border-border bg-surface px-4 pr-10 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-              >
-                <option value="">{t("leaderboard.allClubs")}</option>
-                {clubs.map((club) => (
-                  <option key={club} value={club}>
-                    {club}
-                  </option>
-                ))}
-                {tournamentPlayers.some((player) => !player.club) ? (
-                  <option value="__none">{t("leaderboard.noClub")}</option>
-                ) : null}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            </div>
-          </div>
+            ) : (
+              <Skeleton className="h-[24rem] rounded-[24px]" />
+            )}
 
-          {!isSelectedTournamentDataReady ? (
-            <div
-              className="space-y-3"
-              role="status"
-              aria-label={t("leaderboard.loadingTournament")}
-            >
-              <p className="rounded-[18px] border border-border bg-surface px-4 py-3 text-sm text-muted">
-                {t("leaderboard.loadingTournament")}
-              </p>
-              <Skeleton className="h-48 rounded-[24px]" />
-              <Skeleton className="h-48 rounded-[24px]" />
-            </div>
-          ) : !liveData.hasLiveData && currentPlayers.length === 0 ? (
-            <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
-              {liveData.tournament.status === "upcoming" ||
-              liveData.tournament.status === "tomorrow"
-                ? t("leaderboard.noLiveData")
-                : t("leaderboard.noLiveScoring")}
-            </div>
-          ) : searchedPlayers.length === 0 ? (
-            <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
-              {!liveData.hasLiveData
-                ? t("leaderboard.noLeaderboard")
-                : normalizedSearchQuery
-                  ? t("leaderboard.noSearchResults")
-                  : filterMode === "FOLLOWING"
-                    ? t("leaderboard.noFollowedPlayers")
-                    : t("leaderboard.noPlayers")}
-            </div>
-          ) : (
-            <>
-              {groupedPlayers.map((group) => (
-                <BattleGroup
-                  key={group.title}
-                  id={group.id}
-                  title={group.title}
-                  players={group.players}
-                  divisionPlayers={currentPlayers}
-                  showDivision={
-                    isCrossDivisionSearch || selectedDivision === ALL_DIVISIONS
-                  }
-                  overallRank={selectedDivision === ALL_DIVISIONS}
-                  upcoming={
-                    isStartingListStatus(liveData.tournament.status) &&
-                    !hasScoredPlayers
-                  }
-                  isFollowed={isFollowed}
-                  onFollowToggle={togglePlayer}
-                  onPlayerSelect={handlePlayerSelect}
+            <section id="leaderboard" className="space-y-4">
+              {liveData.divisions.length > 0 ? (
+                <DivisionTabs
+                  divisions={[ALL_DIVISIONS, ...liveData.divisions]}
+                  selectedDivision={selectedDivision}
+                  onChange={setSelectedDivision}
                 />
-              ))}
-              {canShowAllPlayers ? (
-                <div className="flex justify-center pt-1">
+              ) : null}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  className={cn("contents", searchFocused && "max-sm:hidden")}
+                >
                   <Button
-                    variant="ghost"
-                    className="rounded-full border border-border"
-                    onClick={() => setShowAllPlayers((current) => !current)}
+                    variant={filterMode === "ALL" ? "default" : "ghost"}
+                    className={cn(
+                      "h-11 shrink-0 px-4",
+                      filterMode === "ALL" ? "" : "border border-border",
+                    )}
+                    onClick={() => {
+                      setFilterMode("ALL");
+                      setSearchQuery("");
+                      setShowAllPlayers(false);
+                    }}
                   >
-                    {showAllPlayers
-                      ? t("leaderboard.showLessPlayers")
-                      : t("leaderboard.showAllPlayers", {
-                          count: searchedPlayers.length,
-                        })}
+                    {t("leaderboard.all")}
+                  </Button>
+                  <Button
+                    variant={filterMode === "FOLLOWING" ? "accent" : "ghost"}
+                    className={cn(
+                      "h-11 shrink-0 px-4",
+                      filterMode === "FOLLOWING" ? "" : "border border-border",
+                    )}
+                    onClick={() => {
+                      setFilterMode("FOLLOWING");
+                      setSearchQuery("");
+                      setShowAllPlayers(false);
+                    }}
+                  >
+                    <Star className="mr-1 h-3.5 w-3.5" />
+                    {t("leaderboard.following")}
                   </Button>
                 </div>
-              ) : null}
-            </>
-          )}
-        </section>
 
-        {isSelectedTournamentDataReady ? (
-          <RecentUpdatesFeed
-            updates={updatesData.updates}
-            onSelectUpdate={handleUpdateSelect}
-          />
-        ) : (
-          <Skeleton className="h-64 rounded-[24px]" />
-        )}
+                <div
+                  className={cn(
+                    "relative min-w-0",
+                    searchFocused
+                      ? "order-first basis-full sm:order-none sm:flex-1 sm:basis-0"
+                      : "min-w-0 flex-1 basis-0",
+                  )}
+                >
+                  <label htmlFor="player-search" className="sr-only">
+                    {t("leaderboard.searchLabel")}
+                  </label>
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                  <Input
+                    id="player-search"
+                    value={searchQuery}
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setShowAllPlayers(false);
+                    }}
+                    placeholder={t("leaderboard.searchPlaceholder")}
+                    className={cn(
+                      "h-11 truncate pl-10 text-base",
+                      searchQuery ? "pr-12" : "pr-4",
+                    )}
+                    aria-describedby="player-search-hint"
+                  />
+                  <span id="player-search-hint" className="sr-only">
+                    {t("leaderboard.searchHint")}
+                  </span>
+                  {searchQuery ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0.5 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setShowAllPlayers(false);
+                      }}
+                      aria-label={t("leaderboard.clearSearch")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
+                <label className="sr-only" htmlFor="club-filter">
+                  {t("leaderboard.clubLabel")}
+                </label>
+                <div className="relative min-w-0 basis-full sm:max-w-[11rem] sm:flex-1">
+                  <select
+                    id="club-filter"
+                    value={clubFilter}
+                    onChange={(event) => {
+                      setClubFilter(event.target.value);
+                      setShowAllPlayers(false);
+                    }}
+                    className="h-11 w-full min-w-0 appearance-none truncate rounded-full border border-border bg-surface px-4 pr-10 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+                  >
+                    <option value="">{t("leaderboard.allClubs")}</option>
+                    {clubs.map((club) => (
+                      <option key={club} value={club}>
+                        {club}
+                      </option>
+                    ))}
+                    {tournamentPlayers.some((player) => !player.club) ? (
+                      <option value="__none">{t("leaderboard.noClub")}</option>
+                    ) : null}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                </div>
+              </div>
 
-        <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
-          {t("leaderboard.footer")}
-          {selectedPlayer
-            ? ` ${t("leaderboard.selectedPlayerFooter", {
-                name: selectedPlayer.name,
-                status: holeToLabel(selectedPlayer.thru, t).toLowerCase(),
-              })}`
-            : ""}
-        </footer>
+              {!isSelectedTournamentDataReady ? (
+                <div
+                  className="space-y-3"
+                  role="status"
+                  aria-label={t("leaderboard.loadingTournament")}
+                >
+                  <p className="rounded-[18px] border border-border bg-surface px-4 py-3 text-sm text-muted">
+                    {t("leaderboard.loadingTournament")}
+                  </p>
+                  <Skeleton className="h-48 rounded-[24px]" />
+                  <Skeleton className="h-48 rounded-[24px]" />
+                </div>
+              ) : !liveData.hasLiveData && currentPlayers.length === 0 ? (
+                <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
+                  {liveData.tournament.status === "upcoming" ||
+                  liveData.tournament.status === "tomorrow"
+                    ? t("leaderboard.noLiveData")
+                    : t("leaderboard.noLiveScoring")}
+                </div>
+              ) : searchedPlayers.length === 0 ? (
+                <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
+                  {!liveData.hasLiveData
+                    ? t("leaderboard.noLeaderboard")
+                    : normalizedSearchQuery
+                      ? t("leaderboard.noSearchResults")
+                      : filterMode === "FOLLOWING"
+                        ? t("leaderboard.noFollowedPlayers")
+                        : t("leaderboard.noPlayers")}
+                </div>
+              ) : (
+                <>
+                  {groupedPlayers.map((group) => (
+                    <BattleGroup
+                      key={group.title}
+                      id={group.id}
+                      title={group.title}
+                      players={group.players}
+                      divisionPlayers={currentPlayers}
+                      showDivision={
+                        isCrossDivisionSearch ||
+                        selectedDivision === ALL_DIVISIONS
+                      }
+                      overallRank={selectedDivision === ALL_DIVISIONS}
+                      upcoming={
+                        isStartingListStatus(liveData.tournament.status) &&
+                        !hasScoredPlayers
+                      }
+                      isFollowed={isFollowed}
+                      onFollowToggle={togglePlayer}
+                      onPlayerSelect={handlePlayerSelect}
+                    />
+                  ))}
+                  {canShowAllPlayers ? (
+                    <div className="flex justify-center pt-1">
+                      <Button
+                        variant="ghost"
+                        className="rounded-full border border-border"
+                        onClick={() => setShowAllPlayers((current) => !current)}
+                      >
+                        {showAllPlayers
+                          ? t("leaderboard.showLessPlayers")
+                          : t("leaderboard.showAllPlayers", {
+                              count: searchedPlayers.length,
+                            })}
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </section>
+
+            {isSelectedTournamentDataReady ? (
+              <RecentUpdatesFeed
+                updates={updatesData?.updates ?? []}
+                onSelectUpdate={handleUpdateSelect}
+              />
+            ) : (
+              <Skeleton className="h-64 rounded-[24px]" />
+            )}
+
+            <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
+              {t("leaderboard.footer")}
+              {selectedPlayer
+                ? ` ${t("leaderboard.selectedPlayerFooter", {
+                    name: selectedPlayer.name,
+                    status: holeToLabel(selectedPlayer.thru, t).toLowerCase(),
+                  })}`
+                : ""}
+            </footer>
+          </>
+        ) : null}
       </div>
 
-      <PlayerDetailSheet
-        player={selectedPlayer}
-        divisionPlayers={currentPlayers}
-        updates={updatesData.updates}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-      />
+      {selectedTournamentId ? (
+        <PlayerDetailSheet
+          player={selectedPlayer}
+          divisionPlayers={currentPlayers}
+          updates={updatesData?.updates ?? []}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+        />
+      ) : null}
     </>
   );
 }

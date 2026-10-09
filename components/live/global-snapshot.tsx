@@ -97,7 +97,11 @@ export function GlobalSnapshot({
                     />
                     <p className="mt-1 text-xs text-muted">
                       {gap === 0
-                        ? t("snapshot.tiedOverall")
+                        ? t(
+                            leader.playerId === overallLeader?.playerId
+                              ? "snapshot.overallLeader"
+                              : "snapshot.tiedOverall",
+                          )
                         : t("snapshot.toOverallLead", {
                             score: formatScore(gap),
                           })}

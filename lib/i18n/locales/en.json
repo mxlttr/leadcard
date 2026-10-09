@@ -90,6 +90,11 @@
     "heading": "Tournaments",
     "subheading": "Active events from one week back to one week ahead.",
     "changeTournament": "Change tournament",
+    "tabs": {
+      "live": "Live",
+      "upcoming": "Upcoming",
+      "past": "Past"
+    },
     "roundProgress": "Round {{current}} of {{total}}",
     "status": {
       "live": "Live",
@@ -122,6 +127,7 @@
     "unavailableMessage": "Live scoring is not available for this tournament right now.",
     "overall": "Overall #{{rank}}",
     "divisionLeader": "{{division}} leader",
+    "overallLeader": "Overall leader",
     "tiedOverall": "Tied overall",
     "toOverallLead": "{{score}} to overall lead",
     "showMoreDivisions": "Show {{count}} more divisions",

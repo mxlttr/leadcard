@@ -105,9 +105,10 @@ function ClubOverviewContent() {
     return <Skeleton className="h-[32rem] rounded-[28px]" />;
   }
 
-  const filteredClubs = data.filter((club) =>
-    club.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
-  );
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const filteredClubs = data
+    .filter((club) => club.name.toLocaleLowerCase().includes(normalizedQuery))
+    .sort((a, b) => Number(isFollowed(b.name)) - Number(isFollowed(a.name)));
   const requestedClub = searchParams.get("club");
   const selectedClub = data.find((club) => club.name === requestedClub);
   const visibleClubs = selectedClub
