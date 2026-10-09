@@ -158,7 +158,7 @@ export function LeaderboardCard({
               />
             </td>
             <td className="w-10 px-1 py-2 text-center text-sm text-foreground sm:w-12">
-              {player.thru === "F" ? "F" : ""}
+              {player.thru === "F" ? "F" : player.thru || "—"}
             </td>
             <td className="w-11 px-1 py-2 text-center text-sm font-semibold sm:w-12">
               {roundStrokes ? roundStrokes : "—"}
