@@ -41,7 +41,7 @@ export function BattleGroup({
           <thead>
             <tr className="border-b border-border text-[10px] font-medium uppercase tracking-wide text-muted">
               {!upcoming ? (
-                <th className="w-12 px-2 py-2 text-center">
+                <th className="w-10 px-1 py-2 text-center sm:w-12 sm:px-2">
                   {t("board.columns.rank")}
                 </th>
               ) : null}
@@ -50,13 +50,13 @@ export function BattleGroup({
               </th>
               {!upcoming ? (
                 <>
-                  <th className="w-14 px-1 py-2 text-center">
+                  <th className="w-12 px-1 py-2 text-center sm:w-14">
                     {t("board.columns.total")}
                   </th>
-                  <th className="w-12 px-1 py-2 text-center">
+                  <th className="w-10 px-1 py-2 text-center sm:w-12">
                     {t("board.columns.thru")}
                   </th>
-                  <th className="w-12 px-1 py-2 text-center">
+                  <th className="w-11 px-1 py-2 text-center sm:w-12">
                     {t("board.columns.round")}
                   </th>
                 </>

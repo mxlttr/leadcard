@@ -68,12 +68,12 @@ export function LeaderboardCard({
     <>
       <tr className="border-b border-border last:border-b-0">
         {!upcoming ? (
-          <td className="w-12 px-2 py-2 text-center font-display text-sm font-semibold sm:px-3">
+          <td className="w-10 px-1 py-2 text-center font-display text-sm font-semibold sm:w-12 sm:px-3">
             {formatDivisionRank(player, divisionPlayers)}
           </td>
         ) : null}
         <td className="min-w-0 px-2 py-2 sm:px-3">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             {!upcoming ? (
               <button
                 type="button"
@@ -81,7 +81,7 @@ export function LeaderboardCard({
                 aria-controls={detailId}
                 aria-label={`${expanded ? "Collapse" : "Expand"} ${player.name} hole scores`}
                 onClick={() => setExpanded((value) => !value)}
-                className="flex h-7 w-6 shrink-0 items-center justify-center text-muted hover:text-foreground"
+                className="flex h-7 w-4 shrink-0 items-center justify-center text-muted hover:text-foreground sm:w-6"
               >
                 {expanded ? (
                   <ChevronUp className="h-4 w-4" />
@@ -103,42 +103,49 @@ export function LeaderboardCard({
                   {translateDivisionLabel(player.division, locale)}
                 </span>
               ) : null}
+              {!upcoming ? (
+                <span
+                  className="mt-1 flex items-center gap-1"
+                  role="img"
+                  aria-label={t("player.lastFiveHoles")}
+                >
+                  {stableTrendKeys(
+                    player.lastFive.slice(-5),
+                    player.playerId,
+                  ).map(({ key, value }) => (
+                    <span
+                      key={key}
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        trendTone(value),
+                      )}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </span>
+              ) : null}
             </button>
             {!upcoming ? (
-              <div
-                className="ml-1 hidden shrink-0 items-center gap-1 sm:flex"
-                role="img"
-                aria-label={t("player.lastFiveHoles")}
-              >
-                {stableTrendKeys(
-                  player.lastFive.slice(-5),
-                  player.playerId,
-                ).map(({ key, value }) => (
-                  <span
-                    key={key}
-                    className={cn("h-1.5 w-1.5 rounded-full", trendTone(value))}
-                    aria-hidden="true"
-                  />
-                ))}
-              </div>
-            ) : null}
-            {!upcoming ? (
-              <FollowToggle active={followed} onToggle={onFollowToggle} />
+              <FollowToggle
+                active={followed}
+                onToggle={onFollowToggle}
+                className="h-7 w-7 sm:h-9 sm:w-9"
+              />
             ) : null}
           </div>
         </td>
         {!upcoming ? (
           <>
-            <td className="w-14 px-1 py-2 text-center text-sm font-semibold">
+            <td className="w-12 px-1 py-2 text-center text-sm font-semibold sm:w-14">
               <ScoreDisplay
                 scoreToPar={player.scoreToPar}
                 className="text-base"
               />
             </td>
-            <td className="w-12 px-1 py-2 text-center text-sm text-foreground">
+            <td className="w-10 px-1 py-2 text-center text-sm text-foreground sm:w-12">
               {player.thru === "F" ? "F" : ""}
             </td>
-            <td className="w-12 px-1 py-2 text-center text-sm font-semibold">
+            <td className="w-11 px-1 py-2 text-center text-sm font-semibold sm:w-12">
               {roundStrokes ? roundStrokes : "—"}
             </td>
           </>
