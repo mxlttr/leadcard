@@ -8,6 +8,7 @@ export function BattleGroup({
   players,
   divisionPlayers,
   showDivision,
+  overallRank,
   upcoming,
   isFollowed,
   onFollowToggle,
@@ -18,6 +19,7 @@ export function BattleGroup({
   players: LeaderboardPlayer[];
   divisionPlayers: LeaderboardPlayer[];
   showDivision?: boolean;
+  overallRank?: boolean;
   upcoming?: boolean;
   isFollowed: (playerId: string) => boolean;
   onFollowToggle: (playerId: string) => void;
@@ -70,6 +72,7 @@ export function BattleGroup({
                 player={player}
                 divisionPlayers={divisionPlayers}
                 showDivision={showDivision}
+                overallRank={overallRank}
                 upcoming={upcoming}
                 followed={isFollowed(player.playerId)}
                 onFollowToggle={() => onFollowToggle(player.playerId)}

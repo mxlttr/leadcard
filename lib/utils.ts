@@ -106,3 +106,23 @@ export function formatDivisionRank(
 
   return isTied ? `T${player.rank}` : `#${player.rank}`;
 }
+
+export function formatOverallRank(
+  player: LeaderboardPlayer,
+  tournamentPlayers: LeaderboardPlayer[],
+) {
+  const overallOrder = [...tournamentPlayers].sort(
+    (a, b) => a.scoreToPar - b.scoreToPar,
+  );
+  const rank =
+    overallOrder.findIndex(
+      (tournamentPlayer) => tournamentPlayer.scoreToPar === player.scoreToPar,
+    ) + 1;
+  const isTied = tournamentPlayers.some(
+    (tournamentPlayer) =>
+      tournamentPlayer.playerId !== player.playerId &&
+      tournamentPlayer.scoreToPar === player.scoreToPar,
+  );
+
+  return isTied ? `T${rank}` : `#${rank}`;
+}

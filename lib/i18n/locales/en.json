@@ -130,7 +130,7 @@
   },
   "leaderboard": {
     "leaderboard": "Leaderboard",
-    "leadBattle": "Lead battle",
+    "leadBattle": "Lead Card",
     "followingGroup": "Following",
     "searchResults": "Search results",
     "chaseCard": "Chase card",
@@ -222,7 +222,7 @@
     },
     "labels": {
       "leadChange": "Lead change",
-      "leadBattle": "Lead battle",
+      "leadBattle": "Lead Card",
       "top3": "Top 3 update",
       "finish": "Finish",
       "surge": "Big swing"

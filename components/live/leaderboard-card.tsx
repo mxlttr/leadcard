@@ -7,7 +7,7 @@ import { FollowToggle } from "@/components/live/follow-toggle";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LeaderboardPlayer, PlayerRound } from "@/lib/types";
-import { cn, formatDivisionRank } from "@/lib/utils";
+import { cn, formatDivisionRank, formatOverallRank } from "@/lib/utils";
 
 function currentRound(rounds: PlayerRound[]) {
   return (
@@ -42,6 +42,7 @@ export function LeaderboardCard({
   divisionPlayers,
   upcoming = false,
   showDivision,
+  overallRank = false,
   followed,
   onFollowToggle,
   onSelect,
@@ -50,6 +51,7 @@ export function LeaderboardCard({
   divisionPlayers: LeaderboardPlayer[];
   upcoming?: boolean;
   showDivision?: boolean;
+  overallRank?: boolean;
   followed: boolean;
   onFollowToggle: () => void;
   onSelect: () => void;
@@ -80,7 +82,9 @@ export function LeaderboardCard({
       <tr className="border-b border-border last:border-b-0">
         {!upcoming ? (
           <td className="w-10 px-1 py-2 text-center font-display text-sm font-semibold sm:w-12 sm:px-3">
-            {formatDivisionRank(player, divisionPlayers)}
+            {overallRank
+              ? formatOverallRank(player, divisionPlayers)
+              : formatDivisionRank(player, divisionPlayers)}
           </td>
         ) : null}
         <td className="min-w-0 py-2 sm:px-3">

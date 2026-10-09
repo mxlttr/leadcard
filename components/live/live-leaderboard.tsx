@@ -66,6 +66,7 @@ function groupPlayers(
   players: LeaderboardPlayer[],
   filterMode: "ALL" | "FOLLOWING",
   searchingAcrossDivisions: boolean,
+  showFullScoreboard: boolean,
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
   if (searchingAcrossDivisions) {
@@ -83,6 +84,16 @@ function groupPlayers(
       {
         id: "followed-players",
         title: t("leaderboard.followingGroup"),
+        players,
+      },
+    ];
+  }
+
+  if (showFullScoreboard) {
+    return [
+      {
+        id: "leaderboard-players",
+        title: t("leaderboard.leaderboard"),
         players,
       },
     ];
@@ -469,6 +480,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     : clubFilter
       ? clubPlayers
       : players;
+  const orderedPlayers =
+    selectedDivision === ALL_DIVISIONS
+      ? [...searchedPlayers].sort((a, b) => a.scoreToPar - b.scoreToPar)
+      : searchedPlayers;
   const clubs = [
     ...new Set(
       allTournamentPlayers.map((player) => player.club).filter(Boolean),
@@ -518,17 +533,21 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     selectedDivision,
     selectedTournamentId,
   ]);
-  const visiblePlayers = showAllPlayers
-    ? searchedPlayers
-    : searchedPlayers.slice(0, INITIAL_PLAYER_COUNT);
+  const visiblePlayers =
+    selectedDivision === ALL_DIVISIONS || showAllPlayers
+      ? orderedPlayers
+      : orderedPlayers.slice(0, INITIAL_PLAYER_COUNT);
   const isCrossDivisionSearch = Boolean(normalizedSearchQuery || clubFilter);
   const groupedPlayers = groupPlayers(
     visiblePlayers,
     filterMode,
     isCrossDivisionSearch,
+    selectedDivision === ALL_DIVISIONS && !isCrossDivisionSearch,
     t,
   );
-  const canShowAllPlayers = searchedPlayers.length > INITIAL_PLAYER_COUNT;
+  const canShowAllPlayers =
+    selectedDivision !== ALL_DIVISIONS &&
+    orderedPlayers.length > INITIAL_PLAYER_COUNT;
   const showTournamentList = !hasTournamentIdInUrl || tournamentPickerExpanded;
 
   useEffect(() => {
@@ -882,6 +901,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                   showDivision={
                     isCrossDivisionSearch || selectedDivision === ALL_DIVISIONS
                   }
+                  overallRank={selectedDivision === ALL_DIVISIONS}
                   upcoming={
                     isStartingListStatus(liveData.tournament.status) &&
                     !hasScoredPlayers
