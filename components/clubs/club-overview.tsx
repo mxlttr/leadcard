@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
+import { CompactScorecard } from "@/components/live/compact-scorecard";
 import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -270,22 +271,15 @@ function ClubOverviewContent() {
                   </div>
                   <div className="divide-y divide-border">
                     {entry.players.map((player) => (
-                      <button
+                      <div
                         key={player.playerId}
-                        type="button"
                         className={cn(
-                          "flex w-full items-center gap-3 text-left",
+                          "flex w-full flex-wrap items-center gap-2 text-left",
                           isStartingListStatus(entry.tournament.status) &&
                             !entry.players.some((player) => player.thru !== 0)
                             ? "py-2 first:pt-3 last:pb-0"
                             : "py-3 first:pt-4 last:pb-0",
                         )}
-                        onClick={() =>
-                          setSelectedPlayer({
-                            player,
-                            divisionPlayers: entry.players,
-                          })
-                        }
                       >
                         {!isStartingListStatus(entry.tournament.status) ||
                         entry.players.some((player) => player.thru !== 0) ? (
@@ -293,7 +287,16 @@ function ClubOverviewContent() {
                             {formatDivisionRank(player, entry.players)}
                           </span>
                         ) : null}
-                        <span className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left"
+                          onClick={() =>
+                            setSelectedPlayer({
+                              player,
+                              divisionPlayers: entry.players,
+                            })
+                          }
+                        >
                           <span className="block truncate font-medium">
                             {player.name}
                           </span>
@@ -305,14 +308,15 @@ function ClubOverviewContent() {
                               {player.division} · {holeToLabel(player.thru, t)}
                             </span>
                           )}
-                        </span>
+                        </button>
                         {!isStartingListStatus(entry.tournament.status) ||
                         entry.players.some((player) => player.thru !== 0) ? (
                           <span className="shrink-0 font-display text-xl font-semibold">
                             {formatScore(player.scoreToPar)}
                           </span>
                         ) : null}
-                      </button>
+                        <CompactScorecard player={player} />
+                      </div>
                     ))}
                   </div>
                 </article>

@@ -32,12 +32,7 @@ import type {
   RecentUpdate,
   UpdatesResponse,
 } from "@/lib/types";
-import {
-  cn,
-  holeToLabel,
-  isStartingListStatus,
-  timestampLabel,
-} from "@/lib/utils";
+import { cn, holeToLabel, isStartingListStatus } from "@/lib/utils";
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url, {
@@ -118,10 +113,18 @@ function groupPlayers(
 }
 
 function tournamentStatusLabel(
-  status: LiveResponse["tournament"]["status"],
+  tournament: LiveResponse["tournament"],
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
-  return t(`tournaments.status.${status}`);
+  if (tournament.status === "upcoming" && tournament.daysUntilStart) {
+    return t("tournaments.status.inDays", {
+      count: tournament.daysUntilStart,
+    });
+  }
+
+  return t(
+    `tournaments.status.${tournament.status === "recent" ? "finished" : tournament.status}`,
+  );
 }
 
 function tournamentStatusClass(
@@ -193,7 +196,20 @@ function TournamentListItem({
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-negative" />
           </span>
         ) : null}
-        {tournamentStatusLabel(tournament.status, t)}
+        {tournament.status === "recent" && tournament.daysSinceEnd ? (
+          <>
+            <span className="sm:hidden">
+              {t("tournaments.status.finished")}
+            </span>
+            <span className="hidden sm:inline">
+              {t("tournaments.status.finishedDaysAgo", {
+                count: tournament.daysSinceEnd,
+              })}
+            </span>
+          </>
+        ) : (
+          tournamentStatusLabel(tournament, t)
+        )}
       </span>
     </div>
   );
@@ -598,20 +614,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         <header className="space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted">
-                {t("app.name")}
-              </p>
-              <h1 className="mt-2 truncate font-display text-3xl font-semibold tracking-tight">
+              <h1 className="truncate font-display text-3xl font-semibold tracking-tight">
                 {t("app.title")}
               </h1>
-              <p className="mt-2 max-w-[34rem] text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-                {t("app.tagline")}
-              </p>
-              {shouldRefreshSelectedTournament && liveData?.hasLiveData ? (
-                <p className="mt-1 text-xs text-muted">
-                  {t("app.liveUpdatesHint")}
-                </p>
-              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Dialog>
@@ -635,49 +640,24 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               </Dialog>
             </div>
           </div>
-
-          <div className="flex items-center justify-between gap-4 text-sm text-muted">
-            <div className="min-w-0">
-              <span className="block truncate">
-                {liveData.hasLiveData
-                  ? t("app.latestUpdate", {
-                      time: timestampLabel(liveData.generatedAt, locale),
-                    })
-                  : liveData.tournament.status === "upcoming" ||
-                      liveData.tournament.status === "tomorrow"
-                    ? t("app.upcomingTournament")
-                    : t("app.liveScoringUnavailable")}
-              </span>
-            </div>
-            <span className="truncate text-right">
-              {tournamentRoundSummary(liveData.tournament, t)}
-            </span>
-          </div>
         </header>
 
         <section id="tournament-picker" className="space-y-3">
-          <div className="flex items-start justify-between gap-3 px-1">
-            <div className="min-w-0">
-              <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
-                {t("tournaments.heading")}
-              </h2>
-              <p className="mt-1 text-sm text-muted">
-                {t("tournaments.subheading")}
-              </p>
-            </div>
-            {hasTournamentIdInUrl && !showTournamentList ? (
-              <Button
-                variant="ghost"
-                className="h-11 shrink-0 rounded-full border border-border px-4"
-                onClick={() => setTournamentPickerExpanded(true)}
-              >
-                {t("tournaments.changeTournament")}
-              </Button>
-            ) : null}
-          </div>
           {showTournamentList ? (
-            <div className="max-h-[230px] overflow-y-auto rounded-[24px] border border-border bg-surface p-2">
-              <div className="space-y-2 pr-1">
+            <div className="flex max-h-[300px] flex-col overflow-hidden rounded-[24px] border border-border bg-surface">
+              <div className="shrink-0 border-b border-border bg-surface px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
+                      {t("tournaments.heading")}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted">
+                      {t("tournaments.subheading")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="min-h-0 space-y-2 overflow-y-auto p-2">
                 {liveData.tournaments.map((tournament) => {
                   const selected = selectedTournamentId === tournament.id;
 
@@ -706,10 +686,29 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               </div>
             </div>
           ) : selectedTournament ? (
-            <div className="rounded-[24px] border border-border bg-surface p-2">
+            <div className="overflow-hidden rounded-[24px] border border-border bg-surface">
+              <div className="border-b border-border px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
+                      {t("tournaments.heading")}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted">
+                      {t("tournaments.subheading")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="h-9 shrink-0 rounded-full border border-border px-3 text-xs"
+                    onClick={() => setTournamentPickerExpanded(true)}
+                  >
+                    {t("tournaments.changeTournament")}
+                  </Button>
+                </div>
+              </div>
               <Button
                 variant="ghost"
-                className="h-auto w-full justify-between rounded-[20px] border border-primary/30 bg-background px-4 py-3 text-left text-foreground hover:bg-background"
+                className="m-2 h-auto w-[calc(100%-1rem)] justify-between rounded-[20px] border border-primary/30 bg-background px-4 py-3 text-left text-foreground hover:bg-background"
                 onClick={() => setTournamentPickerExpanded(true)}
                 aria-label={t("tournaments.changeTournament")}
                 title={t("tournaments.changeTournament")}

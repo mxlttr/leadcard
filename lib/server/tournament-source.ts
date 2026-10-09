@@ -545,6 +545,25 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
 
       const name = eventLink.text().replace(/\s+/g, " ").trim();
       const course = cells.eq(1).text().replace(/\s+/g, " ").trim();
+      const startParts = startDateKey.split("-").map(Number);
+      const todayParts = todayKeyInBerlin(now).split("-").map(Number);
+      const daysUntilStart = Math.max(
+        0,
+        Math.round(
+          (Date.UTC(startParts[0], startParts[1] - 1, startParts[2]) -
+            Date.UTC(todayParts[0], todayParts[1] - 1, todayParts[2])) /
+            86_400_000,
+        ),
+      );
+      const endParts = endDateKey.split("-").map(Number);
+      const daysSinceEnd = Math.max(
+        0,
+        Math.round(
+          (Date.UTC(todayParts[0], todayParts[1] - 1, todayParts[2]) -
+            Date.UTC(endParts[0], endParts[1] - 1, endParts[2])) /
+            86_400_000,
+        ),
+      );
 
       return {
         id,
@@ -552,6 +571,8 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
         course,
         roundLabel: dateRangeLabel(startDateLabel, endDateText),
         status: tournamentStatusFor(now, startDateKey, endDateKey),
+        daysUntilStart,
+        daysSinceEnd,
         sortStart: Number(startDateKey.replaceAll("-", "")),
         sortEnd: Number(endDateKey.replaceAll("-", "")),
       };
@@ -561,6 +582,8 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       (
         tournament,
       ): tournament is TournamentSummary & {
+        daysUntilStart: number;
+        daysSinceEnd: number;
         sortStart: number;
         sortEnd: number;
       } => Boolean(tournament),

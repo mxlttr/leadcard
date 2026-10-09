@@ -62,19 +62,21 @@ export function formatRelativeTime(
   }
 
   const diffSeconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+  const relativeTime = new Intl.RelativeTimeFormat(
+    locale === "de" ? "de-DE" : "en-US",
+    { numeric: "auto" },
+  );
 
   if (diffSeconds < 45) {
-    return locale === "de" ? "gerade eben" : "just now";
+    return relativeTime.format(-diffSeconds, "second");
   }
 
   if (diffSeconds < 60 * 60) {
-    const minutes = Math.max(1, Math.floor(diffSeconds / 60));
-    return locale === "de" ? `vor ${minutes}m` : `${minutes}m ago`;
+    return relativeTime.format(-Math.floor(diffSeconds / 60), "minute");
   }
 
   if (diffSeconds < 6 * 60 * 60) {
-    const hours = Math.max(1, Math.floor(diffSeconds / (60 * 60)));
-    return locale === "de" ? `vor ${hours}h` : `${hours}h ago`;
+    return relativeTime.format(-Math.floor(diffSeconds / (60 * 60)), "hour");
   }
 
   const date = new Date(timestamp);

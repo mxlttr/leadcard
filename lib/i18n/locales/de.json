@@ -95,10 +95,12 @@
     "status": {
       "live": "Live",
       "finished": "Beendet",
+      "finishedDaysAgo": "Vor {{count}} Tagen beendet",
       "today": "Heute",
       "tomorrow": "Morgen",
-      "recent": "Aktuell",
+      "recent": "Beendet",
       "upcoming": "Demnächst",
+      "inDays": "In {{count}} Tagen",
       "mock": "Mock"
     }
   },

@@ -6,7 +6,11 @@ import { ScoreDisplay } from "@/components/live/score-display";
 import { Card, CardContent } from "@/components/ui/card";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LeaderboardPlayer, LiveResponse } from "@/lib/types";
-import { formatScore, timestampLabel } from "@/lib/utils";
+import {
+  formatRelativeTime,
+  formatScore,
+  isStartingListStatus,
+} from "@/lib/utils";
 
 export function GlobalSnapshot({
   data,
@@ -36,16 +40,20 @@ export function GlobalSnapshot({
           <p className="mt-2 truncate text-sm text-muted">
             {data.tournament.course}
           </p>
-          <p className="mt-1 text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-            {noLiveData
-              ? t("snapshot.liveScoringNotAvailableYet", {
-                  roundLabel: data.tournament.roundLabel,
-                })
-              : t("snapshot.latestUpdate", {
-                  roundLabel: data.tournament.roundLabel,
-                  time: timestampLabel(data.generatedAt, locale),
-                })}
-          </p>
+          {noLiveData ? (
+            <p className="mt-1 text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+              {t("snapshot.liveScoringNotAvailableYet", {
+                roundLabel: data.tournament.roundLabel,
+              })}
+            </p>
+          ) : data.tournament.status === "live" ? (
+            <p className="mt-1 text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+              {t("snapshot.latestUpdate", {
+                roundLabel: data.tournament.roundLabel,
+                time: formatRelativeTime(data.generatedAt, locale),
+              })}
+            </p>
+          ) : null}
         </div>
 
         {noLiveData && (
@@ -60,57 +68,59 @@ export function GlobalSnapshot({
           </div>
         )}
 
-        <div id="division-leaders" className="grid gap-3">
-          {visibleDivisionLeaders.map(({ division, leader }) => {
-            const gap = overallLeader
-              ? leader.scoreToPar - overallLeader.scoreToPar
-              : 0;
+        {!isStartingListStatus(data.tournament.status) ? (
+          <div id="division-leaders" className="grid gap-3">
+            {visibleDivisionLeaders.map(({ division, leader }) => {
+              const gap = overallLeader
+                ? leader.scoreToPar - overallLeader.scoreToPar
+                : 0;
 
-            return (
+              return (
+                <button
+                  type="button"
+                  key={division}
+                  className="flex w-full items-center justify-between rounded-[18px] border border-border bg-background px-4 py-3 text-left"
+                  onClick={() => onSelectPlayer?.(leader)}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs uppercase tracking-[0.18em] text-muted">
+                      {t("snapshot.divisionLeader", {
+                        division: translateDivisionLabel(division, locale),
+                      })}
+                    </p>
+                    <p className="mt-1 truncate font-medium">{leader.name}</p>
+                  </div>
+                  <div className="ml-3 shrink-0 text-right">
+                    <ScoreDisplay
+                      scoreToPar={leader.scoreToPar}
+                      className="text-2xl"
+                    />
+                    <p className="mt-1 text-xs text-muted">
+                      {gap === 0
+                        ? t("snapshot.tiedOverall")
+                        : t("snapshot.toOverallLead", {
+                            score: formatScore(gap),
+                          })}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+            {data.divisionLeaders.length > 3 ? (
               <button
                 type="button"
-                key={division}
-                className="flex w-full items-center justify-between rounded-[18px] border border-border bg-background px-4 py-3 text-left"
-                onClick={() => onSelectPlayer?.(leader)}
+                className="rounded-[18px] border border-border px-4 py-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
+                onClick={() => setShowAllDivisionLeaders((visible) => !visible)}
               >
-                <div className="min-w-0">
-                  <p className="truncate text-xs uppercase tracking-[0.18em] text-muted">
-                    {t("snapshot.divisionLeader", {
-                      division: translateDivisionLabel(division, locale),
+                {showAllDivisionLeaders
+                  ? t("snapshot.showFewerDivisions")
+                  : t("snapshot.showMoreDivisions", {
+                      count: data.divisionLeaders.length - 3,
                     })}
-                  </p>
-                  <p className="mt-1 truncate font-medium">{leader.name}</p>
-                </div>
-                <div className="ml-3 shrink-0 text-right">
-                  <ScoreDisplay
-                    scoreToPar={leader.scoreToPar}
-                    className="text-2xl"
-                  />
-                  <p className="mt-1 text-xs text-muted">
-                    {gap === 0
-                      ? t("snapshot.tiedOverall")
-                      : t("snapshot.toOverallLead", {
-                          score: formatScore(gap),
-                        })}
-                  </p>
-                </div>
               </button>
-            );
-          })}
-          {data.divisionLeaders.length > 3 ? (
-            <button
-              type="button"
-              className="rounded-[18px] border border-border px-4 py-3 text-sm font-medium text-muted transition hover:bg-background hover:text-foreground"
-              onClick={() => setShowAllDivisionLeaders((visible) => !visible)}
-            >
-              {showAllDivisionLeaders
-                ? t("snapshot.showFewerDivisions")
-                : t("snapshot.showMoreDivisions", {
-                    count: data.divisionLeaders.length - 3,
-                  })}
-            </button>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
