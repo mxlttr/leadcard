@@ -846,8 +846,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
             <div
               className="space-y-3"
               role="status"
-              aria-label={t("leaderboard.leaderboard")}
+              aria-label={t("leaderboard.loadingTournament")}
             >
+              <p className="rounded-[18px] border border-border bg-surface px-4 py-3 text-sm text-muted">
+                {t("leaderboard.loadingTournament")}
+              </p>
               <Skeleton className="h-48 rounded-[24px]" />
               <Skeleton className="h-48 rounded-[24px]" />
             </div>
@@ -858,9 +861,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                 ? t("leaderboard.noLiveData")
                 : t("leaderboard.noLiveScoring")}
             </div>
-          ) : null}
-
-          {searchedPlayers.length === 0 ? (
+          ) : searchedPlayers.length === 0 ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
               {!liveData.hasLiveData
                 ? t("leaderboard.noLeaderboard")

@@ -1,74 +1,40 @@
 "use client";
 
-import { Flame, TrendingDown, TrendingUp } from "lucide-react";
-
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { FollowToggle } from "@/components/live/follow-toggle";
-import { RankDelta } from "@/components/live/rank-delta";
 import { ScoreDisplay } from "@/components/live/score-display";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
-import type { LeaderboardPlayer } from "@/lib/types";
-import { formatUpdateText } from "@/lib/update-copy";
-import { cn, formatDivisionRank, formatScore, holeToLabel } from "@/lib/utils";
+import type { LeaderboardPlayer, PlayerRound } from "@/lib/types";
+import { cn, formatDivisionRank } from "@/lib/utils";
 
-function holeTone(value: number) {
-  if (value < 0) {
-    return "bg-primary";
-  }
-
-  if (value > 0) {
-    return "bg-negative";
-  }
-
-  return "bg-muted/40";
+function currentRound(rounds: PlayerRound[]) {
+  return (
+    [...rounds].reverse().find((round) => round.thru !== 0) ?? rounds.at(-1)
+  );
 }
 
-function stableHoleKeys(values: number[], playerId: string) {
+function trendTone(value: number) {
+  if (value < 0) return "bg-primary";
+  if (value > 0) return "bg-negative";
+  return "bg-muted/50";
+}
+
+function stableTrendKeys(values: number[], playerId: string) {
   const counts = new Map<number, number>();
 
   return values.map((value) => {
     const occurrence = (counts.get(value) ?? 0) + 1;
     counts.set(value, occurrence);
 
-    return {
-      key: `${playerId}-${value}-${occurrence}`,
-      value,
-    };
+    return { key: `${playerId}-trend-${value}-${occurrence}`, value };
   });
 }
 
-function playerMomentum(
-  player: LeaderboardPlayer,
-  t: (key: string, params?: Record<string, string | number>) => string,
-) {
-  const recentTotal = player.lastFive.reduce((sum, hole) => sum + hole, 0);
-
-  if (recentTotal <= -2) {
-    return (
-      <Badge variant="primary" className="gap-1 normal-case tracking-normal">
-        <Flame className="h-3 w-3" />
-        {t("player.hot")}
-      </Badge>
-    );
-  }
-
-  if (recentTotal >= 2) {
-    return (
-      <Badge variant="negative" className="gap-1 normal-case tracking-normal">
-        <TrendingDown className="h-3 w-3" />
-        {t("player.sliding")}
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge className="gap-1 normal-case tracking-normal">
-      <TrendingUp className="h-3 w-3" />
-      {t("player.steady")}
-    </Badge>
-  );
+function holeTone(relativeToPar: number | null) {
+  if (relativeToPar === null || relativeToPar === 0) return "text-foreground";
+  return relativeToPar < 0 ? "text-primary" : "text-negative";
 }
 
 export function LeaderboardCard({
@@ -89,89 +55,146 @@ export function LeaderboardCard({
   onSelect: () => void;
 }) {
   const { locale, t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const round = currentRound(player.rounds ?? []);
+  const roundStrokes = round?.holes.reduce(
+    (sum, hole) => sum + (hole.score ?? 0),
+    0,
+  );
+  const hasHoleData = Boolean(round?.holes.some((hole) => hole.score !== null));
+  const detailId = `holes-${player.playerId}`;
 
   return (
-    <Card className="border-border bg-surface shadow-none">
-      <CardContent className={upcoming ? "p-3" : "space-y-4 p-4"}>
-        <div className="flex items-start gap-3">
-          <button
-            type="button"
-            onClick={onSelect}
-            className={cn(
-              "grid min-w-0 flex-1 text-left",
-              upcoming
-                ? "grid-cols-[1fr_auto] items-center gap-x-3"
-                : "grid-cols-[auto_1fr_auto] gap-x-3 gap-y-2",
-            )}
-          >
-            {upcoming ? null : (
-              <span className="score-text text-xl font-bold text-foreground">
-                {formatDivisionRank(player, divisionPlayers)}
-              </span>
-            )}
-            <div className="min-w-0">
-              <div className="truncate text-base font-medium text-foreground">
-                {player.name}
-              </div>
-              {showDivision ? (
-                <div className="mt-1 truncate text-xs text-muted">
-                  {translateDivisionLabel(player.division, locale)}
-                </div>
-              ) : null}
-              {!upcoming && player.thru !== "F" ? (
-                <div className="mt-1 flex min-w-0 items-center gap-3 text-sm text-muted">
-                  <span className="shrink-0">
-                    <RankDelta value={player.delta.rankDelta} />
-                  </span>
-                  <span className="truncate">
-                    {holeToLabel(player.thru, t)}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-            {upcoming ? null : (
-              <ScoreDisplay
-                scoreToPar={player.scoreToPar}
-                className="shrink-0"
-              />
-            )}
-          </button>
-          {!upcoming ? (
-            <FollowToggle active={followed} onToggle={onFollowToggle} />
-          ) : null}
-        </div>
-
+    <>
+      <tr className="border-b border-border last:border-b-0">
         {!upcoming ? (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              {stableHoleKeys(player.lastFive, player.playerId).map(
-                ({ key, value }) => (
+          <td className="w-12 px-2 py-2 text-center font-display text-sm font-semibold sm:px-3">
+            {formatDivisionRank(player, divisionPlayers)}
+          </td>
+        ) : null}
+        <td className="min-w-0 px-2 py-2 sm:px-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {!upcoming ? (
+              <button
+                type="button"
+                aria-expanded={expanded}
+                aria-controls={detailId}
+                aria-label={`${expanded ? "Collapse" : "Expand"} ${player.name} hole scores`}
+                onClick={() => setExpanded((value) => !value)}
+                className="flex h-7 w-6 shrink-0 items-center justify-center text-muted hover:text-foreground"
+              >
+                {expanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onSelect}
+              className="min-w-0 flex-1 text-left"
+            >
+              <span className="block truncate text-sm font-medium text-foreground">
+                {player.name}
+              </span>
+              {showDivision ? (
+                <span className="block truncate text-[11px] text-muted">
+                  {translateDivisionLabel(player.division, locale)}
+                </span>
+              ) : null}
+            </button>
+            {!upcoming ? (
+              <div
+                className="ml-1 hidden shrink-0 items-center gap-1 sm:flex"
+                role="img"
+                aria-label={t("player.lastFiveHoles")}
+              >
+                {stableTrendKeys(
+                  player.lastFive.slice(-5),
+                  player.playerId,
+                ).map(({ key, value }) => (
                   <span
                     key={key}
-                    className={cn("h-3.5 w-3.5 rounded-full", holeTone(value))}
+                    className={cn("h-1.5 w-1.5 rounded-full", trendTone(value))}
                     aria-hidden="true"
                   />
-                ),
-              )}
-            </div>
-            {playerMomentum(player, t)}
+                ))}
+              </div>
+            ) : null}
+            {!upcoming ? (
+              <FollowToggle active={followed} onToggle={onFollowToggle} />
+            ) : null}
           </div>
-        ) : null}
-
+        </td>
         {!upcoming ? (
-          <p className="text-sm text-muted [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
-            {player.latestUpdate
-              ? formatUpdateText(player.latestUpdate, t)
-              : player.thru === "F"
-                ? t("player.finishedAt", {
-                    score: formatScore(player.scoreToPar),
-                  })
-                : t("player.holding", {
-                    status: holeToLabel(player.thru, t).toLowerCase(),
-                  })}
-          </p>
+          <>
+            <td className="w-14 px-1 py-2 text-center text-sm font-semibold">
+              <ScoreDisplay
+                scoreToPar={player.scoreToPar}
+                className="text-base"
+              />
+            </td>
+            <td className="w-12 px-1 py-2 text-center text-sm text-foreground">
+              {player.thru === "F" ? "F" : ""}
+            </td>
+            <td className="w-12 px-1 py-2 text-center text-sm font-semibold">
+              {roundStrokes ? roundStrokes : "—"}
+            </td>
+          </>
         ) : null}
-      </CardContent>
-    </Card>
+      </tr>
+      {!upcoming && expanded ? (
+        <tr id={detailId} className="border-b border-border bg-background/60">
+          <td colSpan={5} className="px-3 py-2 sm:px-4">
+            {hasHoleData ? (
+              <div className="overflow-x-auto">
+                <table className="mx-auto w-full max-w-2xl table-fixed text-center text-xs">
+                  <tbody>
+                    <tr className="text-muted">
+                      <th className="w-12 py-1 text-left font-medium">
+                        {t("player.hole")}
+                      </th>
+                      {round?.holes.map((hole) => (
+                        <th key={`h-${hole.hole}`} className="py-1 font-medium">
+                          {hole.hole}
+                        </th>
+                      ))}
+                    </tr>
+                    <tr className="text-muted">
+                      <th className="py-1 text-left font-medium">
+                        {t("player.par")}
+                      </th>
+                      {round?.holes.map((hole) => (
+                        <td key={`p-${hole.hole}`} className="py-1">
+                          {hole.par ?? "—"}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="font-semibold">
+                      <th className="py-1 text-left font-medium text-muted">
+                        {t("player.score")}
+                      </th>
+                      {round?.holes.map((hole) => (
+                        <td
+                          key={`s-${hole.hole}`}
+                          className={cn("py-1", holeTone(hole.relativeToPar))}
+                        >
+                          {hole.score ?? "—"}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="py-1 text-center text-xs text-muted">
+                {t("player.noRoundScores")}
+              </p>
+            )}
+          </td>
+        </tr>
+      ) : null}
+    </>
   );
 }
