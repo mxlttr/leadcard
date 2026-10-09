@@ -81,6 +81,8 @@
       "player": "Player",
       "delta": "Delta",
       "score": "Score",
+      "total": "Total",
+      "round": "Round",
       "thru": "Thru",
       "lastNine": "Last 9"
     }
@@ -140,6 +142,7 @@
     "clubLabel": "Filter by club",
     "allClubs": "All clubs",
     "noClub": "No club",
+    "loadingTournament": "Loading the selected tournament…",
     "noLiveData": "This tournament has not started live scoring yet. Check back closer to tee time.",
     "noLiveScoring": "Live scoring is not available for this tournament right now.",
     "noLeaderboard": "No leaderboard is available yet.",
@@ -168,6 +171,8 @@
     "roundScoresDescription": "Full published hole scores for each round.",
     "noRoundScores": "Full round scores are not available for this player yet.",
     "roundLabel": "Round {{count}}",
+    "hole": "Hole",
+    "score": "Score",
     "currentRound": "Current round",
     "parLabel": "Par {{par}}",
     "ace": "Ace",

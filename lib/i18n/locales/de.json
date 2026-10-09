@@ -81,6 +81,8 @@
       "player": "Spieler:in",
       "delta": "Delta",
       "score": "Score",
+      "total": "Gesamt",
+      "round": "Runde",
       "thru": "Durch",
       "lastNine": "Letzte 9"
     }
@@ -140,6 +142,7 @@
     "clubLabel": "Nach Verein filtern",
     "allClubs": "Alle Vereine",
     "noClub": "Kein Verein",
+    "loadingTournament": "Das ausgewählte Turnier wird geladen …",
     "noLiveData": "Dieses Turnier hat noch kein Livescoring gestartet. Schau näher am Startzeitpunkt noch einmal vorbei.",
     "noLiveScoring": "Für dieses Turnier ist aktuell kein Livescoring verfügbar.",
     "noLeaderboard": "Es ist noch kein Leaderboard verfügbar.",
@@ -168,6 +171,8 @@
     "roundScoresDescription": "Vollständige veröffentlichte Scores pro Bahn und Runde.",
     "noRoundScores": "Für diese:n Spieler:in sind noch keine vollständigen Rundenscores verfügbar.",
     "roundLabel": "Runde {{count}}",
+    "hole": "Bahn",
+    "score": "Score",
     "currentRound": "Aktuelle Runde",
     "parLabel": "Par {{par}}",
     "ace": "Ace",
