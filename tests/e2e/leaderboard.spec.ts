@@ -547,6 +547,54 @@ test("shows the upcoming tournament empty state instead of old standings", async
   await expect(playerCard(page, "Alice Ace")).not.toBeVisible();
 });
 
+test("shows registered players before live scoring starts", async ({
+  page,
+}) => {
+  const registeredPlayer = createPlayer({
+    playerId: "future-open:registered-player",
+    name: "Registered Player",
+    division: "Open",
+    thru: 0,
+    lastFive: [],
+  });
+  const tournaments = [upcomingTournament];
+  const upcomingLive = createLiveResponse({
+    tournament: upcomingTournament,
+    tournaments,
+    divisions: ["Open"],
+    leaders: [registeredPlayer],
+    divisionLeaders: [{ division: "Open", leader: registeredPlayer }],
+    hasLiveData: false,
+  });
+
+  await mockApi(page, {
+    liveByTournamentId: {
+      default: upcomingLive,
+      [upcomingTournament.id]: upcomingLive,
+    },
+    leaderboardByKey: {
+      [`${upcomingTournament.id}::default`]: createLeaderboardResponse(
+        upcomingTournament.id,
+        "Open",
+        [registeredPlayer],
+      ),
+      [`${upcomingTournament.id}::Open`]: createLeaderboardResponse(
+        upcomingTournament.id,
+        "Open",
+        [registeredPlayer],
+      ),
+    },
+    updatesByTournamentId: {
+      default: createUpdatesResponse(upcomingTournament.id, []),
+      [upcomingTournament.id]: createUpdatesResponse(upcomingTournament.id, []),
+    },
+  });
+
+  await page.goto("/en");
+
+  await expect(playerCard(page, "Registered Player")).toBeVisible();
+});
+
 test("persists followed players across reloads", async ({ page }) => {
   const alphaLive = createLiveResponse({
     tournament: alphaTournament,

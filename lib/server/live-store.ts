@@ -186,7 +186,7 @@ function shouldAutoRefresh(
   players: Array<Pick<PlayerSnapshot, "thru" | "rounds">>,
   html: string | null,
 ) {
-  if (players.length > 0 && players.some((player) => player.thru !== "F")) {
+  if (players.some((player) => player.thru !== 0 && player.thru !== "F")) {
     return true;
   }
 
@@ -440,11 +440,12 @@ async function advanceStore(store: LiveState) {
     store.tournament.id,
     store.fixtureIndex,
   );
-  store.hasLiveData = Boolean(source.html);
+  const hadLiveData = store.hasLiveData;
   store.fixtureIndex = source.nextFixtureIndex;
   store.lastAdvancedAt = Date.now();
 
   if (!source.html) {
+    store.hasLiveData = false;
     store.tournament = source.tournament;
     store.generatedAt = new Date().toISOString();
     store.players = (source.registeredPlayers ?? []).map<LeaderboardPlayer>(
@@ -465,6 +466,36 @@ async function advanceStore(store: LiveState) {
   }
 
   const nextSnapshot = scrapeSnapshot(source.html);
+  if (nextSnapshot.players.length === 0) {
+    const registeredPlayers = (source.registeredPlayers ?? []).map(
+      (player) => ({
+        ...player,
+        club:
+          player.club ??
+          source.playerClubs?.[playerClubKey(player.division, player.name)],
+      }),
+    );
+    store.hasLiveData = hadLiveData;
+    store.tournament = source.tournament;
+    store.generatedAt = nextSnapshot.generatedAt;
+    if (!hadLiveData) {
+      store.players = registeredPlayers.map<LeaderboardPlayer>((player) => ({
+        ...player,
+        delta: { rankDelta: 0, scoreDelta: 0, thruDelta: 0 },
+        latestUpdate: null,
+      }));
+    }
+    store.updates = [];
+    store.autoRefresh = shouldAutoRefresh(
+      source.tournament,
+      hadLiveData ? store.players : registeredPlayers,
+      source.html,
+    );
+    notifyStoreListeners(store.tournament.id);
+    return;
+  }
+
+  store.hasLiveData = true;
   const enrichedPlayers = nextSnapshot.players.map((player) => ({
     ...player,
     club:

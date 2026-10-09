@@ -872,7 +872,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
               <Skeleton className="h-48 rounded-[24px]" />
               <Skeleton className="h-48 rounded-[24px]" />
             </div>
-          ) : !liveData.hasLiveData ? (
+          ) : !liveData.hasLiveData && currentPlayers.length === 0 ? (
             <div className="rounded-[24px] border border-border bg-surface p-5 text-sm text-muted">
               {liveData.tournament.status === "upcoming" ||
               liveData.tournament.status === "tomorrow"

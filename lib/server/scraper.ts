@@ -1,5 +1,6 @@
 import { load } from "cheerio";
 
+import { formatPlayerDisplayName } from "@/lib/player-club";
 import type { PlayerRound, PlayerSnapshot, ThruValue } from "@/lib/types";
 
 export type ScrapedSnapshot = {
@@ -247,7 +248,7 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
 
         players.push({
           playerId: playerIdFrom(division, nameCell),
-          name: nameCell,
+          name: formatPlayerDisplayName(nameCell),
           division,
           rank: Number(rankCell),
           scoreToPar,

@@ -79,7 +79,7 @@ describe("tournament-source", () => {
     expect(players).toHaveLength(2);
     expect(players[0]).toMatchObject({
       playerId: "2660:open|jonas weber",
-      name: "Weber, Jonas",
+      name: "Jonas Weber",
       club: "Berlin Disc Golf Club",
       division: "Open",
       scoreToPar: 0,

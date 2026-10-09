@@ -27,6 +27,20 @@ function requirePlayer(
 }
 
 describe("scrapeSnapshot", () => {
+  it("formats live scoring names as first name then last name", () => {
+    const snapshot = scrapeSnapshot(`
+      <table id="livescoring_">
+        <thead>
+          <tr><th colspan="2">Par</th><th class="th_hole">3</th></tr>
+          <tr><th>No</th><th class="th_name">Open</th><th class="th_hole">1</th></tr>
+        </thead>
+        <tbody><tr><td>1</td><td>Weber, Jonas</td><td>3</td><td>0</td><td>0</td></tr></tbody>
+      </table>
+    `);
+
+    expect(snapshot.players[0]?.name).toBe("Jonas Weber");
+  });
+
   it("accepts a live table with no scored players yet", () => {
     const snapshot = scrapeSnapshot(`
       <table id="livescoring_">

@@ -76,6 +76,35 @@ export function LeaderboardCard({
       (_, index) => holes.length + index + 1,
     );
   const detailId = `holes-${player.playerId}`;
+  const playerNameContent = (
+    <>
+      <span className="block truncate text-sm font-medium text-foreground">
+        {player.name}
+      </span>
+      {showDivision ? (
+        <span className="block truncate text-[11px] text-muted">
+          {translateDivisionLabel(player.division, locale)}
+        </span>
+      ) : null}
+      {!upcoming ? (
+        <span
+          className="mt-1 flex items-center gap-1"
+          role="img"
+          aria-label={t("player.lastFiveHoles")}
+        >
+          {stableTrendKeys(player.lastFive.slice(-5), player.playerId).map(
+            ({ key, value }) => (
+              <span
+                key={key}
+                className={cn("h-1.5 w-1.5 rounded-full", trendTone(value))}
+                aria-hidden="true"
+              />
+            ),
+          )}
+        </span>
+      ) : null}
+    </>
+  );
 
   return (
     <>
@@ -87,7 +116,7 @@ export function LeaderboardCard({
               : formatDivisionRank(player, divisionPlayers)}
           </td>
         ) : null}
-        <td className="min-w-0 py-2 sm:px-3">
+        <td className={cn("min-w-0 py-2 sm:px-3", upcoming && "pl-2")}>
           <div className="flex min-w-0 items-center gap-1 sm:gap-3">
             {!upcoming ? (
               <button
@@ -105,41 +134,19 @@ export function LeaderboardCard({
                 )}
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={onSelect}
-              className="min-w-0 flex-1 text-left"
-            >
-              <span className="block truncate text-sm font-medium text-foreground">
-                {player.name}
+            {upcoming ? (
+              <span className="min-w-0 flex-1 text-left">
+                {playerNameContent}
               </span>
-              {showDivision ? (
-                <span className="block truncate text-[11px] text-muted">
-                  {translateDivisionLabel(player.division, locale)}
-                </span>
-              ) : null}
-              {!upcoming ? (
-                <span
-                  className="mt-1 flex items-center gap-1"
-                  role="img"
-                  aria-label={t("player.lastFiveHoles")}
-                >
-                  {stableTrendKeys(
-                    player.lastFive.slice(-5),
-                    player.playerId,
-                  ).map(({ key, value }) => (
-                    <span
-                      key={key}
-                      className={cn(
-                        "h-1.5 w-1.5 rounded-full",
-                        trendTone(value),
-                      )}
-                      aria-hidden="true"
-                    />
-                  ))}
-                </span>
-              ) : null}
-            </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onSelect}
+                className="min-w-0 flex-1 text-left"
+              >
+                {playerNameContent}
+              </button>
+            )}
             {!upcoming ? (
               <FollowToggle
                 active={followed}

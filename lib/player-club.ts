@@ -17,6 +17,18 @@ export function normalizePlayerName(value: string) {
   return normalized;
 }
 
+export function formatPlayerDisplayName(value: string) {
+  const commaIndex = value.indexOf(",");
+
+  if (commaIndex < 0) {
+    return value;
+  }
+
+  const familyName = value.slice(0, commaIndex).trim();
+  const givenNames = value.slice(commaIndex + 1).trim();
+  return givenNames ? `${givenNames} ${familyName}` : familyName;
+}
+
 export function playerClubKey(division: string, name: string) {
   return `${normalizePlayerName(division)}|${normalizePlayerName(name)}`;
 }

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "cheerio";
-import { playerClubKey } from "@/lib/player-club";
+import { formatPlayerDisplayName, playerClubKey } from "@/lib/player-club";
 import {
   defaultMockTournamentId,
   mockTournamentFeeds,
@@ -189,7 +189,7 @@ export function parseRegisteredPlayers(html: string, tournamentId = "") {
 
       return {
         playerId: `${tournamentId}:${playerClubKey(division, name)}`,
-        name,
+        name: formatPlayerDisplayName(name),
         club: club || undefined,
         division,
         rank: index + 1,

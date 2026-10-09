@@ -465,8 +465,9 @@ describe("live-store", () => {
   });
 
   it("shows registered players when a live page has no scored rows", async () => {
+    const todayTournament = { ...upcomingTournament, status: "today" as const };
     loadTournamentSnapshotSource.mockResolvedValue({
-      tournament: upcomingTournament,
+      tournament: todayTournament,
       html: `<table id="livescoring_"><thead><tr><th colspan="2">Par</th><th class="th_hole">3</th></tr><tr><th>No</th><th class="th_name">Open</th><th class="th_hole">1</th></tr></thead><tbody><tr><td colspan="3"></td></tr></tbody></table>`,
       registeredPlayers: [
         {
@@ -492,6 +493,20 @@ describe("live-store", () => {
 
     expect(liveResponse.hasLiveData).toBe(false);
     expect(leaderboard.players).toMatchObject([
+      { name: "Alice Ace", club: "Example Disc Golf Club", thru: 0 },
+    ]);
+
+    vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
+    const refreshedLiveResponse = await liveStore.getLiveResponse(
+      upcomingTournament.id,
+    );
+    const refreshedLeaderboard = await liveStore.getLeaderboardResponse(
+      upcomingTournament.id,
+      "Open",
+    );
+
+    expect(refreshedLiveResponse.hasLiveData).toBe(false);
+    expect(refreshedLeaderboard.players).toMatchObject([
       { name: "Alice Ace", club: "Example Disc Golf Club", thru: 0 },
     ]);
   });
