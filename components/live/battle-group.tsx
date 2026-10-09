@@ -45,7 +45,7 @@ export function BattleGroup({
                   {t("board.columns.rank")}
                 </th>
               ) : null}
-              <th className="px-2 py-2 text-left">
+              <th className="px-1 py-2 text-left sm:px-2">
                 {t("board.columns.player")}
               </th>
               {!upcoming ? (
