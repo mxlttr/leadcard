@@ -9,7 +9,6 @@ import { BattleGroup } from "@/components/live/battle-group";
 import { DivisionTabs } from "@/components/live/division-tabs";
 import { GlobalSnapshot } from "@/components/live/global-snapshot";
 import { MockReplayPanel } from "@/components/live/mock-replay-panel";
-import { PlayerDetailSheet } from "@/components/live/player-detail-sheet";
 import { RecentUpdatesFeed } from "@/components/live/recent-updates-feed";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +32,7 @@ import type {
   RecentUpdate,
   UpdatesResponse,
 } from "@/lib/types";
-import { cn, holeToLabel, isStartingListStatus } from "@/lib/utils";
+import { cn, isStartingListStatus } from "@/lib/utils";
 
 async function fetchJson<T>(url: string) {
   const response = await fetch(url, {
@@ -120,8 +119,17 @@ function groupPlayers(
     {
       id: "chase-card",
       title: t("leaderboard.chaseCard"),
-      players: players.slice(LEAD_CARD_SIZE),
+      players: players.slice(LEAD_CARD_SIZE, LEAD_CARD_SIZE * 2),
     },
+    ...(players.length > LEAD_CARD_SIZE * 2
+      ? [
+          {
+            id: "leaderboard-players",
+            title: t("leaderboard.leaderboard"),
+            players: players.slice(LEAD_CARD_SIZE * 2),
+          },
+        ]
+      : []),
   ];
 }
 
@@ -254,13 +262,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
   const [tournamentTab, setTournamentTab] = useState<
     "live" | "upcoming" | "past"
   >("live");
-  const [selectedPlayer, setSelectedPlayer] =
-    useState<LeaderboardPlayer | null>(null);
+  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null);
   const [pendingUpdateTarget, setPendingUpdateTarget] = useState<{
     playerId: string;
     division: string;
   } | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [resolvedLiveData, setResolvedLiveData] = useState<LiveResponse | null>(
     null,
   );
@@ -349,8 +355,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     previousTournamentId.current = selectedTournamentId;
     setSearchQuery("");
     setShowAllPlayers(false);
-    setSelectedPlayer(null);
-    setSheetOpen(false);
+    setExpandedPlayerId(null);
     setPendingUpdateTarget(null);
   }, [selectedTournamentId]);
 
@@ -361,8 +366,6 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
     setSearchQuery("");
     setShowAllPlayers(false);
-    setSelectedPlayer(null);
-    setSheetOpen(false);
   }, [selectedDivision]);
 
   useEffect(() => {
@@ -611,10 +614,24 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       return;
     }
 
-    setSelectedPlayer(matchedPlayer);
-    setSheetOpen(true);
+    setExpandedPlayerId(matchedPlayer.playerId);
+    setShowAllPlayers(true);
     setPendingUpdateTarget(null);
   }, [currentPlayers, pendingUpdateTarget]);
+
+  useEffect(() => {
+    if (!expandedPlayerId) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .getElementById(`holes-${expandedPlayerId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [expandedPlayerId]);
 
   if (!liveData) {
     return (
@@ -647,18 +664,14 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     return <LoadingShell />;
   }
 
-  function openPlayerDetails(player: LeaderboardPlayer) {
-    setSelectedPlayer(player);
-    setSheetOpen(true);
-  }
-
   function handlePlayerSelect(player: LeaderboardPlayer) {
-    if (player.division === selectedDivision) {
-      const matchedPlayer = currentPlayers.find(
-        (entry) => entry.playerId === player.playerId,
-      );
+    setFilterMode("ALL");
+    setSearchQuery("");
+    setClubFilter("");
+    setShowAllPlayers(true);
 
-      openPlayerDetails(matchedPlayer ?? player);
+    if (player.division === selectedDivision) {
+      setExpandedPlayerId(player.playerId);
       return;
     }
 
@@ -675,13 +688,15 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
   function handleUpdateSelect(update: RecentUpdate) {
     setFilterMode("ALL");
-
+    setSearchQuery("");
+    setClubFilter("");
+    setShowAllPlayers(true);
     const matchedPlayer = currentPlayers.find(
       (player) => player.playerId === update.playerId,
     );
 
     if (matchedPlayer && update.division === selectedDivision) {
-      openPlayerDetails(matchedPlayer);
+      setExpandedPlayerId(matchedPlayer.playerId);
       return;
     }
 
@@ -1040,9 +1055,9 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
                         isStartingListStatus(liveData.tournament.status) &&
                         !hasScoredPlayers
                       }
+                      expandedPlayerId={expandedPlayerId}
                       isFollowed={isFollowed}
                       onFollowToggle={togglePlayer}
-                      onPlayerSelect={handlePlayerSelect}
                     />
                   ))}
                   {canShowAllPlayers ? (
@@ -1075,26 +1090,10 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
             <footer className="rounded-[20px] border border-border bg-surface px-4 py-4 text-sm text-muted">
               {t("leaderboard.footer")}
-              {selectedPlayer
-                ? ` ${t("leaderboard.selectedPlayerFooter", {
-                    name: selectedPlayer.name,
-                    status: holeToLabel(selectedPlayer.thru, t).toLowerCase(),
-                  })}`
-                : ""}
             </footer>
           </>
         ) : null}
       </div>
-
-      {selectedTournamentId ? (
-        <PlayerDetailSheet
-          player={selectedPlayer}
-          divisionPlayers={currentPlayers}
-          updates={updatesData?.updates ?? []}
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
-        />
-      ) : null}
     </>
   );
 }

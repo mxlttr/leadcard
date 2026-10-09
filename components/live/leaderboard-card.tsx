@@ -1,13 +1,18 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { FollowToggle } from "@/components/live/follow-toggle";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LeaderboardPlayer, PlayerRound } from "@/lib/types";
-import { cn, formatDivisionRank, formatOverallRank } from "@/lib/utils";
+import {
+  cn,
+  formatDivisionRank,
+  formatOverallRank,
+  formatScore,
+} from "@/lib/utils";
 
 function currentRound(rounds: PlayerRound[]) {
   return (
@@ -43,34 +48,33 @@ export function LeaderboardCard({
   upcoming = false,
   showDivision,
   overallRank = false,
+  expandedPlayerId,
   followed,
   onFollowToggle,
-  onSelect,
 }: {
   player: LeaderboardPlayer;
   divisionPlayers: LeaderboardPlayer[];
   upcoming?: boolean;
   showDivision?: boolean;
   overallRank?: boolean;
+  expandedPlayerId?: string | null;
   followed: boolean;
   onFollowToggle: () => void;
-  onSelect: () => void;
 }) {
   const { locale, t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (expandedPlayerId) {
+      setExpanded(expandedPlayerId === player.playerId);
+    }
+  }, [expandedPlayerId, player.playerId]);
   const round = currentRound(player.rounds ?? []);
   const roundStrokes = round?.holes.reduce(
     (sum, hole) => sum + (hole.score ?? 0),
     0,
   );
-  const hasHoleData = Boolean(round?.holes.some((hole) => hole.score !== null));
-  const holeRows = round?.holes.reduce<(typeof round.holes)[]>((rows, hole) => {
-    const rowIndex = Math.floor((hole.hole - 1) / 9);
-    rows[rowIndex] ??= [];
-    rows[rowIndex].push(hole);
-    return rows;
-  }, []);
-  const emptySlots = (holes: NonNullable<typeof holeRows>[number]) =>
+  const rounds = player.rounds ?? [];
+  const emptySlots = (holes: PlayerRound["holes"]) =>
     Array.from(
       { length: 9 - holes.length },
       (_, index) => holes.length + index + 1,
@@ -141,7 +145,10 @@ export function LeaderboardCard({
             ) : (
               <button
                 type="button"
-                onClick={onSelect}
+                aria-expanded={expanded}
+                aria-controls={detailId}
+                aria-label={`${expanded ? "Collapse" : "Expand"} ${player.name} round scores`}
+                onClick={() => setExpanded((value) => !value)}
                 className="min-w-0 flex-1 text-left"
               >
                 {playerNameContent}
@@ -176,70 +183,166 @@ export function LeaderboardCard({
       {!upcoming && expanded ? (
         <tr id={detailId} className="border-b border-border bg-background/60">
           <td colSpan={5} className="px-3 py-2 sm:px-4">
-            {hasHoleData ? (
-              <div className="overflow-x-auto">
-                <table className="mx-auto w-full max-w-2xl table-fixed text-center text-xs">
-                  <tbody>
-                    {holeRows?.map((holes, rowIndex) => (
-                      <Fragment key={`hole-row-${holes[0]?.hole}`}>
-                        <tr
+            {rounds.length > 0 ? (
+              <div className="space-y-4">
+                {rounds.map((round) => {
+                  const holeRows = round.holes.reduce<(typeof round.holes)[]>(
+                    (rows, hole) => {
+                      const rowIndex = Math.floor((hole.hole - 1) / 9);
+                      rows[rowIndex] ??= [];
+                      rows[rowIndex].push(hole);
+                      return rows;
+                    },
+                    [],
+                  );
+                  const scoredHoles = round.holes.filter(
+                    (hole) => hole.score !== null,
+                  );
+                  const holesForPar = scoredHoles.length
+                    ? scoredHoles
+                    : round.holes;
+                  const roundScore = scoredHoles.length
+                    ? scoredHoles.reduce(
+                        (sum, hole) => sum + (hole.score ?? 0),
+                        0,
+                      )
+                    : null;
+                  const roundPar =
+                    holesForPar.length &&
+                    holesForPar.every((hole) => hole.par !== null)
+                      ? holesForPar.reduce(
+                          (sum, hole) => sum + (hole.par ?? 0),
+                          0,
+                        )
+                      : null;
+                  const scoreToPar =
+                    roundPar !== null && roundScore !== null
+                      ? roundScore - roundPar
+                      : round.scoreToPar;
+
+                  return (
+                    <section
+                      key={round.id}
+                      className="space-y-1 border-b border-border pb-3 last:border-b-0 last:pb-0"
+                    >
+                      <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center gap-x-1.5 text-xs">
+                        <span className="font-semibold text-foreground">
+                          {t("player.roundLabel", { count: round.order })}
+                        </span>
+                        <span className="text-muted" aria-hidden="true">
+                          •
+                        </span>
+                        <span className="text-muted">
+                          {t("player.par")}{" "}
+                          <span className="ml-1.5 font-medium text-foreground">
+                            {roundPar ?? "—"}
+                          </span>
+                        </span>
+                        <span className="text-muted" aria-hidden="true">
+                          •
+                        </span>
+                        <span className="text-muted">
+                          {t("player.score")}{" "}
+                          <span className="ml-1.5 font-medium text-foreground">
+                            {roundScore ?? "—"}
+                          </span>
+                        </span>
+                        <span className="text-muted" aria-hidden="true">
+                          •
+                        </span>
+                        <span
                           className={cn(
-                            "text-muted",
-                            rowIndex > 0 &&
-                              "border-t border-border [&>th]:pt-3 [&>td]:pt-3",
+                            "font-bold",
+                            scoreToPar === null
+                              ? "text-muted"
+                              : holeTone(scoreToPar),
                           )}
                         >
-                          <th className="w-12 py-1 text-left font-medium">
-                            {t("player.hole")}
-                          </th>
-                          {holes.map((hole) => (
-                            <th
-                              key={`h-${hole.hole}`}
-                              className="py-1 font-medium"
-                            >
-                              {hole.hole}
-                            </th>
-                          ))}
-                          {emptySlots(holes).map((slot) => (
-                            <td key={`hole-empty-${holes[0]?.hole}-${slot}`} />
-                          ))}
-                        </tr>
-                        <tr className="text-muted">
-                          <th className="py-1 text-left font-medium">
-                            {t("player.par")}
-                          </th>
-                          {holes.map((hole) => (
-                            <td key={`p-${hole.hole}`} className="py-1">
-                              {hole.par ?? "—"}
-                            </td>
-                          ))}
-                          {emptySlots(holes).map((slot) => (
-                            <td key={`par-empty-${holes[0]?.hole}-${slot}`} />
-                          ))}
-                        </tr>
-                        <tr className="font-semibold">
-                          <th className="py-1 text-left font-medium text-muted">
-                            {t("player.score")}
-                          </th>
-                          {holes.map((hole) => (
-                            <td
-                              key={`s-${hole.hole}`}
-                              className={cn(
-                                "py-1",
-                                holeTone(hole.relativeToPar),
-                              )}
-                            >
-                              {hole.score ?? "—"}
-                            </td>
-                          ))}
-                          {emptySlots(holes).map((slot) => (
-                            <td key={`score-empty-${holes[0]?.hole}-${slot}`} />
-                          ))}
-                        </tr>
-                      </Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                          {scoreToPar === null ? "—" : formatScore(scoreToPar)}
+                        </span>
+                      </div>
+                      {round.holes.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="mx-auto w-full max-w-2xl table-fixed text-center text-xs">
+                            <tbody>
+                              {holeRows.map((holes, rowIndex) => (
+                                <Fragment key={`hole-row-${holes[0]?.hole}`}>
+                                  <tr
+                                    className={cn(
+                                      "text-muted",
+                                      rowIndex > 0 &&
+                                        "border-t border-border [&>th]:pt-3 [&>td]:pt-3",
+                                    )}
+                                  >
+                                    <th className="w-12 py-1 text-left font-medium">
+                                      {t("player.hole")}
+                                    </th>
+                                    {holes.map((hole) => (
+                                      <th
+                                        key={`h-${hole.hole}`}
+                                        className="py-1 font-medium"
+                                      >
+                                        {hole.hole}
+                                      </th>
+                                    ))}
+                                    {emptySlots(holes).map((slot) => (
+                                      <td
+                                        key={`hole-empty-${holes[0]?.hole}-${slot}`}
+                                      />
+                                    ))}
+                                  </tr>
+                                  <tr className="text-muted">
+                                    <th className="py-1 text-left font-medium">
+                                      {t("player.par")}
+                                    </th>
+                                    {holes.map((hole) => (
+                                      <td
+                                        key={`p-${hole.hole}`}
+                                        className="py-1"
+                                      >
+                                        {hole.par ?? "—"}
+                                      </td>
+                                    ))}
+                                    {emptySlots(holes).map((slot) => (
+                                      <td
+                                        key={`par-empty-${holes[0]?.hole}-${slot}`}
+                                      />
+                                    ))}
+                                  </tr>
+                                  <tr className="font-semibold">
+                                    <th className="py-1 text-left font-medium text-muted">
+                                      {t("player.score")}
+                                    </th>
+                                    {holes.map((hole) => (
+                                      <td
+                                        key={`s-${hole.hole}`}
+                                        className={cn(
+                                          "py-1",
+                                          holeTone(hole.relativeToPar),
+                                        )}
+                                      >
+                                        {hole.score ?? "—"}
+                                      </td>
+                                    ))}
+                                    {emptySlots(holes).map((slot) => (
+                                      <td
+                                        key={`score-empty-${holes[0]?.hole}-${slot}`}
+                                      />
+                                    ))}
+                                  </tr>
+                                </Fragment>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="py-1 text-center text-xs text-muted">
+                          {t("player.noRoundScores")}
+                        </p>
+                      )}
+                    </section>
+                  );
+                })}
               </div>
             ) : (
               <p className="py-1 text-center text-xs text-muted">
