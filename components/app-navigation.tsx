@@ -5,14 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
-import { InstallAppOption } from "@/components/install-app-option";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetClose,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -113,10 +111,9 @@ function NavigationContent() {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent>
+          <SheetContent side="right">
             <SheetHeader className="pr-8">
               <SheetTitle>{t("navigation.menu")}</SheetTitle>
-              <SheetDescription>{t("navigation.description")}</SheetDescription>
             </SheetHeader>
             <nav className="mt-8 grid gap-2" aria-label={t("navigation.label")}>
               {links.map((link) => (
@@ -136,10 +133,7 @@ function NavigationContent() {
               ))}
             </nav>
             <div className="mt-8 grid gap-3 border-t border-border pt-5 sm:hidden">
-              <p className="text-xs uppercase tracking-[0.18em] text-muted">
-                {t("language.switcherLabel")}
-              </p>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {locales.map((item) => (
                   <SheetClose asChild key={item}>
                     <Link
@@ -155,23 +149,25 @@ function NavigationContent() {
                     </Link>
                   </SheetClose>
                 ))}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full border border-border p-0"
+                  onClick={toggleTheme}
+                  aria-label={
+                    theme === "dark"
+                      ? t("theme.switchToLight")
+                      : t("theme.switchToDark")
+                  }
+                >
+                  {theme === "dark" ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                className="justify-start border border-border"
-                onClick={toggleTheme}
-              >
-                {theme === "dark" ? (
-                  <Sun className="mr-2 h-4 w-4" />
-                ) : (
-                  <Moon className="mr-2 h-4 w-4" />
-                )}
-                {theme === "dark"
-                  ? t("theme.switchToLight")
-                  : t("theme.switchToDark")}
-              </Button>
-              <InstallAppOption locale={locale} />
             </div>
           </SheetContent>
         </Sheet>
