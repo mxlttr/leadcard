@@ -45,12 +45,19 @@ function readInitialTheme(): AppTheme {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<AppTheme>(() => readInitialTheme());
+  const [theme, setThemeState] = useState<AppTheme>("dark");
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    setThemeState(readInitialTheme());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     applyTheme(theme);
     window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+  }, [hydrated, theme]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
