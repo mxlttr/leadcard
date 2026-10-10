@@ -199,23 +199,20 @@ function UpdateLine({
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <p
-              className={cn(
-                "min-w-0 font-medium text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] overflow-hidden",
-                compact
-                  ? "text-sm leading-5 [-webkit-line-clamp:2]"
-                  : "text-[15px] leading-6 [-webkit-line-clamp:3]",
-              )}
-            >
-              {updateText}
+          <p
+            className={cn(
+              "break-words font-medium text-foreground",
+              compact ? "text-sm leading-5" : "text-[15px] leading-6",
+            )}
+          >
+            {updateText}
+          </p>
+
+          {relativeTime ? (
+            <p className="mt-1 text-right text-[11px] tracking-[0.01em] text-muted">
+              {relativeTime}
             </p>
-            {relativeTime ? (
-              <span className="shrink-0 pt-0.5 text-[11px] tracking-[0.01em] text-muted">
-                {relativeTime}
-              </span>
-            ) : null}
-          </div>
+          ) : null}
 
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
             {meta.map((part, index) => (
