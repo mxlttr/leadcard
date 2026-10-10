@@ -47,12 +47,27 @@ export type PlayerDelta = {
 
 export type UpdateImportance = "high" | "medium" | "low";
 
+export type RecentUpdateKind =
+  | "ace"
+  | "eagle"
+  | "strong_stretch"
+  | "finish"
+  | "podium_finish"
+  | "lead_change"
+  | "top_three_entry"
+  | "biggest_mover"
+  | "lead_gap_closed"
+  | "rank_up"
+  | "rank_down";
+
 export type RecentUpdate = {
   id: string;
   playerId: string;
   playerName: string;
   division: string;
   text: string;
+  kind?: RecentUpdateKind;
+  strokes?: number;
   importance: UpdateImportance;
   tone: "positive" | "negative" | "neutral";
   rank?: number;

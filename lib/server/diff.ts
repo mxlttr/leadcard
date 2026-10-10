@@ -50,7 +50,11 @@ export function createRecentUpdate(
   previous: PlayerSnapshot | undefined,
   current: PlayerSnapshot,
   createdAt: string,
-  tiedForLead = false,
+  context: {
+    tiedForLead?: boolean;
+    biggestMover?: boolean;
+    strokesCloserToLead?: number;
+  } = {},
 ): RecentUpdate | null {
   if (!previous) {
     return null;
@@ -67,6 +71,7 @@ export function createRecentUpdate(
       playerName: current.name,
       division: current.division,
       text: `${current.name} ${type === "ace" ? "hits an ace" : "scores an eagle"} on hole ${hole}`,
+      kind: type,
       importance: "high",
       tone: "positive",
       rank: current.rank,
@@ -90,6 +95,7 @@ export function createRecentUpdate(
       playerName: current.name,
       division: current.division,
       text: `${current.name} finishes at ${score}`,
+      kind: current.rank <= 3 ? "podium_finish" : "finish",
       importance: updateImportance(previous, current, "finish"),
       tone: "neutral",
       rank: current.rank,
@@ -101,7 +107,7 @@ export function createRecentUpdate(
   }
 
   if (current.rank === 1 && previous.rank !== 1) {
-    if (tiedForLead) {
+    if (context.tiedForLead) {
       return null;
     }
 
@@ -111,6 +117,50 @@ export function createRecentUpdate(
       playerName: current.name,
       division: current.division,
       text: `${current.name} takes the lead at ${score}`,
+      kind: "lead_change",
+      importance: "high",
+      tone: "positive",
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
+      createdAt,
+    };
+  }
+
+  if (
+    typeof context.strokesCloserToLead === "number" &&
+    context.strokesCloserToLead >= 2 &&
+    current.rank > 1 &&
+    !context.tiedForLead &&
+    current.scoreToPar < previous.scoreToPar
+  ) {
+    return {
+      id: updateId(current, createdAt),
+      playerId: current.playerId,
+      playerName: current.name,
+      division: current.division,
+      text: `${current.name} closes the gap to the lead by ${context.strokesCloserToLead} strokes`,
+      kind: "lead_gap_closed",
+      strokes: context.strokesCloserToLead,
+      importance: "high",
+      tone: "positive",
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
+      createdAt,
+    };
+  }
+
+  if (current.rank <= 3 && previous.rank > 3) {
+    return {
+      id: updateId(current, createdAt),
+      playerId: current.playerId,
+      playerName: current.name,
+      division: current.division,
+      text: `${current.name} moves into the top three at ${score}`,
+      kind: "top_three_entry",
       importance: "high",
       tone: "positive",
       rank: current.rank,
@@ -122,11 +172,13 @@ export function createRecentUpdate(
   }
 
   if (current.rank < previous.rank) {
-    if (!isNewsworthyRankMovement(previous, current)) {
+    if (!context.biggestMover && !isNewsworthyRankMovement(previous, current)) {
       return null;
     }
 
-    const importance = updateImportance(previous, current, "rank-up");
+    const importance = context.biggestMover
+      ? "high"
+      : updateImportance(previous, current, "rank-up");
     if (importance === "low") {
       return null;
     }
@@ -137,6 +189,7 @@ export function createRecentUpdate(
       playerName: current.name,
       division: current.division,
       text: `${current.name} climbs ${previous.rank - current.rank} ${previous.rank - current.rank === 1 ? "spot" : "spots"} to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
+      kind: context.biggestMover ? "biggest_mover" : "rank_up",
       importance,
       tone: "positive",
       rank: current.rank,
@@ -163,6 +216,7 @@ export function createRecentUpdate(
       playerName: current.name,
       division: current.division,
       text: `${current.name} drops ${current.rank - previous.rank} ${current.rank - previous.rank === 1 ? "spot" : "spots"} to #${current.rank} at ${score}${throughSuffix(current.thru)}`,
+      kind: "rank_down",
       importance,
       tone: "negative",
       rank: current.rank,
@@ -180,13 +234,17 @@ export function createRecentUpdates(
   previous: PlayerSnapshot | undefined,
   current: PlayerSnapshot,
   createdAt: string,
-  tiedForLead = false,
+  context: {
+    tiedForLead?: boolean;
+    biggestMover?: boolean;
+    strokesCloserToLead?: number;
+  } = {},
 ): RecentUpdate[] {
   if (!previous) {
     return [];
   }
 
-  const update = createRecentUpdate(previous, current, createdAt, tiedForLead);
+  const update = createRecentUpdate(previous, current, createdAt, context);
   const turkeys = newlyRecordedTurkey(previous, current);
   const updates = update ? [update] : [];
 
@@ -197,6 +255,7 @@ export function createRecentUpdates(
       playerName: current.name,
       division: current.division,
       text: `${current.name} scores a turkey on holes ${turkey.holes.join(", ")}`,
+      kind: "strong_stretch",
       importance: "high",
       tone: "positive",
       rank: current.rank,

@@ -309,6 +309,33 @@ function toLeaderboardPlayers(
   const previousById = new Map(
     previousPlayers.map((player) => [player.playerId, player]),
   );
+  const biggestMoverByDivision = new Map<string, PlayerSnapshot>();
+  for (const player of currentPlayers) {
+    const previous = previousById.get(player.playerId);
+    const gain = previous ? previous.rank - player.rank : 0;
+    if (gain < 3 || !previous || player.scoreToPar >= previous.scoreToPar) {
+      continue;
+    }
+
+    const currentBiggest = biggestMoverByDivision.get(player.division);
+    const currentBiggestPrevious = currentBiggest
+      ? previousById.get(currentBiggest.playerId)
+      : undefined;
+    const currentBiggestGain =
+      currentBiggest && currentBiggestPrevious
+        ? currentBiggestPrevious.rank - currentBiggest.rank
+        : 0;
+    if (
+      gain > currentBiggestGain ||
+      (gain === currentBiggestGain &&
+        (player.rank < (currentBiggest?.rank ?? Number.POSITIVE_INFINITY) ||
+          (currentBiggest &&
+            player.rank === currentBiggest.rank &&
+            player.name.localeCompare(currentBiggest.name) < 0)))
+    ) {
+      biggestMoverByDivision.set(player.division, player);
+    }
+  }
   const updates: RecentUpdate[] = [];
 
   const players = sortPlayers(
@@ -321,8 +348,35 @@ function toLeaderboardPlayers(
           candidate.rank === 1 &&
           candidate.scoreToPar === player.scoreToPar,
       );
+      const divisionPrevious = previousPlayers.filter(
+        (candidate) => candidate.division === player.division,
+      );
+      const divisionCurrent = currentPlayers.filter(
+        (candidate) => candidate.division === player.division,
+      );
+      const previousLeadScore = Math.min(
+        ...divisionPrevious.map((candidate) => candidate.scoreToPar),
+      );
+      const currentLeadScore = Math.min(
+        ...divisionCurrent.map((candidate) => candidate.scoreToPar),
+      );
+      const strokesCloserToLead =
+        previous && previousLeadScore !== Infinity
+          ? player.scoreToPar - currentLeadScore <
+            previous.scoreToPar - previousLeadScore
+            ? previous.scoreToPar -
+              previousLeadScore -
+              (player.scoreToPar - currentLeadScore)
+            : 0
+          : 0;
       const playerUpdates = eligibleDivisions.has(player.division)
-        ? createRecentUpdates(previous, player, createdAt, tiedForLead)
+        ? createRecentUpdates(previous, player, createdAt, {
+            tiedForLead,
+            biggestMover:
+              biggestMoverByDivision.get(player.division)?.playerId ===
+              player.playerId,
+            strokesCloserToLead,
+          })
         : [];
 
       updates.push(...playerUpdates);
