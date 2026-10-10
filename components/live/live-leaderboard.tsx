@@ -776,7 +776,7 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
         <section id="tournament-picker" className="space-y-3">
           {showTournamentList ? (
             <div className="rounded-[24px] border border-border bg-surface">
-              <div className="shrink-0 border-b border-border bg-surface px-4 py-3">
+              <div className="shrink-0 rounded-t-[24px] border-b border-border bg-surface px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
