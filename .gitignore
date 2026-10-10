@@ -18,3 +18,9 @@ pnpm-debug.log*
 playwright-report
 test-results
 /tmp/
+
+.data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+dist/

@@ -271,7 +271,11 @@
     "waiting": "Warte auf die nächste Scoring-Bewegung.",
     "positive": "positiv",
     "negative": "negativ",
-    "neutral": "neutral"
+    "neutral": "neutral",
+    "loaded": "Geladen",
+    "loadOlder": "Ältere Updates laden",
+    "loadingOlder": "Wird geladen…",
+    "loadError": "Ältere Updates konnten nicht geladen werden. Bitte erneut versuchen."
   },
   "holes": {
     "finished": "Beendet",

@@ -220,6 +220,7 @@ async function loadPlayerClubs(tournamentId: string) {
       `${PLAYER_LIST_URL}${encodeURIComponent(tournamentId)}`,
       {
         cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
         headers: buildHeaders(),
       },
     );
@@ -251,7 +252,11 @@ async function loadRegisteredPlayers(tournamentId: string) {
   try {
     const response = await fetch(
       `${PLAYER_LIST_URL}${encodeURIComponent(tournamentId)}`,
-      { cache: "no-store", headers: buildHeaders() },
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+        headers: buildHeaders(),
+      },
     );
     if (!response.ok && response.status >= 500) {
       reportServerError(
@@ -488,6 +493,7 @@ function scoringStatusInLivePage(html: string): TournamentStatus {
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
   const response = await fetch(LISTING_URL, {
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
     headers: buildHeaders(),
   });
 
@@ -642,6 +648,7 @@ async function loadDynamicTournamentSnapshotHtml(
     `${LIVE_URL}${encodeURIComponent(tournamentId)}`,
     {
       cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
       headers: buildHeaders(),
     },
   );

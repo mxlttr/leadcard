@@ -7,3 +7,10 @@ playwright-report
 Dockerfile
 README.md
 AGENTS.md
+
+.data
+dist
+tmp
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

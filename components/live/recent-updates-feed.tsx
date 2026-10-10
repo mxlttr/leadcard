@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/components/i18n-provider";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -376,9 +377,17 @@ function LatestUpdatesSection({
 
 export function RecentUpdatesFeed({
   updates,
+  hasMore = false,
+  loadingOlder = false,
+  olderError = false,
+  onLoadOlder,
   onSelectUpdate,
 }: {
   updates: RecentUpdate[];
+  hasMore?: boolean;
+  loadingOlder?: boolean;
+  olderError?: boolean;
+  onLoadOlder?: () => void;
   onSelectUpdate?: (update: RecentUpdate) => void;
 }) {
   const { t } = useI18n();
@@ -388,6 +397,7 @@ export function RecentUpdatesFeed({
   );
   const seenIds = useRef(new Set<string>());
   const initialized = useRef(false);
+  const newestSeenAt = useRef(0);
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -395,17 +405,30 @@ export function RecentUpdatesFeed({
       updates.forEach((update) => {
         seenIds.current.add(update.id);
       });
+      newestSeenAt.current = Math.max(
+        0,
+        ...updates.map((u) => Date.parse(u.createdAt)),
+      );
       initialized.current = true;
       return;
     }
 
     const newIds = updates
-      .filter((update) => !seenIds.current.has(update.id))
+      .filter(
+        (update) =>
+          !seenIds.current.has(update.id) &&
+          Date.parse(update.createdAt) >= newestSeenAt.current,
+      )
       .map((update) => update.id);
 
     updates.forEach((update) => {
       seenIds.current.add(update.id);
     });
+
+    newestSeenAt.current = Math.max(
+      newestSeenAt.current,
+      ...updates.map((u) => Date.parse(u.createdAt)),
+    );
 
     if (newIds.length === 0) {
       return;
@@ -444,7 +467,7 @@ export function RecentUpdatesFeed({
                 {updates.length}
               </p>
               <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
-                {t("updates.latestTwenty")}
+                {t("updates.loaded")}
               </p>
             </div>
           </div>
@@ -469,6 +492,23 @@ export function RecentUpdatesFeed({
             />
           </div>
         )}
+        {hasMore ? (
+          <div className="space-y-2 text-center">
+            <Button
+              variant="ghost"
+              className="rounded-full border border-border"
+              disabled={loadingOlder}
+              onClick={onLoadOlder}
+            >
+              {t(loadingOlder ? "updates.loadingOlder" : "updates.loadOlder")}
+            </Button>
+            {olderError ? (
+              <p role="alert" className="text-sm text-negative">
+                {t("updates.loadError")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

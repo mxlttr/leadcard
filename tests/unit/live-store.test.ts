@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Archive } from "@/lib/server/archive";
 
 import type { PlayerSnapshot, TournamentSummary } from "@/lib/types";
 
@@ -18,7 +19,26 @@ const upcomingTournament: TournamentSummary = {
   status: "upcoming",
 };
 
-function serializeSnapshot(generatedAt: string, players: PlayerSnapshot[]) {
+function serializeSnapshot(
+  generatedAt: string,
+  input: PlayerSnapshot[],
+  padDivisions = false,
+) {
+  const players = [...input];
+  if (padDivisions) {
+    for (const division of new Set(input.map((p) => p.division))) {
+      const inDivision = input.filter((p) => p.division === division);
+      for (let i = inDivision.length; i < 4; i++) {
+        players.push({
+          ...inDivision[0],
+          playerId: `${division}-extra-${i}`,
+          name: `Extra ${i}`,
+          rank: i + 1,
+          scoreToPar: 10 + i,
+        });
+      }
+    }
+  }
   const rows = players
     .map(
       (player) => `
@@ -291,6 +311,7 @@ const unsortedDivisionLeadersHtml = serializeSnapshot(
       lastFive: [-1, 0, -1, 0, 0],
     },
   ],
+  true,
 );
 
 const unorderedDivisionsHtml = serializeSnapshot("2026-03-24T12:00:00.000Z", [
@@ -371,6 +392,7 @@ vi.mock("@/lib/server/tournament-source", () => ({
 
 describe("live-store", () => {
   beforeEach(() => {
+    globalThis.leadcardArchive = new Archive(":memory:");
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-24T12:00:00.000Z"));
     vi.resetModules();
@@ -390,6 +412,8 @@ describe("live-store", () => {
   });
 
   afterEach(() => {
+    globalThis.leadcardArchive?.close();
+    globalThis.leadcardArchive = undefined;
     vi.useRealTimers();
     globalThis.leadcardStore = undefined;
     globalThis.leadcardStoreInitialization = undefined;
@@ -399,7 +423,7 @@ describe("live-store", () => {
     getDefaultTournamentId.mockReset();
   });
 
-  it("derives divisions on first load and emits updates after the polling interval", async () => {
+  it("derives standings while suppressing updates for small divisions", async () => {
     const liveStore = await import("@/lib/server/live-store");
 
     const firstLiveResponse = await liveStore.getLiveResponse(tournament.id);
@@ -429,15 +453,56 @@ describe("live-store", () => {
         thruDelta: 1,
       },
     });
-    expect(updates.updates.map((update) => update.text)).toEqual(
-      expect.arrayContaining([
-        "Bob Birdie takes the lead at -4",
-        "Alice Ace drops to #2 at -3 through 6",
-        "Cara Chain holds the lead at E through 6",
-      ]),
-    );
+    expect(updates.updates).toEqual([]);
   });
 
+  it("collects without visitors, restores its archive after restart, and preserves scores on a failed source", async () => {
+    const { scrapeSnapshot } = await import("@/lib/server/scraper");
+    const first = serializeSnapshot(
+      "2026-03-24T12:00:00.000Z",
+      scrapeSnapshot(firstSnapshotHtml).players,
+      true,
+    );
+    const second = serializeSnapshot(
+      "2026-03-24T12:00:25.000Z",
+      scrapeSnapshot(secondSnapshotHtml).players,
+      true,
+    );
+    loadTournamentSnapshotSource.mockImplementation(
+      async (_id: string, index: number) => ({
+        tournament,
+        html: index === 0 ? first : second,
+        nextFixtureIndex: 1,
+      }),
+    );
+    const live = await import("@/lib/server/live-store");
+    await live.collectTournament(tournament.id);
+    vi.setSystemTime(new Date("2026-03-24T12:00:26.000Z"));
+    await live.collectTournament(tournament.id);
+    const before = await live.getUpdatesResponse(tournament.id);
+    expect(before.updates.some((u) => u.kind === "lead_change")).toBe(true);
+    globalThis.leadcardStore = undefined;
+    globalThis.leadcardStoreInitialization = undefined;
+    globalThis.leadcardStoreRefreshes = undefined;
+    loadTournamentSnapshotSource.mockClear();
+    const restored = await live.getLeaderboardResponse(tournament.id, "Open");
+    expect(restored.players[0].name).toBe("Bob Birdie");
+    expect(loadTournamentSnapshotSource).not.toHaveBeenCalled();
+    expect(await live.getUpdatesResponse(tournament.id)).toEqual(before);
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament,
+      html: null,
+      nextFixtureIndex: 1,
+    });
+    vi.setSystemTime(new Date("2026-03-24T12:00:52.000Z"));
+    await expect(live.collectTournament(tournament.id)).rejects.toThrow(
+      "temporarily unavailable",
+    );
+    expect(await live.getUpdatesResponse(tournament.id)).toEqual(before);
+    expect(
+      globalThis.leadcardArchive?.load(tournament.id)?.players[0].name,
+    ).toBe("Bob Birdie");
+  });
   it("does not fall back to mock standings for upcoming tournaments without live scoring", async () => {
     loadTournamentSnapshotSource.mockResolvedValue({
       tournament: upcomingTournament,

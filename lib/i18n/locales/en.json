@@ -271,7 +271,11 @@
     "waiting": "Waiting for the next scoring movement.",
     "positive": "positive",
     "negative": "negative",
-    "neutral": "neutral"
+    "neutral": "neutral",
+    "loaded": "Loaded",
+    "loadOlder": "Load older updates",
+    "loadingOlder": "Loading…",
+    "loadError": "Could not load older updates. Please try again."
   },
   "holes": {
     "finished": "Finished",

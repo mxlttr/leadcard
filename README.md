@@ -10,6 +10,7 @@ Mobile-first live leaderboard for disc golf tournaments.
 - shadcn/ui primitives
 - TanStack Query
 - Node.js + Cheerio scraping pipeline
+- SQLite archive of parsed score snapshots and versioned updates
 
 ## Development
 
@@ -70,3 +71,20 @@ npm run test:watch
 - Tournament discovery is loaded dynamically from `turniere.discgolf.de`.
 - Live standings are scraped per tournament and normalized into a derived leaderboard API for the frontend.
 - This MVP is optimized for near-live spectator viewing, not real-time shot tracking.
+
+## Persistent archive and staging
+
+The server collects Live/Today tournaments without browser traffic. Configure
+`LEADCARD_DB_PATH` to a persistent volume in deployed environments (required in
+production). Locally the default is `.data/leadcard.sqlite`. Mock data stays in
+memory. Set `LEADCARD_COLLECTOR_ENABLED=false` to disable unattended collection.
+
+```bash
+npm run archive -- status
+npm run archive -- backup /tmp/leadcard-backup.sqlite
+npm run archive -- replay --all v1
+```
+
+The Docker image includes the same tool as `node archive.cjs`. The updates feed
+loads 50 events per page; all snapshots and updates are retained. See
+[the temporary Coolify staging and cutover runbook](docs/staging-archive.md).

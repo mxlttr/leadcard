@@ -142,6 +142,8 @@ export type ClubsResponse = {
 };
 
 export type UpdatesResponse = {
+  nextCursor?: string | null;
+  archiveVersion?: string;
   tournamentId: string;
   updates: RecentUpdate[];
   generatedAt: string;
