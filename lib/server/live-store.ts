@@ -314,8 +314,15 @@ function toLeaderboardPlayers(
   const players = sortPlayers(
     currentPlayers.map((player) => {
       const previous = previousById.get(player.playerId);
+      const tiedForLead = currentPlayers.some(
+        (candidate) =>
+          candidate.playerId !== player.playerId &&
+          candidate.division === player.division &&
+          candidate.rank === 1 &&
+          candidate.scoreToPar === player.scoreToPar,
+      );
       const playerUpdates = eligibleDivisions.has(player.division)
-        ? createRecentUpdates(previous, player, createdAt)
+        ? createRecentUpdates(previous, player, createdAt, tiedForLead)
         : [];
 
       updates.push(...playerUpdates);

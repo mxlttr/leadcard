@@ -50,6 +50,7 @@ export function createRecentUpdate(
   previous: PlayerSnapshot | undefined,
   current: PlayerSnapshot,
   createdAt: string,
+  tiedForLead = false,
 ): RecentUpdate | null {
   if (!previous) {
     return null;
@@ -100,6 +101,10 @@ export function createRecentUpdate(
   }
 
   if (current.rank === 1 && previous.rank !== 1) {
+    if (tiedForLead) {
+      return null;
+    }
+
     return {
       id: updateId(current, createdAt),
       playerId: current.playerId,
@@ -175,12 +180,13 @@ export function createRecentUpdates(
   previous: PlayerSnapshot | undefined,
   current: PlayerSnapshot,
   createdAt: string,
+  tiedForLead = false,
 ): RecentUpdate[] {
   if (!previous) {
     return [];
   }
 
-  const update = createRecentUpdate(previous, current, createdAt);
+  const update = createRecentUpdate(previous, current, createdAt, tiedForLead);
   const turkeys = newlyRecordedTurkey(previous, current);
   const updates = update ? [update] : [];
 
