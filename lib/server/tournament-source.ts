@@ -391,6 +391,7 @@ function scoringStatusInLivePage(html: string): TournamentStatus {
       .filter((round) => Number.isInteger(round) && round > 0 && round !== 99),
   );
   let hasCompletedFinalRound = false;
+  let hasCompletedRound = false;
 
   for (let index = 0; index < sections.length; index += 2) {
     const thead = sections[index];
@@ -469,11 +470,19 @@ function scoringStatusInLivePage(html: string): TournamentStatus {
         hasCompletedFinalRound = true;
       }
 
+      if (playedHoles === holeCount) {
+        hasCompletedRound = true;
+      }
+
       rowIndex = nextIndex - 1;
     }
   }
 
-  return hasCompletedFinalRound ? "finished" : "today";
+  if (hasCompletedFinalRound) {
+    return "finished";
+  }
+
+  return hasCompletedRound && totalRounds > 1 ? "live" : "today";
 }
 
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
