@@ -580,11 +580,15 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       ? orderedPlayers
       : orderedPlayers.slice(0, INITIAL_PLAYER_COUNT);
   const isCrossDivisionSearch = Boolean(normalizedSearchQuery || clubFilter);
+  const isUpcomingStarterList =
+    Boolean(liveData && isStartingListStatus(liveData.tournament.status)) &&
+    !hasScoredPlayers;
   const groupedPlayers = groupPlayers(
     visiblePlayers,
     filterMode,
     isCrossDivisionSearch,
-    selectedDivision === ALL_DIVISIONS && !isCrossDivisionSearch,
+    (selectedDivision === ALL_DIVISIONS || isUpcomingStarterList) &&
+      !isCrossDivisionSearch,
     t,
   );
   const canShowAllPlayers =
