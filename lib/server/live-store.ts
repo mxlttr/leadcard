@@ -5,7 +5,6 @@ import { getArchive, isArchivedTournament } from "@/lib/server/archive";
 import { reportServerError } from "@/lib/server/report-error";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
-  getDefaultTournamentId,
   getMockReplaySnapshotCount,
   getTournamentCatalog,
   loadTournamentSnapshotSource,
@@ -618,16 +617,15 @@ export async function controlMockReplay(
 }
 
 export async function getResolvedTournamentId(tournamentId?: string | null) {
-  if (!tournamentId) {
-    return getDefaultTournamentId();
+  const tournaments = await getTournamentCatalogWithArchive();
+  if (tournamentId && tournaments.some((t) => t.id === tournamentId)) {
+    return tournamentId;
   }
 
-  const tournaments = await getTournamentCatalogWithArchive();
-  const hasTournament = tournaments.some(
-    (tournament) => tournament.id === tournamentId,
-  );
-
-  return hasTournament ? tournamentId : getDefaultTournamentId();
+  const fallback =
+    tournaments.find((t) => t.status === "live") ?? tournaments[0];
+  if (!fallback) throw new Error("No tournaments are currently available");
+  return fallback.id;
 }
 
 export async function getLeaderboardResponse(

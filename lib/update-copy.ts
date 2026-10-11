@@ -1,3 +1,5 @@
+import type { AppLocale } from "@/lib/i18n";
+import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { RecentUpdate } from "@/lib/types";
 import { formatScore } from "@/lib/utils";
 
@@ -12,6 +14,7 @@ function copyVariant(update: RecentUpdate, key: string) {
 export function formatUpdateText(
   update: RecentUpdate,
   t: (key: string, params?: Record<string, string | number>) => string,
+  locale: AppLocale = "en",
 ) {
   if (update.kind === "round_complete") {
     return t("updates.copy.roundComplete", { round: update.round ?? "" });
@@ -97,7 +100,7 @@ export function formatUpdateText(
     if (update.kind === "round_top_three_finish") {
       const params = {
         name: update.playerName,
-        division: update.division,
+        division: translateDivisionLabel(update.division, locale),
         round: update.round ?? "",
         place: finishPlace(
           typeof update.rank === "number" ? update.rank : null,
@@ -116,7 +119,7 @@ export function formatUpdateText(
 
     const params = {
       name: update.playerName,
-      division: update.division,
+      division: translateDivisionLabel(update.division, locale),
       place: finishPlace(
         typeof update.rank === "number" ? update.rank : null,
         t,

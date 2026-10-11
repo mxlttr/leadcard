@@ -726,8 +726,7 @@ export async function getTournamentCatalog() {
   globalThis.leadcardTournamentCatalogPromise = (async () => {
     try {
       const dynamicCatalog = await loadDynamicTournamentCatalog();
-      const tournaments =
-        dynamicCatalog.length > 0 ? dynamicCatalog : getMockTournamentCatalog();
+      const tournaments = dynamicCatalog;
       globalThis.leadcardTournamentCatalogCache = {
         tournaments,
         cachedAt: Date.now(),
@@ -738,7 +737,7 @@ export async function getTournamentCatalog() {
       if (cachedCatalog) {
         return cachedCatalog.tournaments;
       }
-      return getMockTournamentCatalog();
+      return [];
     } finally {
       globalThis.leadcardTournamentCatalogPromise = undefined;
     }
@@ -752,7 +751,9 @@ export async function getDefaultTournamentId() {
   const liveTournament = catalog.find(
     (tournament) => tournament.status === "live",
   );
-  return liveTournament?.id ?? catalog[0]?.id ?? defaultMockTournamentId;
+  const tournamentId = liveTournament?.id ?? catalog[0]?.id;
+  if (tournamentId) return tournamentId;
+  throw new Error("No tournaments are currently available");
 }
 
 async function getTournamentSummary(tournamentId: string) {

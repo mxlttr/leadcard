@@ -174,7 +174,7 @@ function UpdateLine({
   const [now, setNow] = useState(() => Date.now());
   const Icon = itemIcon(update);
   const accent = toneAccent(update);
-  const updateText = formatUpdateText(update, t);
+  const updateText = formatUpdateText(update, t, locale);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
