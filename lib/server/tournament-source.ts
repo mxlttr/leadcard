@@ -514,6 +514,20 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
   const baseTournaments = $("#list_tournaments tbody tr")
     .map((_, row) => {
       const cells = $(row).find("td");
+      const hasExcludedBadge = cells
+        .eq(0)
+        .find(".badge")
+        .toArray()
+        .some((badge) =>
+          ["vorläufig", "abgesagt"].includes(
+            sanitizeText($(badge).text()).toLocaleLowerCase("de-DE"),
+          ),
+        );
+
+      if (hasExcludedBadge) {
+        return null;
+      }
+
       const eventLink = cells
         .eq(0)
         .find("a[href*='sp=view'][href*='id=']")
