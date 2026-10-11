@@ -303,7 +303,12 @@ function MergedEventItem({
             key={update.id}
             update={update}
             fresh={freshIds.has(update.id)}
-            onSelect={onSelect}
+            onSelect={
+              update.kind === "round_complete" ||
+              update.kind === "tournament_complete"
+                ? undefined
+                : onSelect
+            }
           />
         ))}
       </div>
