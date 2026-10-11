@@ -58,7 +58,8 @@ export type RecentUpdateKind =
   | "biggest_mover"
   | "lead_gap_closed"
   | "rank_up"
-  | "rank_down";
+  | "rank_down"
+  | "hole_rank_move";
 
 export type RecentUpdate = {
   id: string;
@@ -74,6 +75,8 @@ export type RecentUpdate = {
   previousRank?: number;
   scoreToPar?: number;
   thru?: ThruValue;
+  hole?: number;
+  holeRelativeToPar?: number;
   createdAt: string;
 };
 

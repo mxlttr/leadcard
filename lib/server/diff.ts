@@ -106,6 +106,41 @@ export function createRecentUpdate(
     };
   }
 
+  const newHole = newlyRecordedHole(previous, current);
+  const movedUp = current.rank < previous.rank;
+  const movedDown = current.rank > previous.rank;
+  const scoreExplainsMovement = Boolean(
+    newHole &&
+      ((movedUp && newHole.relativeToPar <= -1) ||
+        (movedDown && newHole.relativeToPar >= 1)),
+  );
+
+  // A rank can change because other players scored. Only attribute movement to
+  // this player when their newly recorded hole supports that explanation.
+  if ((movedUp || movedDown) && !scoreExplainsMovement) {
+    return null;
+  }
+
+  if (scoreExplainsMovement && newHole) {
+    return {
+      id: updateId(current, createdAt),
+      playerId: current.playerId,
+      playerName: current.name,
+      division: current.division,
+      text: `${current.name} ${movedUp ? "moves up" : "drops"} after hole ${newHole.hole}`,
+      kind: "hole_rank_move",
+      importance: "high",
+      tone: movedUp ? "positive" : "negative",
+      rank: current.rank,
+      previousRank: previous.rank,
+      scoreToPar: current.scoreToPar,
+      thru: current.thru,
+      hole: newHole.hole,
+      holeRelativeToPar: newHole.relativeToPar,
+      createdAt,
+    };
+  }
+
   if (current.rank === 1 && previous.rank !== 1) {
     if (context.tiedForLead) {
       return null;
@@ -415,6 +450,27 @@ function newlyRecordedSpecialHole(
   }
 
   return null;
+}
+
+function newlyRecordedHole(previous: PlayerSnapshot, current: PlayerSnapshot) {
+  const currentRound = current.rounds?.at(-1);
+  if (!currentRound) return null;
+  const previousRound = previous.rounds?.find(
+    (round) => round.order === currentRound.order,
+  );
+  const previousHoles = new Map(
+    (previousRound?.holes ?? []).map((hole) => [hole.hole, hole]),
+  );
+  const changed = currentRound.holes.filter(
+    (hole) =>
+      hole.relativeToPar !== null &&
+      (previousHoles.get(hole.hole)?.relativeToPar === null ||
+        previousHoles.get(hole.hole)?.relativeToPar === undefined),
+  );
+  const hole = changed.at(-1);
+  return hole?.relativeToPar === null || !hole
+    ? null
+    : { hole: hole.hole, relativeToPar: hole.relativeToPar };
 }
 
 export function formatScore(scoreToPar: number) {

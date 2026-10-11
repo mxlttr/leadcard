@@ -13,12 +13,12 @@ import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import {
   buildRecentUpdatesFeed,
   leadContext,
   type MergedEvent,
+  type RecentFeedItem,
 } from "@/lib/recent-updates";
 import type { RecentUpdate } from "@/lib/types";
 import { formatUpdateText } from "@/lib/update-copy";
@@ -296,79 +296,41 @@ function MergedEventItem({
   );
 }
 
-function KeyMomentsSection({
-  events,
+function TimelineSection({
+  items,
   freshIds,
   onSelectUpdate,
 }: {
-  events: MergedEvent[];
+  items: RecentFeedItem[];
   freshIds: Set<string>;
   onSelectUpdate?: (update: RecentUpdate) => void;
 }) {
-  const { t } = useI18n();
-
-  if (events.length === 0) {
-    return null;
-  }
-
-  return (
-    <section id="key-moments" className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
-          {t("updates.keyMoments")}
-        </h3>
-        <span className="text-xs text-muted">{events.length}</span>
-      </div>
-      <div className="space-y-3">
-        {events.map((event) => (
-          <MergedEventItem
-            key={event.id}
-            event={event}
-            freshIds={freshIds}
-            onSelect={onSelectUpdate}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function LatestUpdatesSection({
-  updates,
-  freshIds,
-  onSelectUpdate,
-}: {
-  updates: RecentUpdate[];
-  freshIds: Set<string>;
-  onSelectUpdate?: (update: RecentUpdate) => void;
-}) {
-  const { t } = useI18n();
-
-  if (updates.length === 0) {
+  if (items.length === 0) {
     return null;
   }
 
   return (
     <section id="latest-updates" className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-muted">
-          {t("updates.latest")}
-        </h3>
-        <span className="text-xs text-muted">{updates.length}</span>
-      </div>
-      <ScrollArea className={updates.length > 8 ? "h-[320px]" : "h-auto"}>
+      <ScrollArea className={items.length > 8 ? "h-[420px]" : "h-auto"}>
         <div className="space-y-3 pr-4">
-          {updates.map((update, index) => (
-            <div key={update.id} className="space-y-3">
-              <UpdateLine
-                update={update}
-                compact
-                fresh={freshIds.has(update.id)}
+          {items.map((item) =>
+            item.type === "event" ? (
+              <MergedEventItem
+                key={item.id}
+                event={item.event}
+                freshIds={freshIds}
                 onSelect={onSelectUpdate}
               />
-              {index < updates.length - 1 ? <Separator /> : null}
-            </div>
-          ))}
+            ) : (
+              <UpdateLine
+                key={item.id}
+                update={item.update}
+                compact
+                fresh={freshIds.has(item.update.id)}
+                onSelect={onSelectUpdate}
+              />
+            ),
+          )}
         </div>
       </ScrollArea>
     </section>
@@ -391,7 +353,7 @@ export function RecentUpdatesFeed({
   onSelectUpdate?: (update: RecentUpdate) => void;
 }) {
   const { t } = useI18n();
-  const { keyMoments, latestUpdates } = useMemo(
+  const { timeline } = useMemo(
     () => buildRecentUpdatesFeed(updates),
     [updates],
   );
@@ -480,13 +442,8 @@ export function RecentUpdatesFeed({
           </div>
         ) : (
           <div className="space-y-5">
-            <KeyMomentsSection
-              events={keyMoments}
-              freshIds={freshIds}
-              onSelectUpdate={onSelectUpdate}
-            />
-            <LatestUpdatesSection
-              updates={latestUpdates}
+            <TimelineSection
+              items={timeline}
               freshIds={freshIds}
               onSelectUpdate={onSelectUpdate}
             />

@@ -45,6 +45,14 @@ export function formatUpdateText(
       ? t("updates.copy.throughSuffix", { hole: update.thru })
       : "";
 
+  if (update.kind === "hole_rank_move") {
+    const key =
+      update.holeRelativeToPar !== undefined && update.holeRelativeToPar <= -1
+        ? "updates.copy.birdieMovesUp"
+        : "updates.copy.bogeyDropsDown";
+    return t(key, { name: update.playerName, hole: update.hole ?? "", rank });
+  }
+
   if (update.thru === "F") {
     return t(
       copyVariant(

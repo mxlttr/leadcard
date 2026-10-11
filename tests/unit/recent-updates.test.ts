@@ -26,7 +26,7 @@ function update(
 }
 
 describe("buildRecentUpdatesFeed", () => {
-  it("merges high-importance top-3 moments into a single event block", () => {
+  it("groups only updates from the same leaderboard snapshot", () => {
     const updates = [
       update({
         id: "lead-1",
@@ -70,11 +70,14 @@ describe("buildRecentUpdatesFeed", () => {
 
     const feed = buildRecentUpdatesFeed(updates);
 
-    expect(feed.keyMoments).toHaveLength(1);
+    expect(feed.keyMoments).toHaveLength(2);
     expect(feed.keyMoments[0]?.type).toBe("lead_change");
     expect(
       feed.keyMoments[0]?.updates.map((entry) => entry.playerName),
-    ).toEqual(["Jonas Weber", "Lukas Hartmann", "Mika Braun"]);
+    ).toEqual(["Jonas Weber", "Lukas Hartmann"]);
+    expect(
+      feed.keyMoments[1]?.updates.map((entry) => entry.playerName),
+    ).toEqual(["Mika Braun"]);
     expect(feed.latestUpdates.map((entry) => entry.id)).toEqual(["latest-1"]);
   });
 

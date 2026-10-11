@@ -253,7 +253,9 @@
       "holdsPosition": "{{name}} hält {{rank}} bei {{score}}{{through}}",
       "holdsPositionAlt2": "{{name}} bleibt auf {{rank}} bei {{score}}{{through}}",
       "holdsPositionAlt3": "{{name}} verteidigt {{rank}} mit {{score}}{{through}}",
-      "throughSuffix": " nach {{hole}} Bahnen"
+      "throughSuffix": " nach {{hole}} Bahnen",
+      "birdieMovesUp": "Birdie auf Bahn {{hole}} bringt {{name}} auf {{rank}}",
+      "bogeyDropsDown": "Bogey oder schlechter auf Bahn {{hole}} setzt {{name}} auf {{rank}} zurück"
     },
     "labels": {
       "leadChange": "Führungswechsel",
