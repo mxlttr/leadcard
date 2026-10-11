@@ -14,8 +14,11 @@ export type MergedEvent = {
   createdAt: string;
 };
 
+export type RecentFeedItem =
+  | { type: "event"; id: string; createdAt: string; event: MergedEvent }
+  | { type: "update"; id: string; createdAt: string; update: RecentUpdate };
+
 const DEDUPE_WINDOW_MS = 5 * 60 * 1000;
-const EVENT_WINDOW_MS = 10 * 60 * 1000;
 
 export function buildRecentUpdatesFeed(updates: RecentUpdate[]) {
   const deduped = dedupeRecentUpdates(updates);
@@ -65,11 +68,31 @@ export function buildRecentUpdatesFeed(updates: RecentUpdate[]) {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
+  const latestUpdates = deduped.filter(
+    (update) => !consumedUpdateIds.has(update.id),
+  );
+  const timeline: RecentFeedItem[] = [
+    ...keyMoments.map((event) => ({
+      type: "event" as const,
+      id: event.id,
+      createdAt: event.createdAt,
+      event,
+    })),
+    ...latestUpdates.map((update) => ({
+      type: "update" as const,
+      id: update.id,
+      createdAt: update.createdAt,
+      update,
+    })),
+  ].sort((a, b) => {
+    const timeDifference = Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    return timeDifference || a.id.localeCompare(b.id);
+  });
+
   return {
     keyMoments,
-    latestUpdates: deduped.filter(
-      (update) => !consumedUpdateIds.has(update.id),
-    ),
+    latestUpdates,
+    timeline,
   };
 }
 
@@ -148,7 +171,9 @@ function canMergeIntoEvent(
   const eventTimestamp = new Date(event.createdAt).getTime();
   const updateTimestamp = new Date(update.createdAt).getTime();
 
-  if (Math.abs(eventTimestamp - updateTimestamp) > EVENT_WINDOW_MS) {
+  // Each scrape is a single leaderboard snapshot. Combining separate snapshots
+  // makes the feed read like one event and can scramble the apparent timeline.
+  if (eventTimestamp !== updateTimestamp) {
     return false;
   }
 

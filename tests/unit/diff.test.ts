@@ -94,26 +94,40 @@ describe("createRecentUpdate", () => {
     });
   });
 
-  it("reports a positive rank move", () => {
+  it("does not attribute a rank move without a new birdie or better", () => {
     const update = createRecentUpdate(
       player({ rank: 3, scoreToPar: -2, thru: 10 }),
       player({ rank: 1, scoreToPar: -4, thru: 12 }),
       createdAt,
     );
 
-    expect(update).toEqual({
-      id: "player-1:2026-03-24T12:00:25.000Z:1:-4:12",
-      playerId: "player-1",
-      playerName: "Test Player",
-      division: "Open",
-      text: "Test Player takes the lead at -4",
-      importance: "high",
-      tone: "positive",
-      rank: 1,
-      previousRank: 3,
-      scoreToPar: -4,
-      thru: 12,
+    expect(update).toBeNull();
+  });
+
+  it("attributes an upward rank move to a newly recorded birdie", () => {
+    const update = createRecentUpdate(
+      player({ rank: 3, scoreToPar: 0, thru: 1, rounds: [round(1, 1)] }),
+      player({
+        rank: 1,
+        scoreToPar: -1,
+        thru: 2,
+        rounds: [
+          {
+            ...round(2, 2),
+            holes: [
+              ...round(1, 1).holes,
+              { hole: 2, par: 3, score: 2, relativeToPar: -1 },
+            ],
+          },
+        ],
+      }),
       createdAt,
+    );
+    expect(update).toMatchObject({
+      kind: "hole_rank_move",
+      hole: 2,
+      holeRelativeToPar: -1,
+      rank: 1,
     });
   });
 

@@ -253,7 +253,9 @@
       "holdsPosition": "{{name}} holds {{rank}} at {{score}}{{through}}",
       "holdsPositionAlt2": "{{name}} stays at {{rank}} with {{score}}{{through}}",
       "holdsPositionAlt3": "No change for {{name}}: {{rank}} at {{score}}{{through}}",
-      "throughSuffix": " through {{hole}}"
+      "throughSuffix": " through {{hole}}",
+      "birdieMovesUp": "Birdie on hole {{hole}} moves {{name}} up to {{rank}}",
+      "bogeyDropsDown": "Bogey or worse on hole {{hole}} drops {{name}} to {{rank}}"
     },
     "labels": {
       "leadChange": "Lead change",
