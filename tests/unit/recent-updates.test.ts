@@ -101,4 +101,32 @@ describe("buildRecentUpdatesFeed", () => {
     expect(feed.keyMoments[0]?.updates).toHaveLength(1);
     expect(feed.keyMoments[0]?.updates[0]?.id).toBe("repeat-new");
   });
+
+  it("renders tournament milestones as standalone timeline events", () => {
+    const feed = buildRecentUpdatesFeed([
+      update({
+        id: "round-complete",
+        playerId: "tournament-cup",
+        playerName: "Cup",
+        division: "",
+        kind: "round_complete",
+        round: 2,
+        rank: undefined,
+        previousRank: undefined,
+        scoreToPar: undefined,
+        thru: undefined,
+        text: "",
+      }),
+    ]);
+
+    expect(feed.timeline).toMatchObject([
+      {
+        type: "event",
+        event: {
+          type: "round_complete",
+          updates: [{ kind: "round_complete", round: 2 }],
+        },
+      },
+    ]);
+  });
 });
