@@ -214,6 +214,7 @@
       "podiumFinish": "{{name}} beendet die Runde auf dem Podium, Platz {{place}}",
       "podiumFinishAlt2": "Podiumsplatz für {{name}}: Platz {{place}}",
       "podiumFinishAlt3": "{{name}} schließt die Runde in den Top 3 auf Platz {{place}} ab",
+      "roundTopThreeFinish": "{{name}} beendet Runde {{round}} in den Top 3",
       "finishPlaces": {
         "1": "1",
         "2": "2",

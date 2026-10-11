@@ -54,6 +54,7 @@ export function createRecentUpdate(
     tiedForLead?: boolean;
     biggestMover?: boolean;
     strokesCloserToLead?: number;
+    finalRound?: boolean;
   } = {},
 ): RecentUpdate | null {
   if (!previous) {
@@ -95,13 +96,21 @@ export function createRecentUpdate(
       playerName: current.name,
       division: current.division,
       text: `${current.name} finishes at ${score}`,
-      kind: current.rank <= 3 ? "podium_finish" : "finish",
+      kind:
+        current.rank <= 3
+          ? context.finalRound
+            ? "podium_finish"
+            : "round_top_three_finish"
+          : "finish",
       importance: updateImportance(previous, current, "finish"),
       tone: "neutral",
       rank: current.rank,
       previousRank: previous.rank,
       scoreToPar: current.scoreToPar,
       thru: current.thru,
+      ...(current.rounds?.at(-1)?.order
+        ? { round: current.rounds.at(-1)?.order }
+        : {}),
       createdAt,
     };
   }
@@ -273,6 +282,7 @@ export function createRecentUpdates(
     tiedForLead?: boolean;
     biggestMover?: boolean;
     strokesCloserToLead?: number;
+    finalRound?: boolean;
   } = {},
 ): RecentUpdate[] {
   if (!previous) {
