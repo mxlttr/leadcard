@@ -8,6 +8,10 @@ Do not point production auto-deployment at this branch during the soak.
 1. Create a separate Coolify application using this repository and the
    `staging/sqlite-archive` branch, built with the repository Dockerfile.
    Choose the staging hostname when creating the application. Use one replica.
+   In the application's Container settings, set **Container naming** to
+   **Consistent name (no rolling updates)**. Coolify then builds the replacement
+   image before stopping the current container and starting the replacement,
+   avoiding overlapping SQLite collectors during deployment.
 2. Add a persistent **local volume** mounted at `/data`. Give the container user
    (UID/GID 1001) read/write access. Mount the directory, not just the SQLite file:
    SQLite also writes WAL and shared-memory files beside it. Do not use NFS.
