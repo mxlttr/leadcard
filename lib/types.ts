@@ -54,6 +54,8 @@ export type RecentUpdateKind =
   | "finish"
   | "podium_finish"
   | "round_top_three_finish"
+  | "round_complete"
+  | "tournament_complete"
   | "lead_change"
   | "top_three_entry"
   | "biggest_mover"
@@ -79,6 +81,7 @@ export type RecentUpdate = {
   hole?: number;
   holeRelativeToPar?: number;
   round?: number;
+  tiedFirst?: Array<{ division: string; players: string[] }>;
   createdAt: string;
 };
 

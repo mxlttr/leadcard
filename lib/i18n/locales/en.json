@@ -215,6 +215,9 @@
       "podiumFinishAlt2": "A podium finish for {{name}} in {{place}} place",
       "podiumFinishAlt3": "{{name}} closes the round in the top three: {{place}}",
       "roundTopThreeFinish": "{{name}} finishes round {{round}} in the top three",
+      "roundComplete": "Round {{round}} is over. Players are getting ready for the next round.",
+      "tournamentComplete": "Tournament complete. Final standings are in.",
+      "tournamentCompleteTie": "Tournament complete. Tied for first: {{ties}}. A tiebreaker is expected, but its result isn’t in the scoring data.",
       "finishPlaces": {
         "1": "first",
         "2": "second",
@@ -263,7 +266,9 @@
       "leadBattle": "Lead Card",
       "top3": "Top 3 update",
       "finish": "Finish",
-      "surge": "Big swing"
+      "surge": "Big swing",
+      "roundComplete": "Round complete",
+      "tournamentComplete": "Tournament complete"
     },
     "context": {
       "leadsBy": "Now leads by {{strokes}} strokes",

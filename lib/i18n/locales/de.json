@@ -215,6 +215,9 @@
       "podiumFinishAlt2": "Podiumsplatz für {{name}}: Platz {{place}}",
       "podiumFinishAlt3": "{{name}} schließt die Runde in den Top 3 auf Platz {{place}} ab",
       "roundTopThreeFinish": "{{name}} beendet Runde {{round}} in den Top 3",
+      "roundComplete": "Runde {{round}} ist beendet. Die Spieler bereiten sich auf die nächste Runde vor.",
+      "tournamentComplete": "Das Turnier ist beendet. Die Endplatzierungen stehen fest.",
+      "tournamentCompleteTie": "Das Turnier ist beendet. Gleichstand an der Spitze: {{ties}}. Ein Stechen ist zu erwarten, dessen Ergebnis ist aber nicht in den Scoring-Daten enthalten.",
       "finishPlaces": {
         "1": "1",
         "2": "2",
@@ -263,7 +266,9 @@
       "leadBattle": "Kampf um die Führung",
       "top3": "Top-3-Update",
       "finish": "Finish",
-      "surge": "Großer Swing"
+      "surge": "Großer Swing",
+      "roundComplete": "Runde beendet",
+      "tournamentComplete": "Turnier beendet"
     },
     "context": {
       "leadsBy": "Jetzt {{strokes}} Würfe Vorsprung",

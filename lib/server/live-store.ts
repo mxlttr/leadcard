@@ -488,6 +488,7 @@ async function deriveNextState(
     previousSnapshot,
     enrichedPlayers,
     nextSnapshot.generatedAt,
+    source.tournament,
   );
 
   store.tournament = {
