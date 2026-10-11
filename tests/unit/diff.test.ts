@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPlayerDelta,
   createRecentUpdate,
+  createTournamentMilestoneUpdate,
   formatScore,
 } from "@/lib/server/diff";
 import type { PlayerRound, PlayerSnapshot } from "@/lib/types";
@@ -256,5 +257,73 @@ describe("formatScore", () => {
     expect(formatScore(-3)).toBe("-3");
     expect(formatScore(0)).toBe("E");
     expect(formatScore(4)).toBe("+4");
+  });
+});
+
+describe("createTournamentMilestoneUpdate", () => {
+  const createdAt = "2026-10-11T12:00:00.000Z";
+  const tournament = {
+    id: "cup",
+    name: "Cup",
+    course: "Course",
+    roundLabel: "Round 1 of 3",
+    currentRound: 1,
+    totalRounds: 3,
+    status: "live" as const,
+  };
+
+  it("announces a round completion once the whole field has finished", () => {
+    const update = createTournamentMilestoneUpdate(
+      [player({ thru: 17 })],
+      [player({ thru: "F", rounds: [round(18, "F")] })],
+      createdAt,
+      tournament,
+    );
+
+    expect(update).toMatchObject([
+      { kind: "round_complete", round: 1, division: "" },
+    ]);
+  });
+
+  it("announces a final tie without declaring a winner", () => {
+    const update = createTournamentMilestoneUpdate(
+      [player({ thru: 17 })],
+      [
+        player({
+          thru: "F",
+          rank: 1,
+          scoreToPar: -5,
+          rounds: [round(18, "F")],
+        }),
+        player({
+          playerId: "player-2",
+          name: "Another Player",
+          thru: "F",
+          rank: 2,
+          scoreToPar: -5,
+          rounds: [round(18, "F")],
+        }),
+      ],
+      createdAt,
+      { ...tournament, currentRound: 3, status: "finished" },
+    );
+
+    expect(update[0]).toMatchObject({
+      kind: "tournament_complete",
+      tiedFirst: [
+        { division: "Open", players: ["Test Player", "Another Player"] },
+      ],
+    });
+  });
+
+  it("does not claim another round is coming when the round count is unknown", () => {
+    expect(
+      createTournamentMilestoneUpdate(
+        [player({ thru: 17 })],
+        [player({ thru: "F", rounds: [round(18, "F")] })],
+        createdAt,
+        { ...tournament, totalRounds: undefined },
+      ),
+    ).toEqual([]);
   });
 });

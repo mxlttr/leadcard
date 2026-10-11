@@ -1,7 +1,11 @@
 import { load } from "cheerio";
 import { sortDivisionLabels } from "@/lib/i18n/divisions";
 import { playerClubKey } from "@/lib/player-club";
-import { createPlayerDelta, createRecentUpdates } from "@/lib/server/diff";
+import {
+  createPlayerDelta,
+  createRecentUpdates,
+  createTournamentMilestoneUpdate,
+} from "@/lib/server/diff";
 import { reportServerError } from "@/lib/server/report-error";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
@@ -304,7 +308,7 @@ function toLeaderboardPlayers(
   previousPlayers: PlayerSnapshot[],
   currentPlayers: PlayerSnapshot[],
   createdAt: string,
-  totalRounds?: number,
+  tournament: TournamentSummary,
 ) {
   const eligibleDivisions = divisionsWithMoreThanThreePlayers(currentPlayers);
   const previousById = new Map(
@@ -378,8 +382,8 @@ function toLeaderboardPlayers(
               player.playerId,
             strokesCloserToLead,
             finalRound:
-              totalRounds !== undefined &&
-              player.rounds?.at(-1)?.order === totalRounds,
+              tournament.totalRounds !== undefined &&
+              player.rounds?.at(-1)?.order === tournament.totalRounds,
           })
         : [];
 
@@ -391,6 +395,15 @@ function toLeaderboardPlayers(
         latestUpdate: playerUpdates[0] ?? null,
       };
     }),
+  );
+
+  updates.push(
+    ...createTournamentMilestoneUpdate(
+      previousPlayers,
+      currentPlayers,
+      createdAt,
+      tournament,
+    ),
   );
 
   return { players, updates };
@@ -574,7 +587,7 @@ async function advanceStore(store: LiveState) {
     previousSnapshot,
     enrichedPlayers,
     nextSnapshot.generatedAt,
-    source.tournament.totalRounds,
+    source.tournament,
   );
 
   store.tournament = {

@@ -1,6 +1,8 @@
 import type { RecentUpdate } from "@/lib/types";
 
 export type MergedEventType =
+  | "round_complete"
+  | "tournament_complete"
   | "lead_change"
   | "top3_shuffle"
   | "finish"
@@ -135,6 +137,9 @@ function dedupeRecentUpdates(updates: RecentUpdate[]) {
 }
 
 function eventTypeFor(update: RecentUpdate): MergedEventType | null {
+  if (update.kind === "round_complete") return "round_complete";
+  if (update.kind === "tournament_complete") return "tournament_complete";
+
   if (update.rank === 1 && update.previousRank && update.previousRank !== 1) {
     return "lead_change";
   }

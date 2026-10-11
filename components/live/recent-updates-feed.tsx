@@ -54,6 +54,12 @@ function toneAccent(update: RecentUpdate) {
 }
 
 function itemIcon(update: RecentUpdate) {
+  if (
+    update.kind === "round_complete" ||
+    update.kind === "tournament_complete"
+  ) {
+    return Flag;
+  }
   if (update.rank === 1) {
     return Crown;
   }
@@ -70,7 +76,9 @@ function eventMeta(
   locale: "en" | "de",
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
-  const parts = [translateDivisionLabel(update.division, locale)];
+  const parts = update.division
+    ? [translateDivisionLabel(update.division, locale)]
+    : [];
 
   if (typeof update.rank === "number") {
     parts.push(`#${update.rank}`);
@@ -89,6 +97,14 @@ function eventMeta(
 
 function EventLabel({ event }: { event: MergedEvent }) {
   const { t } = useI18n();
+
+  if (event.type === "round_complete") {
+    return <>{t("updates.labels.roundComplete")}</>;
+  }
+
+  if (event.type === "tournament_complete") {
+    return <>{t("updates.labels.tournamentComplete")}</>;
+  }
 
   if (event.type === "lead_change") {
     const key = event.updates.length > 1 ? "leadBattle" : "leadChange";

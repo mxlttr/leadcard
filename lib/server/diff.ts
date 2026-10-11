@@ -3,8 +3,77 @@ import type {
   PlayerRound,
   PlayerSnapshot,
   RecentUpdate,
+  TournamentSummary,
   UpdateImportance,
 } from "@/lib/types";
+
+export function createTournamentMilestoneUpdate(
+  previousPlayers: PlayerSnapshot[],
+  currentPlayers: PlayerSnapshot[],
+  createdAt: string,
+  tournament: TournamentSummary,
+): RecentUpdate[] {
+  if (
+    currentPlayers.length === 0 ||
+    !currentPlayers.every((player) => player.thru === "F") ||
+    (previousPlayers.length > 0 &&
+      previousPlayers.every((player) => player.thru === "F"))
+  ) {
+    return [];
+  }
+
+  const round =
+    tournament.currentRound ??
+    Math.max(
+      ...currentPlayers.map((player) => player.rounds?.at(-1)?.order ?? 0),
+    );
+  if (round < 1) return [];
+  if (
+    tournament.totalRounds === undefined &&
+    tournament.status !== "finished"
+  ) {
+    return [];
+  }
+
+  const isFinalRound =
+    tournament.status === "finished" ||
+    (tournament.totalRounds !== undefined && round >= tournament.totalRounds);
+  const kind = isFinalRound ? "tournament_complete" : "round_complete";
+  const tiedFirst = isFinalRound
+    ? [...new Set(currentPlayers.map((player) => player.division))]
+        .map((division) => {
+          const divisionPlayers = currentPlayers.filter(
+            (player) => player.division === division,
+          );
+          const bestScore = Math.min(
+            ...divisionPlayers.map((player) => player.scoreToPar),
+          );
+          const players = divisionPlayers
+            .filter((player) => player.scoreToPar === bestScore)
+            .map((player) => player.name);
+          return players.length > 1 ? { division, players } : null;
+        })
+        .filter(
+          (tie): tie is { division: string; players: string[] } => tie !== null,
+        )
+    : [];
+
+  return [
+    {
+      id: `${tournament.id}:${kind}:${round}:${createdAt}`,
+      playerId: `tournament-${tournament.id}`,
+      playerName: tournament.name,
+      division: "",
+      text: "",
+      kind,
+      importance: "high",
+      tone: "neutral",
+      round,
+      ...(tiedFirst.length > 0 ? { tiedFirst } : {}),
+      createdAt,
+    },
+  ];
+}
 
 function finishedHoleCount(rounds: PlayerRound[] | undefined) {
   const latestRound = rounds?.at(-1);

@@ -13,6 +13,20 @@ export function formatUpdateText(
   update: RecentUpdate,
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
+  if (update.kind === "round_complete") {
+    return t("updates.copy.roundComplete", { round: update.round ?? "" });
+  }
+
+  if (update.kind === "tournament_complete") {
+    if (update.tiedFirst?.length) {
+      const ties = update.tiedFirst
+        .map(({ division, players }) => `${division}: ${players.join(" / ")}`)
+        .join("; ");
+      return t("updates.copy.tournamentCompleteTie", { ties });
+    }
+    return t("updates.copy.tournamentComplete");
+  }
+
   const ace = update.text.match(/hits an ace on hole (\d+)/);
   if (ace || update.kind === "ace") {
     return t(copyVariant(update, "updates.copy.ace"), {
