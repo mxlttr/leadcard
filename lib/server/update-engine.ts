@@ -1,8 +1,13 @@
-import { createPlayerDelta, createRecentUpdates } from "@/lib/server/diff";
+import {
+  createPlayerDelta,
+  createRecentUpdates,
+  createTournamentMilestoneUpdate,
+} from "@/lib/server/diff";
 import type {
   LeaderboardPlayer,
   PlayerSnapshot,
   RecentUpdate,
+  TournamentSummary,
 } from "@/lib/types";
 
 export const UPDATE_LOGIC_VERSION = "v1";
@@ -35,7 +40,7 @@ export function toLeaderboardPlayers(
   previousPlayers: PlayerSnapshot[],
   currentPlayers: PlayerSnapshot[],
   createdAt: string,
-  totalRounds?: number,
+  tournament?: TournamentSummary,
 ) {
   const eligibleDivisions = divisionsWithMoreThanThreePlayers(currentPlayers);
   const previousById = new Map(
@@ -109,8 +114,8 @@ export function toLeaderboardPlayers(
               player.playerId,
             strokesCloserToLead,
             finalRound:
-              totalRounds !== undefined &&
-              player.rounds?.at(-1)?.order === totalRounds,
+              tournament?.totalRounds !== undefined &&
+              player.rounds?.at(-1)?.order === tournament.totalRounds,
           })
         : [];
 
@@ -123,6 +128,17 @@ export function toLeaderboardPlayers(
       };
     }),
   );
+
+  if (tournament) {
+    updates.push(
+      ...createTournamentMilestoneUpdate(
+        previousPlayers,
+        currentPlayers,
+        createdAt,
+        tournament,
+      ),
+    );
+  }
 
   return { players, updates };
 }

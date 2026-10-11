@@ -208,7 +208,7 @@ export class Archive {
               previous ? JSON.parse(previous.payload) : [],
               players,
               candidate.generatedAt,
-              candidate.tournament.totalRounds,
+              candidate.tournament,
             );
             const updates = this.insertUpdates(
               id,
@@ -351,7 +351,7 @@ export class Archive {
               previous,
               players,
               snapshot.source_at,
-              tournament?.totalRounds,
+              tournament,
             );
             const saved = this.insertUpdates(
               tournamentId,
