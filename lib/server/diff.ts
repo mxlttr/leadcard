@@ -461,13 +461,26 @@ function newlyRecordedHole(previous: PlayerSnapshot, current: PlayerSnapshot) {
   const previousHoles = new Map(
     (previousRound?.holes ?? []).map((hole) => [hole.hole, hole]),
   );
+  const startHole =
+    findRoundStartHole(currentRound) ??
+    (previousRound ? findRoundStartHole(previousRound) : null);
+  const playedInOrder =
+    startHole === null
+      ? currentRound.holes
+      : [
+          ...currentRound.holes.filter((hole) => hole.hole >= startHole),
+          ...currentRound.holes.filter((hole) => hole.hole < startHole),
+        ];
   const changed = currentRound.holes.filter(
     (hole) =>
       hole.relativeToPar !== null &&
       (previousHoles.get(hole.hole)?.relativeToPar === null ||
         previousHoles.get(hole.hole)?.relativeToPar === undefined),
   );
-  const hole = changed.at(-1);
+  const changedHoles = new Set(changed.map((hole) => hole.hole));
+  const hole = playedInOrder
+    .filter((candidate) => changedHoles.has(candidate.hole))
+    .at(-1);
   return hole?.relativeToPar === null || !hole
     ? null
     : { hole: hole.hole, relativeToPar: hole.relativeToPar };

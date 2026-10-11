@@ -131,6 +131,50 @@ describe("createRecentUpdate", () => {
     });
   });
 
+  it("uses the latest played hole when a shotgun round wraps from 18 to 1", () => {
+    const makeRound = (playedHoles: number[]): PlayerRound => ({
+      id: "shotgun-round",
+      order: 1,
+      label: "Round 1",
+      thru: playedHoles.length,
+      scoreToPar: 0,
+      holes: Array.from({ length: 18 }, (_, index) => {
+        const hole = index + 1;
+        const played = playedHoles.includes(hole);
+        const relativeToPar = played
+          ? hole === 3
+            ? 1
+            : hole === 18
+              ? -1
+              : 0
+          : null;
+        return {
+          hole,
+          par: 3,
+          score: relativeToPar === null ? null : 3 + relativeToPar,
+          relativeToPar,
+        };
+      }),
+    });
+    const update = createRecentUpdate(
+      player({
+        rank: 1,
+        rounds: [makeRound([16, 17])],
+      }),
+      player({
+        rank: 2,
+        rounds: [makeRound([16, 17, 18, 1, 2, 3])],
+      }),
+      createdAt,
+    );
+
+    expect(update).toMatchObject({
+      kind: "hole_rank_move",
+      hole: 3,
+      holeRelativeToPar: 1,
+    });
+  });
+
   it("returns null when nothing meaningful changed", () => {
     expect(createRecentUpdate(player(), player(), createdAt)).toBeNull();
   });
