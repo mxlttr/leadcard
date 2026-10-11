@@ -54,6 +54,13 @@ export function formatUpdateText(
   }
 
   if (update.thru === "F") {
+    if (update.kind === "round_top_three_finish") {
+      return t("updates.copy.roundTopThreeFinish", {
+        name: update.playerName,
+        round: update.round ?? "",
+      });
+    }
+
     return t(
       copyVariant(
         update,

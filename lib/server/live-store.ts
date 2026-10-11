@@ -304,6 +304,7 @@ function toLeaderboardPlayers(
   previousPlayers: PlayerSnapshot[],
   currentPlayers: PlayerSnapshot[],
   createdAt: string,
+  totalRounds?: number,
 ) {
   const eligibleDivisions = divisionsWithMoreThanThreePlayers(currentPlayers);
   const previousById = new Map(
@@ -376,6 +377,9 @@ function toLeaderboardPlayers(
               biggestMoverByDivision.get(player.division)?.playerId ===
               player.playerId,
             strokesCloserToLead,
+            finalRound:
+              totalRounds !== undefined &&
+              player.rounds?.at(-1)?.order === totalRounds,
           })
         : [];
 
@@ -570,6 +574,7 @@ async function advanceStore(store: LiveState) {
     previousSnapshot,
     enrichedPlayers,
     nextSnapshot.generatedAt,
+    source.tournament.totalRounds,
   );
 
   store.tournament = {

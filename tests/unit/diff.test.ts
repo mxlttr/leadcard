@@ -74,8 +74,9 @@ describe("createRecentUpdate", () => {
   it("reports a finishing update", () => {
     const update = createRecentUpdate(
       player({ scoreToPar: -3, thru: 17 }),
-      player({ scoreToPar: -5, thru: "F" }),
+      player({ scoreToPar: -5, thru: "F", rounds: [round(18, "F")] }),
       createdAt,
+      { finalRound: true },
     );
 
     expect(update).toEqual({
@@ -84,6 +85,7 @@ describe("createRecentUpdate", () => {
       playerName: "Test Player",
       division: "Open",
       text: "Test Player finishes at -5",
+      kind: "podium_finish",
       importance: "high",
       tone: "neutral",
       rank: 1,
@@ -91,6 +93,20 @@ describe("createRecentUpdate", () => {
       scoreToPar: -5,
       thru: "F",
       createdAt,
+    });
+  });
+
+  it("describes an intermediate top-three round finish without implying a podium", () => {
+    const update = createRecentUpdate(
+      player({ scoreToPar: -3, thru: 17, rounds: [round(18, 17)] }),
+      player({ scoreToPar: -5, thru: "F", rounds: [round(18, "F")] }),
+      createdAt,
+      { finalRound: false },
+    );
+
+    expect(update).toMatchObject({
+      kind: "round_top_three_finish",
+      round: 1,
     });
   });
 

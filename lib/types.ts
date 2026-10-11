@@ -53,6 +53,7 @@ export type RecentUpdateKind =
   | "strong_stretch"
   | "finish"
   | "podium_finish"
+  | "round_top_three_finish"
   | "lead_change"
   | "top_three_entry"
   | "biggest_mover"
@@ -77,6 +78,7 @@ export type RecentUpdate = {
   thru?: ThruValue;
   hole?: number;
   holeRelativeToPar?: number;
+  round?: number;
   createdAt: string;
 };
 

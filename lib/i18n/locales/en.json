@@ -214,6 +214,7 @@
       "podiumFinish": "{{name}} finishes on the podium in {{place}} place",
       "podiumFinishAlt2": "A podium finish for {{name}} in {{place}} place",
       "podiumFinishAlt3": "{{name}} closes the round in the top three: {{place}}",
+      "roundTopThreeFinish": "{{name}} finishes round {{round}} in the top three",
       "finishPlaces": {
         "1": "first",
         "2": "second",
