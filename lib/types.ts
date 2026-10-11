@@ -76,6 +76,7 @@ export type RecentUpdate = {
   tone: "positive" | "negative" | "neutral";
   rank?: number;
   previousRank?: number;
+  tiedForLead?: boolean;
   scoreToPar?: number;
   thru?: ThruValue;
   hole?: number;

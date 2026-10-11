@@ -162,11 +162,13 @@ function UpdateLine({
   fresh,
   onSelect,
   compact,
+  showTime = true,
 }: {
   update: RecentUpdate;
   fresh: boolean;
   onSelect?: (update: RecentUpdate) => void;
   compact?: boolean;
+  showTime?: boolean;
 }) {
   const { locale, t } = useI18n();
   const [now, setNow] = useState(() => Date.now());
@@ -225,7 +227,7 @@ function UpdateLine({
             {updateText}
           </p>
 
-          {relativeTime ? (
+          {showTime && relativeTime ? (
             <p className="mt-1 text-right text-[11px] tracking-[0.01em] text-muted">
               {relativeTime}
             </p>
@@ -304,6 +306,7 @@ function MergedEventItem({
             key={update.id}
             update={update}
             fresh={freshIds.has(update.id)}
+            showTime={false}
             onSelect={
               update.kind === "round_complete" ||
               update.kind === "tournament_complete"

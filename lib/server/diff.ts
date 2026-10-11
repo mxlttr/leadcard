@@ -175,6 +175,7 @@ export function createRecentUpdate(
       tone: "neutral",
       rank: current.rank,
       previousRank: previous.rank,
+      ...(context.tiedForLead ? { tiedForLead: true } : {}),
       scoreToPar: current.scoreToPar,
       thru: current.thru,
       ...(current.rounds?.at(-1)?.order
