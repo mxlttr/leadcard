@@ -24,6 +24,7 @@ type SnapshotRow = {
   payload: string;
   content_hash: string;
   source_at: string;
+  tournament?: string;
 };
 type UpdateRow = { snapshot_id: number; event_id: string; payload: string };
 type Cursor = {
@@ -207,6 +208,7 @@ export class Archive {
               previous ? JSON.parse(previous.payload) : [],
               players,
               candidate.generatedAt,
+              candidate.tournament.totalRounds,
             );
             const updates = this.insertUpdates(
               id,
@@ -333,7 +335,7 @@ export class Archive {
         while (true) {
           const batch = this.db
             .prepare(
-              "SELECT id, schema_version, payload, source_at FROM snapshots WHERE tournament_id = ? AND id > ? ORDER BY id LIMIT 100",
+              "SELECT id, schema_version, payload, source_at, tournament FROM snapshots WHERE tournament_id = ? AND id > ? ORDER BY id LIMIT 100",
             )
             .all(tournamentId, after) as SnapshotRow[];
           if (!batch.length) break;
@@ -342,10 +344,14 @@ export class Archive {
               throw new Error("Unsupported parsed snapshot schema");
             after = snapshot.id;
             const players = JSON.parse(snapshot.payload) as PlayerSnapshot[];
+            const tournament = snapshot.tournament
+              ? (JSON.parse(snapshot.tournament) as TournamentSummary)
+              : undefined;
             const derived = toLeaderboardPlayers(
               previous,
               players,
               snapshot.source_at,
+              tournament?.totalRounds,
             );
             const saved = this.insertUpdates(
               tournamentId,
