@@ -71,10 +71,28 @@ describe("formatUpdateText round summaries", () => {
       bogeyCount: 0,
       bogeyLeaderName: "Timo Hartmann",
       holesPlayed: 18,
+      round: 2,
     };
 
-    expect(formatUpdateText(update, t)).toMatch(
-      /^Timo Hartmann .*13.*0.*18 holes$/,
-    );
+    expect(formatUpdateText(update, t)).toMatch(/round 2.*13.*0.*18 holes/i);
+  });
+
+  it("uses natural birdie wording and includes the round number", () => {
+    const t = createTranslator(getDictionary("en"));
+    const update: RecentUpdate = {
+      ...holeRankMove(-1),
+      id: "summary-birdies-round-two",
+      kind: "round_stats_summary",
+      playerName: "Thomas Gerling",
+      statCount: 8,
+      statLeaders: ["Thomas Gerling"],
+      holesPlayed: 12,
+      round: 2,
+    };
+
+    const copy = formatUpdateText(update, t);
+    expect(copy.toLowerCase()).toContain("round 2");
+    expect(copy).toContain("8");
+    expect(copy.toLowerCase()).not.toContain("birdie best");
   });
 });

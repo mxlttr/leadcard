@@ -73,6 +73,7 @@ export function formatUpdateText(
       bogeyLeader: update.bogeyLeaderName ?? "",
       bogeys: update.bogeyCount ?? 0,
       holes: update.holesPlayed ?? 0,
+      round: update.round ?? "",
     });
   }
 
