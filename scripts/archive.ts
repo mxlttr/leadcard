@@ -6,9 +6,9 @@ import { UPDATE_LOGIC_VERSION } from "@/lib/server/update-engine";
 async function main() {
   const [command, target, version = UPDATE_LOGIC_VERSION] =
     process.argv.slice(2);
-  if (!["status", "backup", "replay"].includes(command)) {
+  if (!["status", "backup", "replay", "upgrade"].includes(command)) {
     throw new Error(
-      "Usage: archive status | backup <new-path> | replay <tournament-id|--all> [installed-version]",
+      "Usage: archive status | backup <new-path> | upgrade <tournament-id|--all> | replay <tournament-id|--all> [installed-version]",
     );
   }
   const archive = getArchive();
@@ -34,6 +34,16 @@ async function main() {
       mkdirSync(dirname(resolve(target)), { recursive: true });
       await archive.db.backup(resolve(target));
       console.log(`Backup saved: ${resolve(target)}`);
+    } else if (command === "upgrade") {
+      if (!target) throw new Error("Specify a tournament ID or --all");
+      const ids =
+        target === "--all" ? archive.summaries().map((t) => t.id) : [target];
+      for (const id of ids) {
+        const upgraded = archive.upgradeVersion(id);
+        console.log(
+          `${id}: ${upgraded ? `upgraded to ${UPDATE_LOGIC_VERSION}` : `already on ${UPDATE_LOGIC_VERSION}`}`,
+        );
+      }
     } else {
       if (!target) throw new Error("Specify a tournament ID or --all");
       if (version !== UPDATE_LOGIC_VERSION)

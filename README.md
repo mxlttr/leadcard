@@ -82,6 +82,7 @@ memory. Set `LEADCARD_COLLECTOR_ENABLED=false` to disable unattended collection.
 ```bash
 npm run archive -- status
 npm run archive -- backup /tmp/leadcard-backup.sqlite
+npm run archive -- upgrade --all
 npm run archive -- replay --all v1
 ```
 

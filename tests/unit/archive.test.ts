@@ -140,7 +140,8 @@ describe("SQLite archive", () => {
       .prepare("UPDATE tournaments SET active_version = ? WHERE id = ?")
       .run("v1", "2506");
 
-    archive.commit(state(2, 2));
+    expect(archive.upgradeVersion("2506")).toBe(true);
+    expect(archive.upgradeVersion("2506")).toBe(false);
 
     const response = archive.page("2506");
     expect(response.archiveVersion).toBe("v2");

@@ -185,6 +185,21 @@ export class Archive {
       .run(UPDATE_LOGIC_VERSION, tournamentId);
   }
 
+  upgradeVersion(tournamentId: string) {
+    return this.db
+      .transaction(() => {
+        const row = this.db
+          .prepare("SELECT active_version FROM tournaments WHERE id = ?")
+          .get(tournamentId) as { active_version: string } | undefined;
+        if (!row)
+          throw new Error(`Unknown archived tournament: ${tournamentId}`);
+        if (row.active_version === UPDATE_LOGIC_VERSION) return false;
+        this.advanceVersion(tournamentId, row.active_version);
+        return true;
+      })
+      .immediate();
+  }
+
   commit(candidate: LiveState, players?: PlayerSnapshot[]): LiveState {
     return this.db
       .transaction(() => {

@@ -73,6 +73,18 @@ original source time and observation time; replay uses the original source time.
 Already issued pagination cursors expire when the active version changes;
 clients restart from the first page.
 
+To advance all archived tournaments and backfill only round summaries without
+waiting for a live collection cycle, run:
+
+```sh
+node archive.cjs upgrade --all
+node archive.cjs status
+```
+
+The upgrade is transactional per tournament and safe to rerun. Back up the
+archive first; summary events are added using each snapshot's original source
+time.
+
 Only parsed player snapshots (including divisions, standings, round/hole scores
 and club enrichment) are stored. Unchanged consecutive snapshots are deduplicated;
 A → B → A records three states. Raw HTML is not kept. Future parser fixes cannot
