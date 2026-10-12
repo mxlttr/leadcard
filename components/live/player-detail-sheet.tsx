@@ -305,7 +305,7 @@ export function PlayerDetailSheet({
                           </span>
                         </div>
                         <p className="mt-3 text-sm [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden">
-                          {formatUpdateText(update, t)}
+                          {formatUpdateText(update, t, locale)}
                         </p>
                       </div>
                     ))

@@ -220,6 +220,7 @@ async function loadPlayerClubs(tournamentId: string) {
       `${PLAYER_LIST_URL}${encodeURIComponent(tournamentId)}`,
       {
         cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
         headers: buildHeaders(),
       },
     );
@@ -251,7 +252,11 @@ async function loadRegisteredPlayers(tournamentId: string) {
   try {
     const response = await fetch(
       `${PLAYER_LIST_URL}${encodeURIComponent(tournamentId)}`,
-      { cache: "no-store", headers: buildHeaders() },
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+        headers: buildHeaders(),
+      },
     );
     if (!response.ok && response.status >= 500) {
       reportServerError(
@@ -488,6 +493,7 @@ function scoringStatusInLivePage(html: string): TournamentStatus {
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
   const response = await fetch(LISTING_URL, {
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
     headers: buildHeaders(),
   });
 
@@ -656,6 +662,7 @@ async function loadDynamicTournamentSnapshotHtml(
     `${LIVE_URL}${encodeURIComponent(tournamentId)}`,
     {
       cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
       headers: buildHeaders(),
     },
   );
@@ -719,8 +726,7 @@ export async function getTournamentCatalog() {
   globalThis.leadcardTournamentCatalogPromise = (async () => {
     try {
       const dynamicCatalog = await loadDynamicTournamentCatalog();
-      const tournaments =
-        dynamicCatalog.length > 0 ? dynamicCatalog : getMockTournamentCatalog();
+      const tournaments = dynamicCatalog;
       globalThis.leadcardTournamentCatalogCache = {
         tournaments,
         cachedAt: Date.now(),
@@ -731,7 +737,7 @@ export async function getTournamentCatalog() {
       if (cachedCatalog) {
         return cachedCatalog.tournaments;
       }
-      return getMockTournamentCatalog();
+      return [];
     } finally {
       globalThis.leadcardTournamentCatalogPromise = undefined;
     }
@@ -745,7 +751,9 @@ export async function getDefaultTournamentId() {
   const liveTournament = catalog.find(
     (tournament) => tournament.status === "live",
   );
-  return liveTournament?.id ?? catalog[0]?.id ?? defaultMockTournamentId;
+  const tournamentId = liveTournament?.id ?? catalog[0]?.id;
+  if (tournamentId) return tournamentId;
+  throw new Error("No tournaments are currently available");
 }
 
 async function getTournamentSummary(tournamentId: string) {

@@ -77,7 +77,7 @@ describe("createRecentUpdate", () => {
       player({ scoreToPar: -3, thru: 17 }),
       player({ scoreToPar: -5, thru: "F", rounds: [round(18, "F")] }),
       createdAt,
-      { finalRound: true },
+      { finalRound: true, divisionRoundComplete: true },
     );
 
     expect(update).toEqual({
@@ -93,16 +93,22 @@ describe("createRecentUpdate", () => {
       previousRank: 1,
       scoreToPar: -5,
       thru: "F",
+      round: 1,
       createdAt,
     });
   });
 
   it("describes an intermediate top-three round finish without implying a podium", () => {
     const update = createRecentUpdate(
-      player({ scoreToPar: -3, thru: 17, rounds: [round(18, 17)] }),
-      player({ scoreToPar: -5, thru: "F", rounds: [round(18, "F")] }),
+      player({ rank: 2, scoreToPar: -3, thru: 17, rounds: [round(18, 17)] }),
+      player({
+        rank: 2,
+        scoreToPar: -5,
+        thru: "F",
+        rounds: [round(18, "F")],
+      }),
       createdAt,
-      { finalRound: false },
+      { finalRound: false, divisionRoundComplete: false },
     );
 
     expect(update).toMatchObject({
@@ -121,7 +127,7 @@ describe("createRecentUpdate", () => {
     expect(update).toBeNull();
   });
 
-  it("attributes an upward rank move to a newly recorded birdie", () => {
+  it("posts an opening birdie instead of early Round 1 position movement", () => {
     const update = createRecentUpdate(
       player({ rank: 3, scoreToPar: 0, thru: 1, rounds: [round(1, 1)] }),
       player({
@@ -140,6 +146,40 @@ describe("createRecentUpdate", () => {
       }),
       createdAt,
     );
+    expect(update).toMatchObject({
+      kind: "opening_birdie",
+      hole: 2,
+      holeRelativeToPar: -1,
+    });
+  });
+
+  it("attributes a later-round rank move to a newly recorded birdie", () => {
+    const firstRound = round(1, 1);
+    const priorRound = {
+      ...firstRound,
+      id: "round-2",
+      order: 2,
+      label: "Round 2",
+    };
+    const currentRound = {
+      ...priorRound,
+      thru: 2 as const,
+      holes: [
+        ...priorRound.holes,
+        { hole: 2, par: 3, score: 2, relativeToPar: -1 },
+      ],
+    };
+    const update = createRecentUpdate(
+      player({ rank: 3, scoreToPar: 0, thru: 1, rounds: [priorRound] }),
+      player({
+        rank: 1,
+        scoreToPar: -1,
+        thru: 2,
+        rounds: [currentRound],
+      }),
+      createdAt,
+    );
+
     expect(update).toMatchObject({
       kind: "hole_rank_move",
       hole: 2,

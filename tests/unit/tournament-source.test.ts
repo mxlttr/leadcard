@@ -305,7 +305,7 @@ describe("tournament-source", () => {
       scenario: "completed earlier round",
       scores: "<td>3</td><td>2</td>",
       rounds: 3,
-      status: "today",
+      status: "live",
     },
     {
       scenario: "captured Hessenmeisterschaft",

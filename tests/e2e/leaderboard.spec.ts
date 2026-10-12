@@ -825,3 +825,111 @@ test.describe("mobile layout", () => {
     );
   });
 });
+
+test("loads the full archive and retains older pages when new updates arrive", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    class TestEventSource extends EventTarget {
+      private refresh = () => this.dispatchEvent(new Event("update"));
+      constructor() {
+        super();
+        window.addEventListener("archive-test-update", this.refresh);
+      }
+      close() {
+        window.removeEventListener("archive-test-update", this.refresh);
+      }
+    }
+    Object.defineProperty(window, "EventSource", { value: TestEventSource });
+  });
+  const live = createLiveResponse({
+    tournament: alphaTournament,
+    tournaments: [alphaTournament, betaTournament],
+    divisions: ["Open"],
+    leaders: alphaOpenPlayers,
+    divisionLeaders: [{ division: "Open", leader: alphaOpenPlayers[0] }],
+  });
+  await mockApi(page, {
+    liveByTournamentId: {
+      default: live,
+      [alphaTournament.id]: live,
+      [betaTournament.id]: { ...live, tournament: betaTournament },
+    },
+    leaderboardByKey: {
+      default: createLeaderboardResponse(
+        alphaTournament.id,
+        "__all",
+        alphaOpenPlayers,
+      ),
+      [`${betaTournament.id}::__all`]: createLeaderboardResponse(
+        betaTournament.id,
+        "__all",
+        alphaOpenPlayers,
+      ),
+    },
+  });
+  const event = (n: number): RecentUpdate => ({
+    id: `archive-${n}`,
+    playerId: `player-${n}`,
+    playerName: `Archive Player ${n}`,
+    division: "Open",
+    text: `Archive change ${n}`,
+    importance: "medium",
+    tone: "neutral",
+    rank: 2,
+    scoreToPar: 0,
+    thru: 4,
+    createdAt: new Date(Date.UTC(2026, 2, 26, 10, 0, n)).toISOString(),
+  });
+  let latest = 60;
+  let failOlder = true;
+  await page.route("**/api/updates?*", async (route) => {
+    const url = new URL(route.request().url());
+    const id = url.searchParams.get("tournamentId");
+    const cursor = url.searchParams.get("cursor");
+    if (cursor && failOlder) {
+      failOlder = false;
+      await route.fulfill({ status: 500, body: "Temporary failure" });
+      return;
+    }
+    const upper = cursor ? Number(cursor) : latest;
+    const events =
+      id === betaTournament.id
+        ? []
+        : Array.from({ length: Math.min(50, upper) }, (_, i) =>
+            event(upper - i),
+          );
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        tournamentId: id,
+        updates: events,
+        generatedAt: "2026-03-26T10:00:00.000Z",
+        archiveVersion: "v1",
+        nextCursor: upper > 50 && events.length ? String(upper - 50) : null,
+      }),
+    });
+  });
+  await page.goto(`/en?tournamentId=${alphaTournament.id}`);
+  const feed = page.locator("#recent-updates");
+  await expect(feed.getByText(/Archive Player 60\b/)).toHaveCount(1);
+  await page.getByRole("button", { name: "Load older updates" }).click();
+  await expect(feed.getByRole("alert")).toBeVisible();
+  await page.getByRole("button", { name: "Load older updates" }).click();
+  await expect(feed.getByText(/Archive Player 1\b/)).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Load older updates" }),
+  ).toHaveCount(0);
+  // More than a page arrives: the hook must bridge the gap, without dropping
+  // already loaded history or duplicating events at page boundaries.
+  latest = 120;
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event("archive-test-update")),
+  );
+  await expect(feed.getByText(/Archive Player 120\b/)).toHaveCount(1);
+  await expect(feed.getByText(/Archive Player 61\b/)).toHaveCount(1);
+  await expect(feed.getByText(/Archive Player 1\b/)).toHaveCount(1);
+  await page.getByRole("button", { name: "Change tournament" }).first().click();
+  await page.getByRole("button", { name: /Beta Masters/i }).click();
+  await expect(feed.getByText(/Archive Player/)).toHaveCount(0);
+});

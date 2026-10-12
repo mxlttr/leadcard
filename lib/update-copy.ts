@@ -1,3 +1,5 @@
+import type { AppLocale } from "@/lib/i18n";
+import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { RecentUpdate } from "@/lib/types";
 import { formatScore } from "@/lib/utils";
 
@@ -12,6 +14,7 @@ function copyVariant(update: RecentUpdate, key: string) {
 export function formatUpdateText(
   update: RecentUpdate,
   t: (key: string, params?: Record<string, string | number>) => string,
+  locale: AppLocale = "en",
 ) {
   if (update.kind === "round_complete") {
     return t("updates.copy.roundComplete", { round: update.round ?? "" });
@@ -101,36 +104,81 @@ export function formatUpdateText(
       : "";
 
   if (update.kind === "hole_rank_move") {
-    const key =
-      update.holeRelativeToPar !== undefined && update.holeRelativeToPar <= -1
-        ? "updates.copy.birdieMovesUp"
-        : "updates.copy.bogeyDropsDown";
-    return t(key, { name: update.playerName, hole: update.hole ?? "", rank });
+    const relativeToPar = update.holeRelativeToPar;
+    const shot =
+      relativeToPar === undefined
+        ? t("updates.scores.unknown")
+        : relativeToPar <= -5
+          ? t("updates.scores.underPar", { strokes: Math.abs(relativeToPar) })
+          : relativeToPar === -4
+            ? t("updates.scores.condor")
+            : relativeToPar === -3
+              ? t("updates.scores.albatross")
+              : relativeToPar === -2
+                ? t("updates.scores.eagle")
+                : relativeToPar === -1
+                  ? t("updates.scores.birdie")
+                  : relativeToPar === 0
+                    ? t("updates.scores.par")
+                    : relativeToPar === 1
+                      ? t("updates.scores.bogey")
+                      : relativeToPar === 2
+                        ? t("updates.scores.doubleBogey")
+                        : relativeToPar === 3
+                          ? t("updates.scores.tripleBogey")
+                          : t("updates.scores.overPar", {
+                              strokes: relativeToPar,
+                            });
+    return t(
+      relativeToPar !== undefined && relativeToPar < 0
+        ? "updates.copy.scoreMovesUp"
+        : "updates.copy.scoreDropsDown",
+      { name: update.playerName, hole: update.hole ?? "", rank, shot },
+    );
   }
 
   if (update.thru === "F") {
     if (update.kind === "round_top_three_finish") {
-      return t("updates.copy.roundTopThreeFinish", {
+      const params = {
         name: update.playerName,
+        division: translateDivisionLabel(update.division, locale),
         round: update.round ?? "",
-      });
-    }
-
-    return t(
-      copyVariant(
-        update,
-        update.kind === "podium_finish"
-          ? "updates.copy.podiumFinish"
-          : "updates.copy.finishes",
-      ),
-      {
-        name: update.playerName,
         place: finishPlace(
           typeof update.rank === "number" ? update.rank : null,
           t,
         ),
-      },
-    );
+      };
+      return t(
+        update.tiedForLead
+          ? "updates.copy.roundTiedLeaderFinish"
+          : update.rank === 1
+            ? "updates.copy.roundLeaderFinish"
+            : "updates.copy.roundPlaceFinish",
+        params,
+      );
+    }
+
+    const params = {
+      name: update.playerName,
+      division: translateDivisionLabel(update.division, locale),
+      place: finishPlace(
+        typeof update.rank === "number" ? update.rank : null,
+        t,
+      ),
+    };
+
+    if (update.kind === "podium_finish") {
+      const key = update.tiedForLead
+        ? "updates.copy.tiedFirstFinish"
+        : update.rank === 1
+          ? "updates.copy.divisionWinner"
+          : update.rank === 2
+            ? "updates.copy.divisionRunnerUp"
+            : "updates.copy.divisionThirdPlace";
+      return t(key, params);
+    }
+
+    return t("updates.copy.divisionFinish", params);
   }
 
   if (update.rank === 1 && update.previousRank && update.previousRank !== 1) {

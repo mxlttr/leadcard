@@ -28,7 +28,11 @@
       "!tests/fixtures",
       "!lib/server/fixtures",
       "!tmp",
-      "!tsconfig.tsbuildinfo"
+      "!tsconfig.tsbuildinfo",
+      "!dist",
+      "!test-results",
+      "!playwright-report",
+      "!.data"
     ]
   }
 }

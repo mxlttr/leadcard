@@ -79,6 +79,7 @@ export type RecentUpdate = {
   tone: "positive" | "negative" | "neutral";
   rank?: number;
   previousRank?: number;
+  tiedForLead?: boolean;
   scoreToPar?: number;
   thru?: ThruValue;
   hole?: number;
@@ -158,6 +159,8 @@ export type ClubsResponse = {
 };
 
 export type UpdatesResponse = {
+  nextCursor?: string | null;
+  archiveVersion?: string;
   tournamentId: string;
   updates: RecentUpdate[];
   generatedAt: string;

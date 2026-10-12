@@ -1,19 +1,19 @@
 import { load } from "cheerio";
 import { sortDivisionLabels } from "@/lib/i18n/divisions";
 import { playerClubKey } from "@/lib/player-club";
-import {
-  createPlayerDelta,
-  createRecentUpdates,
-  createTournamentMilestoneUpdate,
-} from "@/lib/server/diff";
+import { getArchive, isArchivedTournament } from "@/lib/server/archive";
 import { reportServerError } from "@/lib/server/report-error";
 import { scrapeSnapshot } from "@/lib/server/scraper";
 import {
-  getDefaultTournamentId,
   getMockReplaySnapshotCount,
   getTournamentCatalog,
   loadTournamentSnapshotSource,
 } from "@/lib/server/tournament-source";
+import {
+  divisionsWithMoreThanThreePlayers,
+  sortPlayers,
+  toLeaderboardPlayers,
+} from "@/lib/server/update-engine";
 import type {
   ClubOverview,
   ClubsResponse,
@@ -23,7 +23,6 @@ import type {
   LeaderboardResponse,
   LiveResponse,
   PlayerSnapshot,
-  RecentUpdate,
   TournamentSummary,
   UpdatesResponse,
 } from "@/lib/types";
@@ -31,17 +30,7 @@ import type {
 const UPDATE_INTERVAL_MS = 25_000;
 const LEAD_CARD_SIZE = 4;
 
-type LiveState = {
-  tournament: TournamentSummary;
-  hasLiveData: boolean;
-  autoRefresh: boolean;
-  fixtureIndex: number;
-  replayPaused: boolean;
-  lastAdvancedAt: number;
-  generatedAt: string;
-  players: LeaderboardPlayer[];
-  updates: RecentUpdate[];
-};
+import type { LiveState } from "@/lib/server/live-state";
 
 declare global {
   var leadcardStore: Map<string, LiveState> | undefined;
@@ -60,6 +49,8 @@ function notifyStoreListeners(tournamentId: string) {
 }
 
 function ensureStorePoller(store: LiveState) {
+  if (globalThis.leadcardCollector && isArchivedTournament(store.tournament))
+    return;
   if (!globalThis.leadcardStorePollers) {
     globalThis.leadcardStorePollers = new Map();
   }
@@ -121,16 +112,6 @@ export async function subscribeToLiveUpdates(
   };
 }
 
-function sortPlayers(players: LeaderboardPlayer[]) {
-  return [...players].sort((a, b) => {
-    if (a.rank !== b.rank) {
-      return a.rank - b.rank;
-    }
-
-    return a.name.localeCompare(b.name);
-  });
-}
-
 function comparePlayersByStanding(a: LeaderboardPlayer, b: LeaderboardPlayer) {
   if (a.scoreToPar !== b.scoreToPar) {
     return a.scoreToPar - b.scoreToPar;
@@ -160,20 +141,6 @@ function getDivisions(players: LeaderboardPlayer[]) {
 
       return divisions;
     }, []),
-  );
-}
-
-function divisionsWithMoreThanThreePlayers(
-  players: Array<Pick<PlayerSnapshot, "division">>,
-) {
-  const counts = new Map<string, number>();
-
-  for (const player of players) {
-    counts.set(player.division, (counts.get(player.division) ?? 0) + 1);
-  }
-
-  return new Set(
-    [...counts].filter(([, count]) => count > 3).map(([division]) => division),
   );
 }
 
@@ -304,266 +271,6 @@ function withInferredRound(
   };
 }
 
-function toLeaderboardPlayers(
-  previousPlayers: PlayerSnapshot[],
-  currentPlayers: PlayerSnapshot[],
-  createdAt: string,
-  tournament: TournamentSummary,
-) {
-  const eligibleDivisions = divisionsWithMoreThanThreePlayers(currentPlayers);
-  const previousById = new Map(
-    previousPlayers.map((player) => [player.playerId, player]),
-  );
-  const biggestMoverByDivision = new Map<string, PlayerSnapshot>();
-  for (const player of currentPlayers) {
-    const previous = previousById.get(player.playerId);
-    const gain = previous ? previous.rank - player.rank : 0;
-    if (gain < 3 || !previous || player.scoreToPar >= previous.scoreToPar) {
-      continue;
-    }
-
-    const currentBiggest = biggestMoverByDivision.get(player.division);
-    const currentBiggestPrevious = currentBiggest
-      ? previousById.get(currentBiggest.playerId)
-      : undefined;
-    const currentBiggestGain =
-      currentBiggest && currentBiggestPrevious
-        ? currentBiggestPrevious.rank - currentBiggest.rank
-        : 0;
-    if (
-      gain > currentBiggestGain ||
-      (gain === currentBiggestGain &&
-        (player.rank < (currentBiggest?.rank ?? Number.POSITIVE_INFINITY) ||
-          (currentBiggest &&
-            player.rank === currentBiggest.rank &&
-            player.name.localeCompare(currentBiggest.name) < 0)))
-    ) {
-      biggestMoverByDivision.set(player.division, player);
-    }
-  }
-  const updates: RecentUpdate[] = [];
-
-  const players = sortPlayers(
-    currentPlayers.map((player) => {
-      const previous = previousById.get(player.playerId);
-      const tiedForLead = currentPlayers.some(
-        (candidate) =>
-          candidate.playerId !== player.playerId &&
-          candidate.division === player.division &&
-          candidate.rank === 1 &&
-          candidate.scoreToPar === player.scoreToPar,
-      );
-      const divisionPrevious = previousPlayers.filter(
-        (candidate) => candidate.division === player.division,
-      );
-      const divisionCurrent = currentPlayers.filter(
-        (candidate) => candidate.division === player.division,
-      );
-      const previousLeadScore = Math.min(
-        ...divisionPrevious.map((candidate) => candidate.scoreToPar),
-      );
-      const currentLeadScore = Math.min(
-        ...divisionCurrent.map((candidate) => candidate.scoreToPar),
-      );
-      const divisionRoundComplete = divisionCurrent.every(
-        (candidate) => candidate.thru === "F",
-      );
-      const secondPlaceScore = Math.min(
-        ...divisionCurrent
-          .filter((candidate) => candidate.playerId !== player.playerId)
-          .map((candidate) => candidate.scoreToPar),
-      );
-      const leadMargin =
-        player.rank === 1 && secondPlaceScore !== Infinity
-          ? secondPlaceScore - player.scoreToPar
-          : undefined;
-      const strokesCloserToLead =
-        previous && previousLeadScore !== Infinity
-          ? player.scoreToPar - currentLeadScore <
-            previous.scoreToPar - previousLeadScore
-            ? previous.scoreToPar -
-              previousLeadScore -
-              (player.scoreToPar - currentLeadScore)
-            : 0
-          : 0;
-      const playerUpdates = eligibleDivisions.has(player.division)
-        ? createRecentUpdates(previous, player, createdAt, {
-            tiedForLead,
-            biggestMover:
-              biggestMoverByDivision.get(player.division)?.playerId ===
-              player.playerId,
-            strokesCloserToLead,
-            finalRound:
-              tournament.totalRounds !== undefined &&
-              player.rounds?.at(-1)?.order === tournament.totalRounds,
-            divisionRoundComplete,
-            leadMargin,
-          })
-        : [];
-
-      updates.push(...playerUpdates);
-
-      return {
-        ...player,
-        delta: createPlayerDelta(previous, player),
-        latestUpdate: playerUpdates[0] ?? null,
-      };
-    }),
-  );
-
-  updates.push(
-    ...createTournamentMilestoneUpdate(
-      previousPlayers,
-      currentPlayers,
-      createdAt,
-      tournament,
-    ),
-  );
-  updates.push(
-    ...createRoundStatUpdates(previousPlayers, currentPlayers, createdAt),
-  );
-
-  return { players, updates };
-}
-
-function createRoundStatUpdates(
-  previousPlayers: PlayerSnapshot[],
-  currentPlayers: PlayerSnapshot[],
-  createdAt: string,
-) {
-  const updates: RecentUpdate[] = [];
-  const roundOrders = new Set(
-    currentPlayers.flatMap((player) =>
-      (player.rounds ?? []).map((round) => round.order),
-    ),
-  );
-
-  for (const roundOrder of roundOrders) {
-    const stats = currentPlayers.flatMap((player) => {
-      const round = player.rounds?.find((item) => item.order === roundOrder);
-      if (!round) return [];
-      return [roundStats(player, round.holes)];
-    });
-
-    if (
-      stats.length !== currentPlayers.length ||
-      stats.some((stat) => {
-        const round = stat.player.rounds?.find(
-          (item) => item.order === roundOrder,
-        );
-        return round?.thru !== "F" && stat.player.thru !== "F";
-      })
-    ) {
-      continue;
-    }
-
-    const previousStats = previousPlayers.flatMap((player) => {
-      const round = player.rounds?.find((item) => item.order === roundOrder);
-      return round ? [roundStats(player, round.holes)] : [];
-    });
-    const previousRoundComplete =
-      previousStats.length === previousPlayers.length &&
-      previousStats.every((stat) => {
-        const round = stat.player.rounds?.find(
-          (item) => item.order === roundOrder,
-        );
-        return round?.thru === "F" || stat.player.thru === "F";
-      });
-
-    const mostBirdies = Math.max(...stats.map((stat) => stat.birdies));
-    const birdieLeaders = stats.filter((stat) => stat.birdies === mostBirdies);
-    const previousMostBirdies = Math.max(
-      0,
-      ...previousStats.map((stat) => stat.birdies),
-    );
-    const previousBirdieLeaders = previousStats.filter(
-      (stat) => stat.birdies === previousMostBirdies,
-    );
-    const fewestBogeys = Math.min(...stats.map((stat) => stat.bogeys));
-    const bogeyLeaders = stats.filter((stat) => stat.bogeys === fewestBogeys);
-    const bogeyLeader = bogeyLeaders.length === 1 ? bogeyLeaders[0] : null;
-    const previousFewestBogeys = previousStats.length
-      ? Math.min(...previousStats.map((stat) => stat.bogeys))
-      : null;
-    const previousBogeyLeaders = previousStats.filter(
-      (stat) => stat.bogeys === previousFewestBogeys,
-    );
-
-    const birdieSignature =
-      mostBirdies > 0
-        ? `${mostBirdies}:${birdieLeaders
-            .map((stat) => stat.player.playerId)
-            .sort()
-            .join(",")}`
-        : "none";
-    const previousBirdieSignature =
-      previousMostBirdies > 0
-        ? `${previousMostBirdies}:${previousBirdieLeaders
-            .map((stat) => stat.player.playerId)
-            .sort()
-            .join(",")}`
-        : "none";
-    const bogeySignature = bogeyLeader
-      ? `${fewestBogeys}:${bogeyLeader.player.playerId}`
-      : "none";
-    const previousBogeySignature =
-      previousBogeyLeaders.length === 1 && previousFewestBogeys !== null
-        ? `${previousFewestBogeys}:${previousBogeyLeaders[0].player.playerId}`
-        : "none";
-
-    if (
-      previousRoundComplete &&
-      birdieSignature === previousBirdieSignature &&
-      bogeySignature === previousBogeySignature
-    ) {
-      continue;
-    }
-    if (mostBirdies === 0 && !bogeyLeader) continue;
-
-    const representative = birdieLeaders[0] ?? bogeyLeader;
-    if (!representative) continue;
-    updates.push({
-      id: `round-summary:${roundOrder}:${birdieSignature}:${bogeySignature}:${createdAt}`,
-      playerId: representative.player.playerId,
-      playerName: representative.player.name,
-      division: "",
-      text: "",
-      kind: "round_stats_summary",
-      importance: "medium",
-      tone: "positive",
-      round: roundOrder,
-      ...(mostBirdies > 0
-        ? {
-            statCount: mostBirdies,
-            statLeaders: birdieLeaders.map((stat) => stat.player.name),
-          }
-        : {}),
-      ...(bogeyLeader
-        ? {
-            bogeyLeaderName: bogeyLeader.player.name,
-            bogeyCount: fewestBogeys,
-          }
-        : {}),
-      holesPlayed: representative.holesPlayed,
-      createdAt,
-    });
-  }
-
-  return updates;
-}
-
-function roundStats(
-  player: PlayerSnapshot,
-  holes: NonNullable<PlayerSnapshot["rounds"]>[number]["holes"],
-) {
-  return {
-    player,
-    birdies: holes.filter((hole) => hole.relativeToPar === -1).length,
-    bogeys: holes.filter((hole) => hole.relativeToPar === 1).length,
-    holesPlayed: holes.filter((hole) => hole.relativeToPar !== null).length,
-  };
-}
-
 async function createInitialState(tournamentId: string): Promise<LiveState> {
   const source = await loadTournamentSnapshotSource(tournamentId, 0);
   const snapshot = source.html ? scrapeSnapshot(source.html) : null;
@@ -608,6 +315,28 @@ async function createInitialState(tournamentId: string): Promise<LiveState> {
   };
 }
 
+async function restoreOrCreateState(tournamentId: string): Promise<LiveState> {
+  const summary = (await getTournamentCatalog()).find(
+    (t) => t.id === tournamentId,
+  );
+  const archived =
+    process.env.LEADCARD_FORCE_MOCK_DATA !== "true" &&
+    summary?.status !== "mock";
+  if (archived) {
+    const saved = getArchive().load(tournamentId);
+    if (saved) return saved;
+  }
+  const initial = await createInitialState(tournamentId);
+  return isArchivedTournament(initial.tournament)
+    ? getArchive().commit(
+        initial,
+        initial.hasLiveData
+          ? initial.players.map(({ delta: _d, latestUpdate: _u, ...p }) => p)
+          : undefined,
+      )
+    : initial;
+}
+
 async function ensureStore(tournamentId: string) {
   if (!globalThis.leadcardStore) {
     globalThis.leadcardStore = new Map();
@@ -630,7 +359,7 @@ async function ensureStore(tournamentId: string) {
     return inFlightInitialization;
   }
 
-  const initialization = createInitialState(tournamentId)
+  const initialization = restoreOrCreateState(tournamentId)
     .then((store) => {
       globalThis.leadcardStore?.set(tournamentId, store);
       return store;
@@ -669,6 +398,18 @@ async function refreshStore(store: LiveState) {
 }
 
 async function advanceStore(store: LiveState) {
+  const candidate = { ...store };
+  const players = await deriveNextState(candidate);
+  const committed = isArchivedTournament(candidate.tournament)
+    ? getArchive().commit(candidate, players)
+    : candidate;
+  Object.assign(store, committed);
+  notifyStoreListeners(store.tournament.id);
+}
+
+async function deriveNextState(
+  store: LiveState,
+): Promise<PlayerSnapshot[] | undefined> {
   const source = await loadTournamentSnapshotSource(
     store.tournament.id,
     store.fixtureIndex,
@@ -676,6 +417,11 @@ async function advanceStore(store: LiveState) {
   const hadLiveData = store.hasLiveData;
   store.fixtureIndex = source.nextFixtureIndex;
   store.lastAdvancedAt = Date.now();
+
+  if (!source.html && hadLiveData) {
+    // A missing upstream page is not evidence that recorded scores disappeared.
+    throw new Error("Upstream scores temporarily unavailable");
+  }
 
   if (!source.html) {
     store.hasLiveData = false;
@@ -694,12 +440,12 @@ async function advanceStore(store: LiveState) {
       source.registeredPlayers ?? [],
       source.html,
     );
-    notifyStoreListeners(store.tournament.id);
     return;
   }
 
   const nextSnapshot = scrapeSnapshot(source.html);
   if (nextSnapshot.players.length === 0) {
+    if (hadLiveData) throw new Error("Upstream score table temporarily empty");
     const registeredPlayers = (source.registeredPlayers ?? []).map(
       (player) => ({
         ...player,
@@ -710,7 +456,7 @@ async function advanceStore(store: LiveState) {
     );
     store.hasLiveData = hadLiveData;
     store.tournament = source.tournament;
-    store.generatedAt = nextSnapshot.generatedAt;
+    if (!hadLiveData) store.generatedAt = nextSnapshot.generatedAt;
     if (!hadLiveData) {
       store.players = registeredPlayers.map<LeaderboardPlayer>((player) => ({
         ...player,
@@ -718,13 +464,12 @@ async function advanceStore(store: LiveState) {
         latestUpdate: null,
       }));
     }
-    store.updates = [];
+    if (!hadLiveData) store.updates = [];
     store.autoRefresh = shouldAutoRefresh(
       source.tournament,
       hadLiveData ? store.players : registeredPlayers,
       source.html,
     );
-    notifyStoreListeners(store.tournament.id);
     return;
   }
 
@@ -759,7 +504,7 @@ async function advanceStore(store: LiveState) {
     0,
     20,
   );
-  notifyStoreListeners(store.tournament.id);
+  return enrichedPlayers;
 }
 
 async function refreshIfNeeded(tournamentId: string) {
@@ -770,7 +515,14 @@ async function refreshIfNeeded(tournamentId: string) {
     !store.replayPaused &&
     Date.now() - store.lastAdvancedAt >= UPDATE_INTERVAL_MS
   ) {
-    return refreshStore(store);
+    try {
+      return await refreshStore(store);
+    } catch (error) {
+      reportServerError(error, "live-store-refresh", {
+        "tournament.id": tournamentId,
+      });
+      return store;
+    }
   }
 
   return store;
@@ -801,7 +553,7 @@ export async function getLiveResponse(
   tournamentId: string,
 ): Promise<LiveResponse> {
   const store = await refreshIfNeeded(tournamentId);
-  const tournaments = await getTournamentCatalog();
+  const tournaments = await getTournamentCatalogWithArchive();
   const divisions = getDivisions(store.players);
   const mockReplayCount =
     store.tournament.id === "lakers-open-2026"
@@ -865,16 +617,15 @@ export async function controlMockReplay(
 }
 
 export async function getResolvedTournamentId(tournamentId?: string | null) {
-  if (!tournamentId) {
-    return getDefaultTournamentId();
+  const tournaments = await getTournamentCatalogWithArchive();
+  if (tournamentId && tournaments.some((t) => t.id === tournamentId)) {
+    return tournamentId;
   }
 
-  const tournaments = await getTournamentCatalog();
-  const hasTournament = tournaments.some(
-    (tournament) => tournament.id === tournamentId,
-  );
-
-  return hasTournament ? tournamentId : getDefaultTournamentId();
+  const fallback =
+    tournaments.find((t) => t.status === "live") ?? tournaments[0];
+  if (!fallback) throw new Error("No tournaments are currently available");
+  return fallback.id;
 }
 
 export async function getLeaderboardResponse(
@@ -986,15 +737,46 @@ export async function getClubTournamentResponse(
 
 export async function getUpdatesResponse(
   tournamentId: string,
+  cursor?: string | null,
 ): Promise<UpdatesResponse> {
+  // History requests must work even when the upstream site is unavailable.
+  const archived =
+    process.env.LEADCARD_FORCE_MOCK_DATA !== "true"
+      ? getArchive().load(tournamentId)
+      : undefined;
+  if (archived) return getArchive().page(tournamentId, cursor);
   const store = await refreshIfNeeded(tournamentId);
+  if (isArchivedTournament(store.tournament))
+    return getArchive().page(tournamentId, cursor);
   const eligibleDivisions = divisionsWithMoreThanThreePlayers(store.players);
-
   return {
     tournamentId: store.tournament.id,
     updates: store.updates.filter((update) =>
       eligibleDivisions.has(update.division),
     ),
     generatedAt: store.generatedAt,
+    nextCursor: null,
+    archiveVersion: "mock",
   };
+}
+
+export async function getTournamentCatalogWithArchive() {
+  const current = await getTournamentCatalog();
+  if (process.env.LEADCARD_FORCE_MOCK_DATA === "true") return current;
+  const known = new Set(current.map((t) => t.id));
+  return [
+    ...current,
+    ...getArchive()
+      .summaries()
+      .filter((t) => !known.has(t.id))
+      .map((t) => ({ ...t, status: "recent" as const })),
+  ];
+}
+
+export async function collectTournament(tournamentId: string, final = false) {
+  const store = await ensureStore(tournamentId);
+  // Refresh even when an earlier scrape looked finished: corrections and the
+  // next round can arrive later. Catalog membership controls collection.
+  if (final || Date.now() - store.lastAdvancedAt >= UPDATE_INTERVAL_MS)
+    await refreshStore(store);
 }

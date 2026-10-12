@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFollowedPlayers } from "@/hooks/use-followed-players";
 import { useLiveEvents } from "@/hooks/use-live-events";
+import { useUpdateArchive } from "@/hooks/use-update-archive";
 import type { AppLocale, Dictionary } from "@/lib/i18n";
 import type {
   LeaderboardPlayer,
@@ -330,16 +331,11 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
     placeholderData: keepPreviousData,
   });
 
-  const updatesQuery = useQuery({
-    queryKey: ["updates", locale, selectedTournamentId],
-    queryFn: () =>
-      fetchJson<UpdatesResponse>(
-        `/api/updates?tournamentId=${encodeURIComponent(selectedTournamentId)}`,
-      ),
-    enabled: Boolean(selectedTournamentId),
-    refetchInterval: shouldRefreshSelectedTournament ? 120_000 : false,
-    placeholderData: keepPreviousData,
-  });
+  const updatesQuery = useUpdateArchive(
+    selectedTournamentId,
+    locale,
+    shouldRefreshSelectedTournament,
+  );
 
   useEffect(() => {
     if (!selectedTournamentId) {
@@ -1085,7 +1081,12 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
 
             {isSelectedTournamentDataReady ? (
               <RecentUpdatesFeed
+                key={selectedTournamentId}
                 updates={updatesData?.updates ?? []}
+                hasMore={Boolean(updatesData?.nextCursor)}
+                loadingOlder={updatesQuery.loadingOlder}
+                olderError={updatesQuery.olderError}
+                onLoadOlder={updatesQuery.loadOlder}
                 onSelectUpdate={handleUpdateSelect}
               />
             ) : (
