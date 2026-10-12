@@ -53,10 +53,15 @@ export function formatUpdateText(
   }
 
   if (update.kind === "round_stats_summary") {
+    const samePlayerLeadsBoth =
+      update.statLeaders?.length === 1 &&
+      update.statLeaders[0] === update.bogeyLeaderName;
     const key =
       update.statCount !== undefined
         ? update.bogeyLeaderName
-          ? "updates.copy.roundStatsBoth"
+          ? samePlayerLeadsBoth
+            ? "updates.copy.roundStatsBothSame"
+            : "updates.copy.roundStatsBoth"
           : "updates.copy.roundStatsBirdies"
         : update.bogeyCount === 0
           ? "updates.copy.roundStatsBogeysClean"

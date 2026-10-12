@@ -57,3 +57,24 @@ describe("formatUpdateText hole rank moves", () => {
     );
   });
 });
+
+describe("formatUpdateText round summaries", () => {
+  it("combines birdie and bogey records without repeating one player's name", () => {
+    const t = createTranslator(getDictionary("en"));
+    const update: RecentUpdate = {
+      ...holeRankMove(-1),
+      id: "summary-same-player",
+      kind: "round_stats_summary",
+      playerName: "Timo Hartmann",
+      statCount: 13,
+      statLeaders: ["Timo Hartmann"],
+      bogeyCount: 0,
+      bogeyLeaderName: "Timo Hartmann",
+      holesPlayed: 18,
+    };
+
+    expect(formatUpdateText(update, t)).toMatch(
+      /^Timo Hartmann .*13.*0.*18 holes$/,
+    );
+  });
+});
