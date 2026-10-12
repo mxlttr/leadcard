@@ -124,6 +124,8 @@ export function createRecentUpdate(
     biggestMover?: boolean;
     strokesCloserToLead?: number;
     finalRound?: boolean;
+    divisionRoundComplete?: boolean;
+    leadMargin?: number;
   } = {},
 ): RecentUpdate | null {
   if (!previous) {
@@ -152,6 +154,39 @@ export function createRecentUpdate(
     };
   }
 
+  const currentRound = current.rounds?.at(-1);
+  const newHole = newlyRecordedHole(previous, current);
+  const scoredHoleCount =
+    currentRound?.holes.filter((hole) => hole.relativeToPar !== null).length ??
+    0;
+  const openingRound = currentRound?.order === 1 && scoredHoleCount <= 3;
+
+  if (openingRound) {
+    if (newHole && newHole.relativeToPar <= -1) {
+      return {
+        id: updateId(current, createdAt),
+        playerId: current.playerId,
+        playerName: current.name,
+        division: current.division,
+        text: `${current.name} opens with a birdie on hole ${newHole.hole}`,
+        kind: "opening_birdie",
+        importance: "medium",
+        tone: "positive",
+        rank: current.rank,
+        previousRank: previous.rank,
+        scoreToPar: current.scoreToPar,
+        thru: current.thru,
+        hole: newHole.hole,
+        holeRelativeToPar: newHole.relativeToPar,
+        round: 1,
+        createdAt,
+      };
+    }
+
+    // Early Round 1 leaderboard movement is too volatile to read as a story.
+    return null;
+  }
+
   if (previous.thru !== "F" && current.thru === "F") {
     const scoreSwing = Math.abs(previous.scoreToPar - current.scoreToPar);
 
@@ -159,14 +194,20 @@ export function createRecentUpdate(
       return null;
     }
 
+    const clubhouseLead =
+      current.rank === 1 &&
+      !context.tiedForLead &&
+      !context.divisionRoundComplete;
+
     return {
       id: updateId(current, createdAt),
       playerId: current.playerId,
       playerName: current.name,
       division: current.division,
       text: `${current.name} finishes at ${score}`,
-      kind:
-        current.rank <= 3
+      kind: clubhouseLead
+        ? "clubhouse_lead"
+        : current.rank <= 3
           ? context.finalRound
             ? "podium_finish"
             : "round_top_three_finish"
@@ -180,11 +221,13 @@ export function createRecentUpdate(
       ...(current.rounds?.at(-1)?.order
         ? { round: current.rounds.at(-1)?.order }
         : {}),
+      ...(clubhouseLead && context.leadMargin
+        ? { strokes: context.leadMargin }
+        : {}),
       createdAt,
     };
   }
 
-  const newHole = newlyRecordedHole(previous, current);
   const movedUp = current.rank < previous.rank;
   const movedDown = current.rank > previous.rank;
   const scoreExplainsMovement = Boolean(
@@ -352,6 +395,8 @@ export function createRecentUpdates(
     biggestMover?: boolean;
     strokesCloserToLead?: number;
     finalRound?: boolean;
+    divisionRoundComplete?: boolean;
+    leadMargin?: number;
   } = {},
 ): RecentUpdate[] {
   if (!previous) {

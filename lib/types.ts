@@ -62,7 +62,10 @@ export type RecentUpdateKind =
   | "lead_gap_closed"
   | "rank_up"
   | "rank_down"
-  | "hole_rank_move";
+  | "hole_rank_move"
+  | "opening_birdie"
+  | "round_stats_summary"
+  | "clubhouse_lead";
 
 export type RecentUpdate = {
   id: string;
@@ -80,6 +83,11 @@ export type RecentUpdate = {
   thru?: ThruValue;
   hole?: number;
   holeRelativeToPar?: number;
+  statCount?: number;
+  holesPlayed?: number;
+  statLeaders?: string[];
+  bogeyLeaderName?: string;
+  bogeyCount?: number;
   round?: number;
   tiedFirst?: Array<{ division: string; players: string[] }>;
   createdAt: string;

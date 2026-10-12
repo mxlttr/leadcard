@@ -139,6 +139,7 @@ function dedupeRecentUpdates(updates: RecentUpdate[]) {
 function eventTypeFor(update: RecentUpdate): MergedEventType | null {
   if (update.kind === "round_complete") return "round_complete";
   if (update.kind === "tournament_complete") return "tournament_complete";
+  if (update.kind === "clubhouse_lead") return "finish";
 
   if (update.rank === 1 && update.previousRank && update.previousRank !== 1) {
     return "lead_change";

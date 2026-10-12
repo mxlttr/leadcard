@@ -27,6 +27,47 @@ export function formatUpdateText(
     return t("updates.copy.tournamentComplete");
   }
 
+  if (update.kind === "opening_birdie") {
+    return t(copyVariant(update, "updates.copy.openingBirdie"), {
+      name: update.playerName,
+      hole: update.hole ?? "",
+    });
+  }
+
+  if (update.kind === "clubhouse_lead") {
+    const key =
+      update.strokes === 1
+        ? "updates.copy.clubhouseLeadOne"
+        : "updates.copy.clubhouseLead";
+    return t(copyVariant(update, key), {
+      name: update.playerName,
+      score:
+        typeof update.scoreToPar === "number"
+          ? formatScore(update.scoreToPar)
+          : "",
+      strokes: update.strokes ?? 0,
+    });
+  }
+
+  if (update.kind === "round_stats_summary") {
+    const key =
+      update.statCount !== undefined
+        ? update.bogeyLeaderName
+          ? "updates.copy.roundStatsBoth"
+          : "updates.copy.roundStatsBirdies"
+        : update.bogeyCount === 0
+          ? "updates.copy.roundStatsBogeysClean"
+          : "updates.copy.roundStatsBogeys";
+    return t(copyVariant(update, key), {
+      leaders:
+        update.statLeaders?.join(` ${t("updates.copy.listJoiner")} `) ?? "",
+      birdies: update.statCount ?? 0,
+      bogeyLeader: update.bogeyLeaderName ?? "",
+      bogeys: update.bogeyCount ?? 0,
+      holes: update.holesPlayed ?? 0,
+    });
+  }
+
   const ace = update.text.match(/hits an ace on hole (\d+)/);
   if (ace || update.kind === "ace") {
     return t(copyVariant(update, "updates.copy.ace"), {
