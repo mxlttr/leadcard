@@ -33,6 +33,7 @@ making another model call:
 
 ```sh
 LEADCARD_DB_PATH=.data/leadcard-history-2.sqlite npm run --silent archive -- draft 2506
+LEADCARD_DB_PATH=.data/leadcard-history-2.sqlite npm run --silent archive -- draft 2484 --model=gpt-6-luna --allow-incomplete
 LEADCARD_DB_PATH=.data/leadcard-history-2.sqlite npm run --silent archive -- drafts 2506
 ```
 
@@ -40,10 +41,14 @@ The command reads `OPENAI_SECRET_KEY` (or `OPENAI_API_KEY`) from the environment
 or `.env.local`. It calls OpenAI only when `draft` is invoked; collector sweeps
 never generate articles. Generation uses OpenAI API quota and may incur charges.
 Set `OPENAI_REPORT_MODEL` or pass `--model=<model-id>` to choose another model.
-The default is `gpt-4.1-mini`. Generation uses one
+The default is `gpt-4.1-mini`. Pass `--allow-incomplete` only when an editorial
+partial report is appropriate; it uses complete divisions, notes tied leaders,
+and excludes unresolved divisions. Partial drafts remain editorial drafts and
+are not approved for publication. Exported drafts record `partialResults` and
+the fact-sheet review gaps in their frontmatter. Generation uses one
 structured response for English and German Markdown, asks the model to use only
 the supplied fact sheet, and disables OpenAI response storage. The command refuses
-fact sheets that are not ready for review.
+fact sheets that are not ready for review unless `--allow-incomplete` is passed.
 
 Each generated version is stored immutably in SQLite with its source fact-sheet
 hash, prompt version, model, generation time, token usage, and both language

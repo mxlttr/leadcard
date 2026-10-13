@@ -2,7 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, jsonSchema, Output } from "ai";
 import type { buildFactSheet } from "@/lib/server/reporting/fact-sheet";
 
-export const REPORT_DRAFT_PROMPT_VERSION = "2";
+export const REPORT_DRAFT_PROMPT_VERSION = "3";
 export const DEFAULT_REPORT_MODEL = "gpt-4.1-mini";
 
 export type BilingualArticleDraft = {
@@ -33,8 +33,11 @@ function articleSource(facts: FactSheet) {
     })),
     divisions: facts.divisions.map((division) => ({
       division: division.division,
+      complete: division.complete,
       fieldSize: division.fieldSize,
       finisherCount: division.finisherCount,
+      tiedFirst: division.tiedFirst,
+      terminalResults: division.terminalResults,
       standings: division.standings.map((standing) => ({
         ...standing,
         name: name(standing.playerId),
@@ -122,11 +125,11 @@ const draftSchema = jsonSchema<BilingualArticleDraft>({
 
 export async function generateBilingualDraft(
   facts: FactSheet,
-  options: { model?: string } = {},
+  options: { model?: string; allowIncomplete?: boolean } = {},
 ) {
-  if (!facts.completion.readyForReview)
+  if (!facts.completion.readyForReview && !options.allowIncomplete)
     throw new Error(
-      `Fact sheet is not ready for drafting: ${facts.completion.gaps.join(", ")}`,
+      `Fact sheet is not ready for drafting: ${facts.completion.gaps.join(", ")}. Pass allowIncomplete only for a partial report that clearly excludes unresolved results.`,
     );
   const apiKey = process.env.OPENAI_SECRET_KEY ?? process.env.OPENAI_API_KEY;
   if (!apiKey)
@@ -148,6 +151,7 @@ export async function generateBilingualDraft(
       "Keep player names and tournament names exactly as supplied. Identify the relevant round for round statistics. Accompany birdie counts with the supplied hole count: for example, eight birdies over 12 holes in round two. Use holesPlayed for tournament birdie totals and holeCount for individual rounds. Having the most birdies does not imply leading the scoring standings.",
       "Respect the scope of each fact. Division best rounds and fieldAchievements belong to that division, not automatically to the entire tournament. Do not compare raw scores or scores relative to par across divisions or courses to establish the best overall performance. Respect coverage limitations and tied achievements.",
       "Preserve supported ties in the narrative. If no sole winner is established, say the players finished tied in the recorded standings; never infer a playoff or its winner. Do not infer withdrawals, disqualifications or completion from missing scores. Mention unresolved results briefly when needed to avoid misleading readers, without turning the article into a technical data-quality report.",
+      "When the fact sheet has completion gaps, write a partial event report using only divisions marked complete. Exclude standings and winner claims from incomplete divisions, and briefly identify any omitted division and unresolved issue. For a tied first place, report the tied leaders and make clear that the records do not establish a sole winner.",
       "Round-end standings support round-by-round developments. Snapshot polling order does not establish shot order. Do not invent a late charge, a decisive final putt, a last-hole lead change or any other chronology absent from explicit verified facts.",
       "Do not invent quotes, weather, atmosphere, course difficulty, emotions, motives, shot descriptions, causal explanations, records or personal bests. Bogey-free describes scoring, not flawless execution. Report decisive mistakes neutrally only when supported and relevant to the contest; never ridicule poor performances or highlight the worst round simply for being bad.",
       "If verified rating context is supplied, use it selectively to explain the contest. Preserve its date and distinguish rating points, national rank, rating division and tournament division. Never use a current rank as a historical pre-event rank, claim a rating change was caused by this event without evidence, or identify the strongest entrant from partial rating coverage. If rating data is absent, omit it entirely.",

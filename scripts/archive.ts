@@ -49,7 +49,7 @@ async function main() {
     ].includes(command)
   ) {
     throw new Error(
-      "Usage: archive draft <tournament-id> [--model=<model-id>] | archive drafts <tournament-id> | archive export-markdown <tournament-id> --out-dir=<landing-repo> [--draft-id=<id>] [--event-start=YYYY-MM-DD --event-end=YYYY-MM-DD] [--overwrite] | archive facts <tournament-id> [options] | status | backup <new-path> | upgrade <tournament-id|--all> | replay <tournament-id|--all> [installed-version]",
+      "Usage: archive draft <tournament-id> [--model=<model-id>] [--allow-incomplete] | archive drafts <tournament-id> | archive export-markdown <tournament-id> --out-dir=<landing-repo> [--draft-id=<id>] [--event-start=YYYY-MM-DD --event-end=YYYY-MM-DD] [--overwrite] | archive facts <tournament-id> [options] | status | backup <new-path> | upgrade <tournament-id|--all> | replay <tournament-id|--all> [installed-version]",
     );
   }
   const archive = getArchive();
@@ -169,13 +169,18 @@ async function main() {
       const latest = archive.latestTournamentFactSheet(target);
       if (!latest) throw new Error("No saved fact sheet for this tournament");
       const facts = latest.value.facts as ReturnType<typeof buildFactSheet>;
-      const modelOption = process.argv
-        .slice(3)
-        .find((arg) => arg.startsWith("--model="));
+      const draftOptions = process.argv.slice(3);
+      const modelOption = draftOptions.find((arg) =>
+        arg.startsWith("--model="),
+      );
       const model = modelOption?.slice("--model=".length);
+      const allowIncomplete = draftOptions.includes("--allow-incomplete");
       if (model !== undefined && !model.trim())
         throw new Error("--model must name an OpenAI model");
-      const generated = await generateBilingualDraft(facts, { model });
+      const generated = await generateBilingualDraft(facts, {
+        model,
+        allowIncomplete,
+      });
       const saved = archive.saveReportDraft({
         tournamentId: target,
         factSheetHash: latest.contentHash,
@@ -184,6 +189,7 @@ async function main() {
         payload: JSON.stringify({
           ...generated.draft,
           usage: generated.usage,
+          partial: !facts.completion.readyForReview,
         }),
       });
       console.log(
@@ -275,15 +281,15 @@ async function main() {
         );
       if (eventEnd < eventStart)
         throw new Error("Event end date precedes start date");
-      const draft = JSON.parse(savedDraft.payload) as Parameters<
+      const savedDraftPayload = JSON.parse(savedDraft.payload) as Parameters<
         typeof localeDraft
-      >[0];
+      >[0] & { partial?: boolean };
       const overwrite = options.includes("--overwrite");
       const outputRoot = resolve(outDir);
       const existingMappings = archive.reportExports(target);
       const slug = reportSlug(facts.tournament.name, target);
       const files = (["en", "de"] as const).map((locale) => {
-        const article = localeDraft(draft, locale);
+        const article = localeDraft(savedDraftPayload, locale);
         const fullDescription =
           locale === "en"
             ? `Results and highlights from ${facts.tournament.name} at ${facts.tournament.course}.`
@@ -319,6 +325,10 @@ async function main() {
           promptVersion: savedDraft.promptVersion,
           model: savedDraft.model,
           generatedAt: savedDraft.createdAt,
+          partialResults: savedDraftPayload.partial === true,
+          reviewGaps: savedDraftPayload.partial
+            ? facts.completion.gaps
+            : undefined,
         });
         const exists = existsSync(filePath);
         const unchanged = exists && readFileSync(filePath, "utf8") === content;

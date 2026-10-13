@@ -46,6 +46,8 @@ export function buildReportMarkdown(input: {
   promptVersion: string;
   model: string;
   generatedAt: string;
+  partialResults?: boolean;
+  reviewGaps?: string[];
 }) {
   const permalink = reportPermalink(input.locale, input.slug);
   const frontMatter = [
@@ -68,6 +70,12 @@ export function buildReportMarkdown(input: {
     `promptVersion: ${yamlString(input.promptVersion)}`,
     `model: ${yamlString(input.model)}`,
     `generatedAt: ${yamlString(input.generatedAt)}`,
+    ...(input.partialResults
+      ? [
+          "partialResults: true",
+          `reviewGaps: [${(input.reviewGaps ?? []).map(yamlString).join(", ")}]`,
+        ]
+      : []),
     "---",
     "",
   ].join("\n");
