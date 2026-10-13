@@ -1,15 +1,19 @@
 import { getArchive } from "@/lib/server/archive";
 import { collectTournament } from "@/lib/server/live-store";
 import { reportServerError } from "@/lib/server/report-error";
+import { fetchOfficialResults } from "@/lib/server/reporting/official-results";
+import { savePostEventFactSheet } from "@/lib/server/reporting/post-event-results";
 import { getTournamentCatalog } from "@/lib/server/tournament-source";
 import type { TournamentSummary } from "@/lib/types";
 
 export const COLLECTION_INTERVAL_MS = 25_000;
+export const POST_EVENT_RESULTS_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 
 type CollectorDependencies = {
   catalog: () => Promise<TournamentSummary[]>;
   pending?: () => string[];
   collect: (id: string, final?: boolean) => Promise<void>;
+  sweepRecentResults?: (tournamentId: string) => Promise<void>;
   onError: (error: unknown, tournamentId?: string) => void;
 };
 
@@ -19,6 +23,8 @@ export function createCollector(dependencies: CollectorDependencies) {
   let running = false;
   const pending = new Set(dependencies.pending?.() ?? []);
   let lastSuccessAt: string | null = null;
+  let lastPostEventSweepAt = 0;
+  let lastPostEventSweepCompletedAt: string | null = null;
   const tick = async () => {
     if (running || stopped) return;
     running = true;
@@ -47,6 +53,31 @@ export function createCollector(dependencies: CollectorDependencies) {
           }
         }),
       );
+      if (
+        dependencies.sweepRecentResults &&
+        Date.now() - lastPostEventSweepAt >= POST_EVENT_RESULTS_INTERVAL_MS
+      ) {
+        lastPostEventSweepAt = Date.now();
+        const recent = catalog.filter(
+          (tournament) => tournament.status === "recent",
+        );
+        const queue = [...recent];
+        await Promise.all(
+          Array.from({ length: Math.min(2, queue.length) }, async () => {
+            while (!stopped && queue.length) {
+              const tournament = queue.shift();
+              if (!tournament) break;
+              try {
+                await dependencies.sweepRecentResults?.(tournament.id);
+              } catch (error) {
+                failed = true;
+                dependencies.onError(error, tournament.id);
+              }
+            }
+          }),
+        );
+        lastPostEventSweepCompletedAt = new Date().toISOString();
+      }
       if (!failed) lastSuccessAt = new Date().toISOString();
     } catch (error) {
       dependencies.onError(error);
@@ -71,7 +102,15 @@ export function createCollector(dependencies: CollectorDependencies) {
       if (timer) clearTimeout(timer);
     },
     status() {
-      return { running, lastSuccessAt };
+      return {
+        running,
+        lastSuccessAt,
+        lastPostEventSweepAt:
+          lastPostEventSweepAt > 0
+            ? new Date(lastPostEventSweepAt).toISOString()
+            : null,
+        lastPostEventSweepCompletedAt,
+      };
     },
   };
 }
@@ -91,6 +130,15 @@ export function startCollector() {
   globalThis.leadcardCollector = createCollector({
     catalog: getTournamentCatalog,
     collect: collectTournament,
+    sweepRecentResults: async (tournamentId) => {
+      // Capture one last scorecard snapshot before resolving official results.
+      await collectTournament(tournamentId, true);
+      const results = await fetchOfficialResults(tournamentId);
+      if (!results.finalized) return;
+      const outcome = savePostEventFactSheet(tournamentId, results);
+      if (outcome === "saved")
+        console.info("Saved post-event fact sheet", tournamentId);
+    },
     pending: () =>
       getArchive()
         .summaries()

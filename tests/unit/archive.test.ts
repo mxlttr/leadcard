@@ -88,6 +88,23 @@ describe("SQLite archive", () => {
       }
     ).n;
 
+  it("exports original report snapshots without replaying or changing the feed", () => {
+    archive.commit(state(0), players(0));
+    const before = archive.page("2506");
+    const snapshots = archive.reportSnapshots("2506");
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]).toMatchObject({
+      sourceAt: state(0).generatedAt,
+      tournament: state(0).tournament,
+    });
+    expect(snapshots[0].players).toEqual(players(0));
+    expect(archive.page("2506")).toEqual(before);
+    archive.db.prepare("UPDATE snapshots SET schema_version = 99").run();
+    expect(() => archive.reportSnapshots("2506")).toThrow(
+      "Unsupported report snapshot schema",
+    );
+  });
+
   it("restores standings and events after reopening, preserving the comparison baseline", () => {
     archive.commit(state(0), players(0));
     archive.commit(state(1, 1), players(1));

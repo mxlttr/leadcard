@@ -109,6 +109,8 @@ export type TournamentSummary = {
   name: string;
   course: string;
   roundLabel: string;
+  startDate?: string;
+  endDate?: string;
   currentRound?: number;
   totalRounds?: number;
   daysUntilStart?: number;

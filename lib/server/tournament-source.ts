@@ -599,6 +599,8 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
         name,
         course,
         roundLabel: dateRangeLabel(startDateLabel, endDateText),
+        startDate: startDateKey,
+        endDate: endDateKey,
         status: tournamentStatusFor(now, startDateKey, endDateKey),
         daysUntilStart,
         daysSinceEnd,
@@ -611,6 +613,8 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       (
         tournament,
       ): tournament is TournamentSummary & {
+        startDate: string;
+        endDate: string;
         daysUntilStart: number;
         daysSinceEnd: number;
         sortStart: number;

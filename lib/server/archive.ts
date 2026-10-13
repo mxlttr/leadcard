@@ -3,6 +3,9 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 import type { LiveState } from "@/lib/server/live-state";
+import type { ReportSnapshot } from "@/lib/server/reporting/fact-sheet";
+import type { OfficialResultsContext } from "@/lib/server/reporting/official-results";
+import type { RatingContext } from "@/lib/server/reporting/ratings";
 import {
   createRoundStatUpdates,
   toLeaderboardPlayers,
@@ -33,6 +36,35 @@ type Cursor = {
   version: string;
   snapshot: number;
   event: string;
+};
+export type SavedFactSheet = {
+  tournamentId: string;
+  sourceFingerprint: string;
+  contentHash: string;
+  payload: string;
+  createdAt: string;
+};
+export type SavedReportDraft = {
+  id: number;
+  tournamentId: string;
+  factSheetHash: string;
+  promptVersion: string;
+  model: string;
+  payload: string;
+  createdAt: string;
+};
+export type SavedReportExport = {
+  id: number;
+  tournamentId: string;
+  locale: "en" | "de";
+  draftId: number;
+  factSheetHash: string;
+  filePath: string;
+  permalink: string;
+  status: "draft-exported" | "submitted" | "published";
+  publicationCommit: string | null;
+  publishedAt: string | null;
+  createdAt: string;
 };
 
 export function isArchivedTournament(tournament: TournamentSummary) {
@@ -79,7 +111,7 @@ export class Archive {
         const version = this.db.pragma("user_version", {
           simple: true,
         }) as number;
-        if (version > 1)
+        if (version > 4)
           throw new Error("Archive schema is newer than this application");
         if (version === 0) {
           this.db.exec(`
@@ -104,6 +136,65 @@ export class Archive {
           CREATE INDEX updates_page ON updates(tournament_id, version, snapshot_id DESC, event_id DESC);
           PRAGMA user_version = 1;
         `);
+        }
+        const updatedVersion = this.db.pragma("user_version", {
+          simple: true,
+        }) as number;
+        if (updatedVersion === 1) {
+          this.db.exec(`
+            CREATE TABLE report_fact_sheets (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              tournament_id TEXT NOT NULL REFERENCES tournaments(id),
+              source_fingerprint TEXT NOT NULL,
+              content_hash TEXT NOT NULL,
+              payload TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              UNIQUE(tournament_id, content_hash)
+            );
+            CREATE INDEX report_fact_sheets_latest ON report_fact_sheets(tournament_id, source_fingerprint, id DESC);
+            PRAGMA user_version = 2;
+          `);
+        }
+        const reportVersion = this.db.pragma("user_version", {
+          simple: true,
+        }) as number;
+        if (reportVersion === 2) {
+          this.db.exec(`
+            CREATE TABLE report_drafts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              tournament_id TEXT NOT NULL REFERENCES tournaments(id),
+              fact_sheet_hash TEXT NOT NULL,
+              prompt_version TEXT NOT NULL,
+              model TEXT NOT NULL,
+              payload TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE INDEX report_drafts_latest ON report_drafts(tournament_id, id DESC);
+            PRAGMA user_version = 3;
+          `);
+        }
+        const exportVersion = this.db.pragma("user_version", {
+          simple: true,
+        }) as number;
+        if (exportVersion === 3) {
+          this.db.exec(`
+            CREATE TABLE report_exports (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              tournament_id TEXT NOT NULL REFERENCES tournaments(id),
+              locale TEXT NOT NULL CHECK(locale IN ('en', 'de')),
+              draft_id INTEGER NOT NULL REFERENCES report_drafts(id),
+              fact_sheet_hash TEXT NOT NULL,
+              file_path TEXT NOT NULL,
+              permalink TEXT NOT NULL,
+              status TEXT NOT NULL CHECK(status IN ('draft-exported', 'submitted', 'published')),
+              publication_commit TEXT,
+              published_at TEXT,
+              created_at TEXT NOT NULL,
+              UNIQUE(tournament_id, locale, draft_id)
+            );
+            CREATE INDEX report_exports_lookup ON report_exports(tournament_id, locale, id DESC);
+            PRAGMA user_version = 4;
+          `);
         }
       })
       .immediate();
@@ -363,6 +454,170 @@ export class Archive {
             : null,
       };
     })();
+  }
+
+  reportSnapshots(tournamentId: string): ReportSnapshot[] {
+    const rows = this.db
+      .prepare(
+        "SELECT id, schema_version, payload, content_hash, source_at, tournament FROM snapshots WHERE tournament_id = ? ORDER BY id",
+      )
+      .all(tournamentId) as SnapshotRow[];
+    return rows.map((row) => {
+      if (row.schema_version !== 1 || !row.tournament)
+        throw new Error("Unsupported report snapshot schema");
+      return {
+        id: row.id,
+        sourceAt: row.source_at,
+        contentHash: row.content_hash,
+        tournament: JSON.parse(row.tournament) as TournamentSummary,
+        players: JSON.parse(row.payload) as PlayerSnapshot[],
+      };
+    });
+  }
+
+  latestFactSheet(tournamentId: string, sourceFingerprint: string) {
+    const row = this.db
+      .prepare(
+        "SELECT tournament_id AS tournamentId, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM report_fact_sheets WHERE tournament_id = ? AND source_fingerprint = ? ORDER BY id DESC LIMIT 1",
+      )
+      .get(tournamentId, sourceFingerprint) as SavedFactSheet | undefined;
+    return row
+      ? {
+          ...row,
+          value: JSON.parse(row.payload) as {
+            facts: unknown;
+            ratingContext: RatingContext | null;
+            ratings: unknown[];
+          },
+        }
+      : undefined;
+  }
+
+  latestTournamentFactSheet(tournamentId: string) {
+    const row = this.db
+      .prepare(
+        "SELECT tournament_id AS tournamentId, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM report_fact_sheets WHERE tournament_id = ? ORDER BY id DESC LIMIT 1",
+      )
+      .get(tournamentId) as SavedFactSheet | undefined;
+    return row
+      ? {
+          ...row,
+          value: JSON.parse(row.payload) as {
+            facts: unknown;
+            officialResults?: OfficialResultsContext | null;
+            ratingContext: RatingContext | null;
+            ratings: unknown[];
+            ratingFetchError?: string | null;
+          },
+        }
+      : undefined;
+  }
+
+  saveFactSheet(sheet: Omit<SavedFactSheet, "createdAt">) {
+    const createdAt = new Date().toISOString();
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO report_fact_sheets(tournament_id, source_fingerprint, content_hash, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(
+        sheet.tournamentId,
+        sheet.sourceFingerprint,
+        sheet.contentHash,
+        sheet.payload,
+        createdAt,
+      );
+    const saved = this.db
+      .prepare(
+        "SELECT tournament_id AS tournamentId, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM report_fact_sheets WHERE tournament_id = ? AND content_hash = ?",
+      )
+      .get(sheet.tournamentId, sheet.contentHash) as SavedFactSheet | undefined;
+    if (!saved) throw new Error("Fact sheet was not saved");
+    return saved;
+  }
+
+  saveReportDraft(draft: Omit<SavedReportDraft, "id" | "createdAt">) {
+    const createdAt = new Date().toISOString();
+    const result = this.db
+      .prepare(
+        "INSERT INTO report_drafts(tournament_id, fact_sheet_hash, prompt_version, model, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        draft.tournamentId,
+        draft.factSheetHash,
+        draft.promptVersion,
+        draft.model,
+        draft.payload,
+        createdAt,
+      );
+    const saved = this.db
+      .prepare(
+        "SELECT id, tournament_id AS tournamentId, fact_sheet_hash AS factSheetHash, prompt_version AS promptVersion, model, payload, created_at AS createdAt FROM report_drafts WHERE id = ?",
+      )
+      .get(result.lastInsertRowid) as SavedReportDraft | undefined;
+    if (!saved) throw new Error("Report draft was not saved");
+    return saved;
+  }
+
+  reportDrafts(tournamentId: string) {
+    return this.db
+      .prepare(
+        "SELECT id, tournament_id AS tournamentId, fact_sheet_hash AS factSheetHash, prompt_version AS promptVersion, model, payload, created_at AS createdAt FROM report_drafts WHERE tournament_id = ? ORDER BY id DESC",
+      )
+      .all(tournamentId) as SavedReportDraft[];
+  }
+
+  saveReportExport(
+    reportExport: Omit<
+      SavedReportExport,
+      "id" | "createdAt" | "status" | "publicationCommit" | "publishedAt"
+    >,
+  ) {
+    const createdAt = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO report_exports(tournament_id, locale, draft_id, fact_sheet_hash, file_path, permalink, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'draft-exported', ?)
+         ON CONFLICT(tournament_id, locale, draft_id) DO UPDATE SET
+           fact_sheet_hash = excluded.fact_sheet_hash,
+           file_path = excluded.file_path,
+           permalink = excluded.permalink`,
+      )
+      .run(
+        reportExport.tournamentId,
+        reportExport.locale,
+        reportExport.draftId,
+        reportExport.factSheetHash,
+        reportExport.filePath,
+        reportExport.permalink,
+        createdAt,
+      );
+    const saved = this.db
+      .prepare(
+        `SELECT id, tournament_id AS tournamentId, locale, draft_id AS draftId,
+          fact_sheet_hash AS factSheetHash, file_path AS filePath, permalink, status,
+          publication_commit AS publicationCommit, published_at AS publishedAt,
+          created_at AS createdAt
+         FROM report_exports WHERE tournament_id = ? AND locale = ? AND draft_id = ?`,
+      )
+      .get(
+        reportExport.tournamentId,
+        reportExport.locale,
+        reportExport.draftId,
+      ) as SavedReportExport | undefined;
+    if (!saved) throw new Error("Report export mapping was not saved");
+    return saved;
+  }
+
+  reportExports(tournamentId: string) {
+    return this.db
+      .prepare(
+        `SELECT id, tournament_id AS tournamentId, locale, draft_id AS draftId,
+          fact_sheet_hash AS factSheetHash, file_path AS filePath, permalink, status,
+          publication_commit AS publicationCommit, published_at AS publishedAt,
+          created_at AS createdAt
+         FROM report_exports WHERE tournament_id = ? ORDER BY id DESC`,
+      )
+      .all(tournamentId) as SavedReportExport[];
   }
 
   replay(tournamentId: string, version = UPDATE_LOGIC_VERSION) {
