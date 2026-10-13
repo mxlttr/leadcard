@@ -67,6 +67,21 @@ export type SavedReportExport = {
   createdAt: string;
 };
 
+export type SavedRatingsSnapshot = {
+  id: number;
+  capturedAt: string;
+  contentHash: string;
+  payload: string;
+};
+
+export type SavedRatingsFactSheet = {
+  id: number;
+  sourceFingerprint: string;
+  contentHash: string;
+  payload: string;
+  createdAt: string;
+};
+
 export function isArchivedTournament(tournament: TournamentSummary) {
   return (
     process.env.LEADCARD_FORCE_MOCK_DATA !== "true" &&
@@ -111,7 +126,7 @@ export class Archive {
         const version = this.db.pragma("user_version", {
           simple: true,
         }) as number;
-        if (version > 4)
+        if (version > 6)
           throw new Error("Archive schema is newer than this application");
         if (version === 0) {
           this.db.exec(`
@@ -196,6 +211,41 @@ export class Archive {
             PRAGMA user_version = 4;
           `);
         }
+        const ratingsVersion = this.db.pragma("user_version", {
+          simple: true,
+        }) as number;
+        if (ratingsVersion === 4) {
+          this.db.exec(`
+            CREATE TABLE ratings_snapshots (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              captured_at TEXT NOT NULL,
+              content_hash TEXT NOT NULL,
+              payload TEXT NOT NULL
+            );
+            CREATE INDEX ratings_snapshots_latest ON ratings_snapshots(id DESC);
+            CREATE TABLE ratings_poll_state (
+              id INTEGER PRIMARY KEY CHECK(id = 1),
+              last_polled_at TEXT NOT NULL
+            );
+            PRAGMA user_version = 5;
+          `);
+        }
+        const factSheetVersion = this.db.pragma("user_version", {
+          simple: true,
+        }) as number;
+        if (factSheetVersion === 5) {
+          this.db.exec(`
+            CREATE TABLE ratings_fact_sheets (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              source_fingerprint TEXT NOT NULL,
+              content_hash TEXT NOT NULL UNIQUE,
+              payload TEXT NOT NULL,
+              created_at TEXT NOT NULL
+            );
+            CREATE INDEX ratings_fact_sheets_latest ON ratings_fact_sheets(id DESC);
+            PRAGMA user_version = 6;
+          `);
+        }
       })
       .immediate();
   }
@@ -215,6 +265,107 @@ export class Archive {
         summary: string;
       }[]
     ).map((row) => JSON.parse(row.summary) as TournamentSummary);
+  }
+
+  saveRatingsSnapshot(payload: unknown, contentHash: string) {
+    const previous = this.latestRatingsSnapshot();
+    if (previous?.contentHash === contentHash) return previous;
+    const capturedAt = new Date().toISOString();
+    this.db
+      .prepare(
+        "INSERT INTO ratings_snapshots(captured_at, content_hash, payload) VALUES (?, ?, ?)",
+      )
+      .run(capturedAt, contentHash, JSON.stringify(payload));
+    return this.latestRatingsSnapshot();
+  }
+
+  latestRatingsSnapshot() {
+    return this.db
+      .prepare(
+        "SELECT id, captured_at AS capturedAt, content_hash AS contentHash, payload FROM ratings_snapshots ORDER BY id DESC LIMIT 1",
+      )
+      .get() as SavedRatingsSnapshot | undefined;
+  }
+
+  ratingsSnapshots() {
+    return this.db
+      .prepare(
+        "SELECT id, captured_at AS capturedAt, content_hash AS contentHash, payload FROM ratings_snapshots ORDER BY id",
+      )
+      .all() as SavedRatingsSnapshot[];
+  }
+
+  latestRatingsSnapshots(limit = 2) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      throw new Error("Invalid ratings snapshot limit");
+    return (
+      this.db
+        .prepare(
+          "SELECT id, captured_at AS capturedAt, content_hash AS contentHash, payload FROM ratings_snapshots ORDER BY id DESC LIMIT ?",
+        )
+        .all(limit) as SavedRatingsSnapshot[]
+    ).reverse();
+  }
+
+  ratingsSnapshotCount() {
+    const row = this.db
+      .prepare("SELECT COUNT(*) AS count FROM ratings_snapshots")
+      .get() as { count: number };
+    return row.count;
+  }
+
+  saveRatingsFactSheet(sheet: Omit<SavedRatingsFactSheet, "id" | "createdAt">) {
+    const createdAt = new Date().toISOString();
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO ratings_fact_sheets(source_fingerprint, content_hash, payload, created_at) VALUES (?, ?, ?, ?)",
+      )
+      .run(
+        sheet.sourceFingerprint,
+        sheet.contentHash,
+        sheet.payload,
+        createdAt,
+      );
+    const saved = this.db
+      .prepare(
+        "SELECT id, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM ratings_fact_sheets WHERE content_hash = ?",
+      )
+      .get(sheet.contentHash) as SavedRatingsFactSheet | undefined;
+    if (!saved) throw new Error("Ratings fact sheet was not saved");
+    return saved;
+  }
+
+  latestRatingsFactSheet() {
+    return this.db
+      .prepare(
+        "SELECT id, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM ratings_fact_sheets ORDER BY id DESC LIMIT 1",
+      )
+      .get() as SavedRatingsFactSheet | undefined;
+  }
+
+  ratingsFactSheetForSource(sourceFingerprint: string) {
+    return this.db
+      .prepare(
+        "SELECT id, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM ratings_fact_sheets WHERE source_fingerprint = ? ORDER BY id DESC LIMIT 1",
+      )
+      .get(sourceFingerprint) as SavedRatingsFactSheet | undefined;
+  }
+
+  lastRatingsPollAt() {
+    const row = this.db
+      .prepare(
+        "SELECT last_polled_at AS lastPolledAt FROM ratings_poll_state WHERE id = 1",
+      )
+      .get() as { lastPolledAt: string } | undefined;
+    return row?.lastPolledAt ?? null;
+  }
+
+  markRatingsPolled(at = new Date().toISOString()) {
+    this.db
+      .prepare(
+        "INSERT INTO ratings_poll_state(id, last_polled_at) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET last_polled_at = excluded.last_polled_at",
+      )
+      .run(at);
   }
 
   private insertUpdates(

@@ -3,17 +3,21 @@ import { collectTournament } from "@/lib/server/live-store";
 import { reportServerError } from "@/lib/server/report-error";
 import { fetchOfficialResults } from "@/lib/server/reporting/official-results";
 import { savePostEventFactSheet } from "@/lib/server/reporting/post-event-results";
+import { fetchRatingsSnapshot } from "@/lib/server/reporting/ratings-client";
 import { getTournamentCatalog } from "@/lib/server/tournament-source";
 import type { TournamentSummary } from "@/lib/types";
 
 export const COLLECTION_INTERVAL_MS = 25_000;
 export const POST_EVENT_RESULTS_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+export const RATINGS_POLL_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 
 type CollectorDependencies = {
   catalog: () => Promise<TournamentSummary[]>;
   pending?: () => string[];
   collect: (id: string, final?: boolean) => Promise<void>;
   sweepRecentResults?: (tournamentId: string) => Promise<void>;
+  pollRatings?: () => Promise<void>;
+  lastRatingsPollAt?: () => string | null;
   onError: (error: unknown, tournamentId?: string) => void;
 };
 
@@ -78,6 +82,24 @@ export function createCollector(dependencies: CollectorDependencies) {
         );
         lastPostEventSweepCompletedAt = new Date().toISOString();
       }
+      if (dependencies.pollRatings) {
+        const lastPollAt = dependencies.lastRatingsPollAt?.();
+        const due =
+          !lastPollAt ||
+          Date.now() - Date.parse(lastPollAt) >= RATINGS_POLL_INTERVAL_MS;
+        const berlinWeekday = new Intl.DateTimeFormat("en-US", {
+          timeZone: "Europe/Berlin",
+          weekday: "short",
+        }).format(new Date());
+        if (due && ["Mon", "Tue", "Wed"].includes(berlinWeekday)) {
+          try {
+            await dependencies.pollRatings();
+          } catch (error) {
+            failed = true;
+            dependencies.onError(error);
+          }
+        }
+      }
       if (!failed) lastSuccessAt = new Date().toISOString();
     } catch (error) {
       dependencies.onError(error);
@@ -138,6 +160,20 @@ export function startCollector() {
       const outcome = savePostEventFactSheet(tournamentId, results);
       if (outcome === "saved")
         console.info("Saved post-event fact sheet", tournamentId);
+    },
+    lastRatingsPollAt: () => getArchive().lastRatingsPollAt(),
+    pollRatings: async () => {
+      const archive = getArchive();
+      const snapshot = await fetchRatingsSnapshot();
+      const previous = archive.latestRatingsSnapshot();
+      archive.saveRatingsSnapshot(snapshot.payload, snapshot.contentHash);
+      archive.markRatingsPolled();
+      if (previous?.contentHash !== snapshot.contentHash) {
+        console.info("Saved ratings snapshot", {
+          itemCount: snapshot.itemCount,
+          contentHash: snapshot.contentHash,
+        });
+      }
     },
     pending: () =>
       getArchive()

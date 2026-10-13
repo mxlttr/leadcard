@@ -27,11 +27,31 @@ import {
 } from "@/lib/server/reporting/ratings";
 import {
   fetchRatingContext,
+  fetchRatingsSnapshot,
   ratingContextStatus,
 } from "@/lib/server/reporting/ratings-client";
+import { buildRatingsFactSheet } from "@/lib/server/reporting/ratings-fact-sheet";
 import { UPDATE_LOGIC_VERSION } from "@/lib/server/update-engine";
 
 loadEnvConfig(process.cwd());
+
+function berlinDate(iso: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(iso));
+  const part = (type: string) =>
+    parts.find((item) => item.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function daysBetween(first: string, second: string) {
+  const firstTime = Date.parse(`${first}T00:00:00Z`);
+  const secondTime = Date.parse(`${second}T00:00:00Z`);
+  return Math.round((secondTime - firstTime) / 86_400_000);
+}
 
 async function main() {
   const [command, target, version = UPDATE_LOGIC_VERSION] =
@@ -46,15 +66,106 @@ async function main() {
       "draft",
       "drafts",
       "export-markdown",
+      "ratings",
     ].includes(command)
   ) {
     throw new Error(
-      "Usage: archive draft <tournament-id> [--model=<model-id>] [--allow-incomplete] | archive drafts <tournament-id> | archive export-markdown <tournament-id> --out-dir=<landing-repo> [--draft-id=<id>] [--event-start=YYYY-MM-DD --event-end=YYYY-MM-DD] [--overwrite] | archive facts <tournament-id> [options] | status | backup <new-path> | upgrade <tournament-id|--all> | replay <tournament-id|--all> [installed-version]",
+      "Usage: archive ratings capture | archive ratings facts | archive draft <tournament-id> [--model=<model-id>] [--allow-incomplete] | archive drafts <tournament-id> | archive export-markdown <tournament-id> --out-dir=<landing-repo> [--draft-id=<draft-id> --event-start=YYYY-MM-DD --event-end=YYYY-MM-DD] [--overwrite] | archive facts <tournament-id> [options] | status | backup <new-path> | upgrade <tournament-id|--all> | replay <tournament-id|--all> [installed-version]",
     );
   }
   const archive = getArchive();
   try {
-    if (command === "facts") {
+    if (command === "ratings") {
+      if (!target || target === "capture") {
+        const snapshot = await fetchRatingsSnapshot();
+        const previous = archive.latestRatingsSnapshot();
+        archive.saveRatingsSnapshot(snapshot.payload, snapshot.contentHash);
+        archive.markRatingsPolled();
+        console.log(
+          JSON.stringify(
+            {
+              itemCount: snapshot.itemCount,
+              contentHash: snapshot.contentHash,
+              changed: previous?.contentHash !== snapshot.contentHash,
+              capturedAt: archive.latestRatingsSnapshot()?.capturedAt,
+              snapshotCount: archive.ratingsSnapshotCount(),
+            },
+            null,
+            2,
+          ),
+        );
+      } else if (target === "facts") {
+        const snapshots = archive.latestRatingsSnapshots(2);
+        if (snapshots.length < 2)
+          throw new Error("Need two distinct ratings snapshots to build facts");
+        const releaseDate = berlinDate(snapshots[1].capturedAt);
+        const events = archive.summaries().flatMap((tournament) => {
+          if (!tournament.endDate) return [];
+          const endDay = new Date(
+            `${tournament.endDate}T00:00:00Z`,
+          ).getUTCDay();
+          const age = daysBetween(tournament.endDate, releaseDate);
+          if (![0, 6].includes(endDay) || age < 0 || age > 4) return [];
+          const state = archive.load(tournament.id);
+          return state?.players.length
+            ? [{ tournament, players: state.players }]
+            : [];
+        });
+        const sourceFingerprint = createHash("sha256")
+          .update(
+            `${snapshots[0].contentHash}:${snapshots[1].contentHash}:${events
+              .map((event) => event.tournament.id)
+              .sort()
+              .join(",")}`,
+          )
+          .digest("hex");
+        const existing = archive.ratingsFactSheetForSource(sourceFingerprint);
+        if (existing) {
+          console.log(
+            JSON.stringify(
+              {
+                facts: JSON.parse(existing.payload),
+                saved: {
+                  id: existing.id,
+                  contentHash: existing.contentHash,
+                  createdAt: existing.createdAt,
+                  unchanged: true,
+                },
+              },
+              null,
+              2,
+            ),
+          );
+          return;
+        }
+        const facts = await buildRatingsFactSheet(
+          snapshots[0],
+          snapshots[1],
+          events,
+        );
+        const saved = archive.saveRatingsFactSheet({
+          sourceFingerprint,
+          contentHash: facts.contentHash,
+          payload: JSON.stringify(facts),
+        });
+        console.log(
+          JSON.stringify(
+            {
+              facts,
+              saved: {
+                id: saved.id,
+                contentHash: saved.contentHash,
+                createdAt: saved.createdAt,
+              },
+            },
+            null,
+            2,
+          ),
+        );
+      } else {
+        throw new Error("Use archive ratings capture or archive ratings facts");
+      }
+    } else if (command === "facts") {
       if (!target || target === "--all")
         throw new Error("Specify one tournament ID");
       const snapshots = archive.reportSnapshots(target);
@@ -379,6 +490,23 @@ async function main() {
         JSON.stringify(
           {
             integrity: archive.db.pragma("quick_check"),
+            ratings: {
+              snapshots: archive.ratingsSnapshotCount(),
+              lastPollAt: archive.lastRatingsPollAt(),
+              latest: archive.latestRatingsSnapshot()
+                ? {
+                    capturedAt: archive.latestRatingsSnapshot()?.capturedAt,
+                    contentHash: archive.latestRatingsSnapshot()?.contentHash,
+                  }
+                : null,
+              latestFactSheet: archive.latestRatingsFactSheet()
+                ? {
+                    id: archive.latestRatingsFactSheet()?.id,
+                    contentHash: archive.latestRatingsFactSheet()?.contentHash,
+                    createdAt: archive.latestRatingsFactSheet()?.createdAt,
+                  }
+                : null,
+            },
             tournaments: archive.db
               .prepare(
                 "SELECT t.id, t.active_version, (SELECT COUNT(*) FROM snapshots s WHERE s.tournament_id=t.id) AS snapshots, (SELECT COUNT(*) FROM updates u WHERE u.tournament_id=t.id AND u.version=t.active_version) AS updates FROM tournaments t",

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { PlayerSnapshot } from "@/lib/types";
 import { matchRatings, type RatingContext, type RatingPlayer } from "./ratings";
 
@@ -107,6 +108,25 @@ async function fetchAllRatings() {
   return { items, rawResponse: { pages } };
 }
 
+/** Fetch one complete ratings-list snapshot without fetching player profiles. */
+export async function fetchRatingsSnapshot() {
+  const retrievedAt = new Date().toISOString();
+  const { items, rawResponse } = await fetchAllRatings();
+  const contentHash = createHash("sha256")
+    .update(JSON.stringify(rawResponse))
+    .digest("hex");
+  return {
+    contentHash,
+    payload: {
+      sourceUrl: `${API}/ratings`,
+      retrievedAt,
+      items,
+      rawResponse,
+    },
+    itemCount: items.length,
+  };
+}
+
 async function mapConcurrent<T, R>(
   items: T[],
   concurrency: number,
@@ -123,6 +143,29 @@ async function mapConcurrent<T, R>(
     }),
   );
   return result;
+}
+
+/** Fetch rating histories only for players selected for an article fact sheet. */
+export async function fetchPlayerRatingProfiles(gtNumbers: number[]) {
+  const ids = [...new Set(gtNumbers)].sort((a, b) => a - b);
+  return mapConcurrent(ids, 4, async (gtNumber) => {
+    try {
+      return {
+        gtNumber,
+        profile: await fetchJson(
+          new URL(`/players/${gtNumber}`, API).toString(),
+        ),
+        error: null,
+      };
+    } catch (error) {
+      return {
+        gtNumber,
+        profile: null,
+        error:
+          error instanceof Error ? error.message : "Unknown ratings API error",
+      };
+    }
+  });
 }
 
 /** Fetch the currently available ratings and dated rating history for uniquely matched archived players. */

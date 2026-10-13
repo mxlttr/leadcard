@@ -81,6 +81,8 @@ memory. Set `LEADCARD_COLLECTOR_ENABLED=false` to disable unattended collection.
 
 ```bash
 npm run archive -- status
+npm run archive -- ratings capture
+npm run archive -- ratings facts
 npm run archive -- backup /tmp/leadcard-backup.sqlite
 npm run archive -- upgrade --all
 npm run archive -- replay --all v1
@@ -89,3 +91,21 @@ npm run archive -- replay --all v1
 The Docker image includes the same tool as `node archive.cjs`. The updates feed
 loads 50 events per page; all snapshots and updates are retained. See
 [the temporary Coolify staging and cutover runbook](docs/staging-archive.md).
+
+The background collector also checks the complete German ratings list every
+six hours from Monday through Wednesday (Europe/Berlin). It stores a SQLite
+snapshot only when the ratings list changes; repeated checks do not create
+duplicates. This captures the pre-release and post-release lists while avoiding
+player-profile requests for the entire field. `npm run archive -- status`
+reports the latest capture and poll time. The collector must remain enabled and
+the app must be running with its persistent archive mounted for scheduled
+capture to work.
+
+After a changed release is captured, `npm run archive -- ratings facts` compares
+the latest two distinct rating snapshots, finds archived tournaments from the
+preceding weekend, and builds a saved fact sheet. It requests player profiles
+only for uniquely matched weekend participants. The sheet records observed
+rating deltas separately from rank movement and includes the round ratings and
+rolling-window inclusion flags available from player profiles. It also records
+the source snapshots, event coverage, unmatched names, and profile errors for
+editorial review before drafting.
