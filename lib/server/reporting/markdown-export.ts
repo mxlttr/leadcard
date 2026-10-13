@@ -57,7 +57,6 @@ export function buildReportMarkdown(input: {
     `slug: ${yamlString(input.slug)}`,
     `date: ${yamlString(input.publicationDate)}`,
     `language: ${input.locale}`,
-    "published: false",
     `eventStart: ${yamlString(input.eventStart)}`,
     `eventEnd: ${yamlString(input.eventEnd)}`,
     "originalPublicationDate: null",

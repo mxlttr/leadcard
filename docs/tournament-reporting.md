@@ -66,12 +66,12 @@ and `/de/berichte/hubertus-open-2506/`). Leading edition numbers such as `13.`
 are omitted from the slug. The ID keeps the slug unique, and the generated slug
 remains stable if the report headline changes. Each file has
 the landing renderer's required `title`, `description`,
-`slug`, `date`, `language`, and `published` fields plus tournament ID, locale,
+`slug`, `date`, `language`, and `status` fields plus tournament ID, locale,
 event start/end dates, original publication date, update date, permalink,
 fact-sheet hash/version, prompt version, model, and generation time. Drafts use
-`published: false`; `date` is set to the generation date only to satisfy the
+`status: draft`; `date` is set to the generation date only to satisfy the
 renderer schema and must be replaced with the actual publication date when an
-editor changes `published` to `true`. Original publication and update dates stay
+editor changes `status` to `published`. Original publication and update dates stay
 `null` until then.
 
 The exporter uses only a saved draft tied to the latest saved fact sheet. If the
