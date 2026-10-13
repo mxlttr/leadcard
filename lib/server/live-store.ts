@@ -768,9 +768,17 @@ export async function getTournamentCatalogWithArchive() {
     ...current,
     ...getArchive()
       .summaries()
-      .filter((t) => !known.has(t.id))
+      .filter((t) => !known.has(t.id) && !hasFallbackTournamentContent(t))
       .map((t) => ({ ...t, status: "recent" as const })),
   ];
+}
+
+function hasFallbackTournamentContent(tournament: TournamentSummary) {
+  return (
+    tournament.name === `Tournament ${tournament.id}` ||
+    tournament.course === "Unknown course" ||
+    tournament.roundLabel === "Schedule unavailable"
+  );
 }
 
 export async function collectTournament(tournamentId: string, final = false) {
