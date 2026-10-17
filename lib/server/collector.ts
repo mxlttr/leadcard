@@ -9,7 +9,18 @@ import type { TournamentSummary } from "@/lib/types";
 
 export const COLLECTION_INTERVAL_MS = 25_000;
 export const POST_EVENT_RESULTS_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+export const WEEKEND_POST_EVENT_RESULTS_INTERVAL_MS = 60 * 60 * 1_000;
 export const RATINGS_POLL_INTERVAL_MS = 6 * 60 * 60 * 1_000;
+
+function postEventResultsInterval(now: Date) {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Berlin",
+    weekday: "short",
+  }).format(now);
+  return weekday === "Sat" || weekday === "Sun"
+    ? WEEKEND_POST_EVENT_RESULTS_INTERVAL_MS
+    : POST_EVENT_RESULTS_INTERVAL_MS;
+}
 
 type CollectorDependencies = {
   catalog: () => Promise<TournamentSummary[]>;
@@ -59,7 +70,8 @@ export function createCollector(dependencies: CollectorDependencies) {
       );
       if (
         dependencies.sweepRecentResults &&
-        Date.now() - lastPostEventSweepAt >= POST_EVENT_RESULTS_INTERVAL_MS
+        Date.now() - lastPostEventSweepAt >=
+          postEventResultsInterval(new Date())
       ) {
         lastPostEventSweepAt = Date.now();
         const recent = catalog.filter(

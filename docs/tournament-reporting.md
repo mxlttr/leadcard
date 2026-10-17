@@ -15,7 +15,8 @@ LEADCARD_DB_PATH=.data/leadcard-history-2.sqlite npm run --silent archive -- fac
 ```
 
 The long-running archive collector checks catalog events marked `recent` every
-six hours. Recent events stay in the catalog for seven days after their end date.
+six hours on weekdays and every hour on Saturday and Sunday (Europe/Berlin).
+Recent events stay in the catalog for seven days after their end date.
 The sweep takes a final scorecard sample, waits for a fully classified official
 results table, and saves a new fact sheet when the published classifications or
 archived snapshot change. Unfinalized tables are retried on the next sweep.

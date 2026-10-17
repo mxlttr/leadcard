@@ -34,7 +34,8 @@ Do not point production auto-deployment at this branch during the soak.
    switching. Events with no newsworthy changes still produce score snapshots.
 
 The collector also sweeps events listed as `recent` in the source catalog every
-six hours. That catalog exposes completed events for seven days. Each sweep takes
+six hours on weekdays and every hour on Saturday and Sunday (Europe/Berlin).
+That catalog exposes completed events for seven days. Each sweep takes
 one final scorecard sample, checks the official results table, and saves a new
 fact sheet when the table has final classifications and its results or saved
 scorecards have changed. Exact-name/division matches can resolve explicit DNF,
