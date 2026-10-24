@@ -183,6 +183,7 @@
     "currentRound": "Current round",
     "parLabel": "Par {{par}}",
     "ace": "Ace",
+    "outOfBounds": "Out of bounds",
     "albatrossPlus": "Albatross+",
     "eagle": "Eagle",
     "doubleBogey": "Double bogey",

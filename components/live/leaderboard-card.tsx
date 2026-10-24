@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { FollowToggle } from "@/components/live/follow-toggle";
+import { HoleScoreCell } from "@/components/live/hole-score-cell";
 import { ScoreDisplay } from "@/components/live/score-display";
 import { translateDivisionLabel } from "@/lib/i18n/divisions";
 import type { LeaderboardPlayer, PlayerRound } from "@/lib/types";
@@ -223,7 +224,7 @@ export function LeaderboardCard({
                   return (
                     <section
                       key={round.id}
-                      className="space-y-1 border-b border-border pb-3 last:border-b-0 last:pb-0"
+                      className="space-y-2 border-b border-border pb-3 last:border-b-0 last:pb-0"
                     >
                       <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center gap-x-1.5 text-xs">
                         <span className="font-semibold text-foreground">
@@ -274,13 +275,13 @@ export function LeaderboardCard({
                                         "border-t border-border [&>th]:pt-3 [&>td]:pt-3",
                                     )}
                                   >
-                                    <th className="w-12 py-1 text-left font-medium">
+                                    <th className="w-12 py-1.5 text-left font-medium">
                                       {t("player.hole")}
                                     </th>
                                     {holes.map((hole) => (
                                       <th
                                         key={`h-${hole.hole}`}
-                                        className="py-1 font-medium"
+                                        className="py-1.5 font-medium"
                                       >
                                         {hole.hole}
                                       </th>
@@ -292,13 +293,13 @@ export function LeaderboardCard({
                                     ))}
                                   </tr>
                                   <tr className="text-muted">
-                                    <th className="py-1 text-left font-medium">
+                                    <th className="py-1.5 text-left font-medium">
                                       {t("player.par")}
                                     </th>
                                     {holes.map((hole) => (
                                       <td
                                         key={`p-${hole.hole}`}
-                                        className="py-1"
+                                        className="py-1.5"
                                       >
                                         {hole.par ?? "—"}
                                       </td>
@@ -310,19 +311,14 @@ export function LeaderboardCard({
                                     ))}
                                   </tr>
                                   <tr className="font-semibold">
-                                    <th className="py-1 text-left font-medium text-muted">
+                                    <th className="py-1.5 text-left font-medium text-muted">
                                       {t("player.score")}
                                     </th>
                                     {holes.map((hole) => (
-                                      <td
+                                      <HoleScoreCell
                                         key={`s-${hole.hole}`}
-                                        className={cn(
-                                          "py-1",
-                                          holeTone(hole.relativeToPar),
-                                        )}
-                                      >
-                                        {hole.score ?? "—"}
-                                      </td>
+                                        hole={hole}
+                                      />
                                     ))}
                                     {emptySlots(holes).map((slot) => (
                                       <td

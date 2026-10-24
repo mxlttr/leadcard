@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Fragment, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
+import { HoleScoreCell } from "@/components/live/hole-score-cell";
 import type { LeaderboardPlayer } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -11,11 +12,6 @@ function currentRound(player: LeaderboardPlayer) {
   return (
     [...rounds].reverse().find((round) => round.thru !== 0) ?? rounds.at(-1)
   );
-}
-
-function holeTone(relativeToPar: number | null) {
-  if (relativeToPar === null || relativeToPar === 0) return "text-foreground";
-  return relativeToPar < 0 ? "text-primary" : "text-negative";
 }
 
 export function CompactScorecard({ player }: { player: LeaderboardPlayer }) {
@@ -71,11 +67,14 @@ export function CompactScorecard({ player }: { player: LeaderboardPlayer }) {
                           "border-t border-border [&>th]:pt-3 [&>td]:pt-3",
                       )}
                     >
-                      <th className="w-12 py-1 text-left font-medium">
+                      <th className="w-12 py-1.5 text-left font-medium">
                         {t("player.hole")}
                       </th>
                       {holes.map((hole) => (
-                        <th key={`h-${hole.hole}`} className="py-1 font-medium">
+                        <th
+                          key={`h-${hole.hole}`}
+                          className="py-1.5 font-medium"
+                        >
                           {hole.hole}
                         </th>
                       ))}
@@ -84,11 +83,11 @@ export function CompactScorecard({ player }: { player: LeaderboardPlayer }) {
                       ))}
                     </tr>
                     <tr className="text-muted">
-                      <th className="py-1 text-left font-medium">
+                      <th className="py-1.5 text-left font-medium">
                         {t("player.par")}
                       </th>
                       {holes.map((hole) => (
-                        <td key={`p-${hole.hole}`} className="py-1">
+                        <td key={`p-${hole.hole}`} className="py-1.5">
                           {hole.par ?? "—"}
                         </td>
                       ))}
@@ -97,16 +96,11 @@ export function CompactScorecard({ player }: { player: LeaderboardPlayer }) {
                       ))}
                     </tr>
                     <tr className="font-semibold">
-                      <th className="py-1 text-left font-medium text-muted">
+                      <th className="py-1.5 text-left font-medium text-muted">
                         {t("player.score")}
                       </th>
                       {holes.map((hole) => (
-                        <td
-                          key={`s-${hole.hole}`}
-                          className={cn("py-1", holeTone(hole.relativeToPar))}
-                        >
-                          {hole.score ?? "—"}
-                        </td>
+                        <HoleScoreCell key={`s-${hole.hole}`} hole={hole} />
                       ))}
                       {emptySlots(holes).map((slot) => (
                         <td key={`score-empty-${holes[0]?.hole}-${slot}`} />

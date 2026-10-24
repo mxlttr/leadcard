@@ -183,6 +183,7 @@
     "currentRound": "Aktuelle Runde",
     "parLabel": "Par {{par}}",
     "ace": "Ace",
+    "outOfBounds": "Aus (OB)",
     "albatrossPlus": "Albatros+",
     "eagle": "Eagle",
     "doubleBogey": "Doppelbogey",
