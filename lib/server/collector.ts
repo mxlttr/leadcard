@@ -1,6 +1,7 @@
 import { getArchive } from "@/lib/server/archive";
 import { collectTournament } from "@/lib/server/live-store";
 import { reportServerError } from "@/lib/server/report-error";
+import { generateAutomaticReport } from "@/lib/server/reporting/automatic";
 import { fetchOfficialResults } from "@/lib/server/reporting/official-results";
 import { savePostEventFactSheet } from "@/lib/server/reporting/post-event-results";
 import { fetchRatingsSnapshot } from "@/lib/server/reporting/ratings-client";
@@ -172,6 +173,7 @@ export function startCollector() {
       const outcome = savePostEventFactSheet(tournamentId, results);
       if (outcome === "saved")
         console.info("Saved post-event fact sheet", tournamentId);
+      await generateAutomaticReport(tournamentId);
     },
     lastRatingsPollAt: () => getArchive().lastRatingsPollAt(),
     pollRatings: async () => {

@@ -46,6 +46,7 @@ export function buildReportMarkdown(input: {
   promptVersion: string;
   model: string;
   generatedAt: string;
+  status?: "draft" | "published";
   partialResults?: boolean;
   reviewGaps?: string[];
 }) {
@@ -64,7 +65,7 @@ export function buildReportMarkdown(input: {
     "originalPublicationDate: null",
     "updatedAt: null",
     `permalink: ${yamlString(permalink)}`,
-    "status: draft",
+    `status: ${input.status ?? "draft"}`,
     `sourceFactSheetHash: ${yamlString(input.factSheetHash)}`,
     `sourceFactSheetVersion: ${yamlString(input.factSheetVersion || FACT_SHEET_VERSION)}`,
     `promptVersion: ${yamlString(input.promptVersion)}`,

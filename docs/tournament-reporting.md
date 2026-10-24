@@ -39,8 +39,9 @@ LEADCARD_DB_PATH=.data/leadcard-history-2.sqlite npm run --silent archive -- dra
 ```
 
 The command reads `OPENAI_SECRET_KEY` (or `OPENAI_API_KEY`) from the environment
-or `.env.local`. It calls OpenAI only when `draft` is invoked; collector sweeps
-never generate articles. Generation uses OpenAI API quota and may incur charges.
+or `.env.local`. Manual `draft` calls generate on demand. Automatic generation
+can also run after the collector saves finalized official results, when enabled
+as described below. Generation uses OpenAI API quota and may incur charges.
 Set `OPENAI_REPORT_MODEL` or pass `--model=<model-id>` to choose another model.
 The default is `gpt-4.1-mini`. Pass `--allow-incomplete` only when an editorial
 partial report is appropriate; it uses complete divisions, notes tied leaders,
@@ -53,8 +54,36 @@ fact sheets that are not ready for review unless `--allow-incomplete` is passed.
 
 Each generated version is stored immutably in SQLite with its source fact-sheet
 hash, prompt version, model, generation time, token usage, and both language
-versions. Re-running `draft` makes a new model call and saves a new version. These
-are editorial drafts only; no claim validation or publication status is implied.
+versions. Re-running `draft` makes a new model call and saves a new version.
+
+## Automatic report pull requests
+
+Set these production environment variables to have the collector generate reports
+when an event has finalized official results and its latest fact sheet is ready
+for review:
+
+```sh
+LEADCARD_AUTO_REPORTS_ENABLED=true
+LEADCARD_REPORTS_GITHUB_TOKEN=<fine-grained token with Contents: read/write and Pull requests: read/write on the landing repository>
+LEADCARD_REPORTS_REPOSITORY=mxlttr/leadcard-landing
+LEADCARD_REPORTS_REVIEWER=
+```
+
+The token should belong to a GitHub App or bot account. `LEADCARD_REPORTS_REVIEWER`
+is optional and may be a GitHub username or `team:<slug>`. When set, that reviewer
+is requested on each pull request; email delivery depends on their GitHub
+notification settings. When empty, no review is requested and email notification
+depends on the repository watchers' settings.
+The app also needs `OPENAI_SECRET_KEY` or `OPENAI_API_KEY`. Keep the collector
+enabled and use its persistent archive as usual.
+
+The collector reuses a saved article for the same fact-sheet hash if a GitHub
+request needs retrying. It creates a regular PR containing English and German
+files with `status: published`; the PR itself does not publish the content. Merge
+the PR to deploy the report. Fact sheets with unresolved completion gaps are
+held and do not generate a report. Repeated sweeps do not create another PR once
+the same fact sheet is published. GitHub API failures are logged and retried on
+the next recent-event sweep.
 
 ## Exporting local Markdown drafts
 

@@ -6,6 +6,8 @@ This file is the working guide for contributors and coding agents in this repo.
 
 - Use Node `20.x` as declared in `package.json`.
 - Install dependencies with `npm install`.
+- Production site: <https://app.leadcard.de>.
+- For production readiness checks, use the production URL rather than assuming a local server is running; `/api/health` reports service health.
 
 ## Main Commands
 
