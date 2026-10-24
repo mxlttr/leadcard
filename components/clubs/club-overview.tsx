@@ -33,11 +33,14 @@ async function fetchTournamentCatalog() {
   return (await response.json()) as { tournaments: TournamentSummary[] };
 }
 
-async function fetchTournamentClubs(tournamentId: string) {
+async function fetchTournamentClubs(
+  tournamentId: string,
+): Promise<ClubTournamentResponse | null> {
   const response = await fetch(
     `/api/clubs?tournamentId=${encodeURIComponent(tournamentId)}`,
     { cache: "no-store" },
   );
+  if (response.status === 404) return null;
   if (!response.ok) throw new Error("Failed to fetch tournament clubs");
   return (await response.json()) as ClubTournamentResponse;
 }

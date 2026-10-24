@@ -9,7 +9,14 @@ export async function GET(request: Request) {
   const tournamentId = new URL(request.url).searchParams.get("tournamentId");
 
   if (tournamentId) {
-    return NextResponse.json(await getClubTournamentResponse(tournamentId));
+    const response = await getClubTournamentResponse(tournamentId);
+    if (!response) {
+      return NextResponse.json(
+        { error: "Unknown tournament" },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json(response);
   }
 
   return NextResponse.json(await getClubsResponse());

@@ -717,13 +717,13 @@ export async function getClubsResponse(): Promise<ClubsResponse> {
 
 export async function getClubTournamentResponse(
   tournamentId: string,
-): Promise<ClubTournamentResponse> {
+): Promise<ClubTournamentResponse | null> {
   const tournament = (await getTournamentCatalog()).find(
     (item) => item.id === tournamentId,
   );
 
   if (!tournament) {
-    throw new Error("Unknown tournament");
+    return null;
   }
 
   const leaderboard = await getLeaderboardResponse(tournamentId, "__all");
