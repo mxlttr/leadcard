@@ -23,6 +23,7 @@ export type PlayerHoleScore = {
   par: number | null;
   score: number | null;
   relativeToPar: number | null;
+  outOfBounds?: boolean;
 };
 
 export type PlayerRound = {

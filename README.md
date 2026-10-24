@@ -86,10 +86,13 @@ npm run archive -- ratings facts
 npm run archive -- backup /tmp/leadcard-backup.sqlite
 npm run archive -- upgrade --all
 npm run archive -- replay --all v1
+npm run archive -- backfill-ob 2581
 ```
 
-The Docker image includes the same tool as `node archive.cjs`. The updates feed
-loads 50 events per page; all snapshots and updates are retained. See
+The Docker image includes the same tool as `node archive.cjs`; run
+`node archive.cjs backfill-ob 2581` inside the deployed container to annotate
+matching archived holes from completed source rounds. The updates feed loads 50
+events per page; all snapshots and updates are retained. See
 [the temporary Coolify staging and cutover runbook](docs/staging-archive.md).
 
 The background collector also checks the complete German ratings list every

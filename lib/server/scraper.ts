@@ -96,6 +96,7 @@ function buildRound(
   rowCells: string[],
   parValues: Array<number | null>,
   order: number,
+  outOfBounds: boolean[] = [],
 ): PlayerRound {
   const holeTexts = rowCells.slice(2, 2 + parValues.length);
   const holeValues = holeTexts.map((cellText) => parseHoleValue(cellText));
@@ -112,6 +113,7 @@ function buildRound(
       par,
       score,
       relativeToPar: score === null || par === null ? null : score - par,
+      ...(outOfBounds[index] ? { outOfBounds: true } : {}),
     };
   });
 
@@ -186,14 +188,23 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
         continue;
       }
 
-      const groupedRows: string[][] = [firstCells];
+      const groupedRows: Array<{ cells: string[]; outOfBounds: boolean[] }> = [
+        {
+          cells: firstCells,
+          outOfBounds: $(rows[rowIndex])
+            .find("td")
+            .toArray()
+            .slice(2, 2 + parValues.length)
+            .map((cell) => $(cell).find(".ob_circle").length > 0),
+        },
+      ];
       let nextIndex = rowIndex + 1;
 
       while (nextIndex < rows.length) {
-        const candidateCells = $(rows[nextIndex])
-          .find("td")
-          .toArray()
-          .map((cell) => sanitizeText($(cell).text()));
+        const candidateCellNodes = $(rows[nextIndex]).find("td").toArray();
+        const candidateCells = candidateCellNodes.map((cell) =>
+          sanitizeText($(cell).text()),
+        );
 
         const candidateRank = candidateCells[0] ?? "";
         const candidateName = candidateCells[1] ?? "";
@@ -205,7 +216,12 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
         // Some live pages insert a blank separator row after the grouped round rows.
         // Skip over it, but do not let it become the player's active row.
         if (candidateCells.some((cell) => cell !== "")) {
-          groupedRows.push(candidateCells);
+          groupedRows.push({
+            cells: candidateCells,
+            outOfBounds: candidateCellNodes
+              .slice(2, 2 + parValues.length)
+              .map((cell) => $(cell).find(".ob_circle").length > 0),
+          });
         }
         nextIndex += 1;
       }
@@ -214,24 +230,28 @@ function parseLiveSnapshot(html: string): ScrapedSnapshot {
       const rounds = groupedRows.map((row, roundIndex) =>
         buildRound(
           playerIdFrom(division, nameCell),
-          row,
+          row.cells,
           parValues,
           roundIndex + 1,
+          row.outOfBounds,
         ),
       );
 
-      if (hasUnsupportedStatus(firstCells) || hasUnsupportedStatus(activeRow)) {
+      if (
+        hasUnsupportedStatus(firstCells) ||
+        hasUnsupportedStatus(activeRow.cells)
+      ) {
         rowIndex = nextIndex;
         continue;
       }
 
-      const holeTexts = activeRow.slice(2, 2 + parValues.length);
+      const holeTexts = activeRow.cells.slice(2, 2 + parValues.length);
       const playedHoles = holeTexts
         .map((cellText) => parseHoleValue(cellText))
         .filter((value): value is number => value !== null);
       const thru: ThruValue =
         playedHoles.length >= parValues.length ? "F" : playedHoles.length;
-      const summaryCells = activeRow.slice(2 + parValues.length);
+      const summaryCells = activeRow.cells.slice(2 + parValues.length);
       const scoreToPar = extractScoreToPar(summaryCells);
 
       if (Number.isFinite(scoreToPar)) {

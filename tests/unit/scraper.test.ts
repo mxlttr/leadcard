@@ -78,6 +78,34 @@ describe("scrapeSnapshot", () => {
     });
   });
 
+  it("marks out-of-bounds holes from the source scorecard", () => {
+    const html = `
+      <table id="livescoring_">
+        <thead>
+          <tr><th colspan="2">Par</th><th class="th_hole">3</th><th class="th_hole">4</th></tr>
+          <tr><th>No</th><th class="th_name">Open</th><th class="th_hole">1</th><th class="th_hole">2</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Player</td><td><div class="ob_circle">5</div></td><td>4</td><td>+2</td><td></td><td>9</td></tr>
+        </tbody>
+      </table>
+    `;
+
+    const holes = scrapeSnapshot(html).players[0]?.rounds?.[0]?.holes;
+
+    expect(holes?.[0]).toMatchObject({
+      hole: 1,
+      score: 5,
+      relativeToPar: 2,
+      outOfBounds: true,
+    });
+    expect(holes?.[1]).toMatchObject({
+      hole: 2,
+      score: 4,
+    });
+    expect(holes?.[1]?.outOfBounds).toBeUndefined();
+  });
+
   it("does not treat empty hole cells as finished holes", () => {
     const html = `
       <table id="livescoring_">

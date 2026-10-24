@@ -105,6 +105,32 @@ describe("SQLite archive", () => {
     );
   });
 
+  it("backfills O.B. markers only for matching scores in completed rounds", () => {
+    const savedPlayers = players(0);
+    archive.commit(state(0, 0, "2581"), savedPlayers);
+    const sourcePlayers = structuredClone(savedPlayers);
+    const firstHole = sourcePlayers[0]?.rounds?.[0]?.holes[0];
+    if (!firstHole) throw new Error("Expected a source hole");
+    firstHole.outOfBounds = true;
+
+    expect(archive.backfillOutOfBounds("2581", sourcePlayers)).toMatchObject({
+      completedPlayerRounds: 8,
+      updatedSnapshots: 1,
+      markedHoles: 2,
+      updatedCurrentState: true,
+    });
+    expect(
+      archive.reportSnapshots("2581")[0]?.players[0]?.rounds?.[0]?.holes[0]
+        ?.outOfBounds,
+    ).toBe(true);
+
+    const saved = archive.load("2581");
+    expect(saved?.players[0]?.rounds?.[0]?.holes[0]?.outOfBounds).toBe(true);
+    expect(archive.backfillOutOfBounds("2581", sourcePlayers).markedHoles).toBe(
+      0,
+    );
+  });
+
   it("restores standings and events after reopening, preserving the comparison baseline", () => {
     archive.commit(state(0), players(0));
     archive.commit(state(1, 1), players(1));

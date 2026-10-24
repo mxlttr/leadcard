@@ -12,6 +12,7 @@ import {
   UPDATE_LOGIC_VERSION,
 } from "@/lib/server/update-engine";
 import type {
+  PlayerRound,
   PlayerSnapshot,
   RecentUpdate,
   TournamentSummary,
@@ -257,6 +258,108 @@ export class Archive {
     return row
       ? { ...JSON.parse(row.state), revision: row.revision }
       : undefined;
+  }
+
+  backfillOutOfBounds(tournamentId: string, sourcePlayers: PlayerSnapshot[]) {
+    const completedRounds = new Map<string, Map<number, PlayerRound>>();
+    for (const player of sourcePlayers) {
+      const rounds = new Map<number, PlayerRound>();
+      for (const round of player.rounds ?? []) {
+        if (round.thru === "F") rounds.set(round.order, round);
+      }
+      if (rounds.size > 0) completedRounds.set(player.playerId, rounds);
+    }
+
+    return this.db
+      .transaction(() => {
+        const tournament = this.db
+          .prepare("SELECT state FROM tournaments WHERE id = ?")
+          .get(tournamentId) as { state: string } | undefined;
+        if (!tournament)
+          throw new Error(`Unknown archived tournament: ${tournamentId}`);
+
+        let updatedSnapshots = 0;
+        let markedHoles = 0;
+        const snapshots = this.db
+          .prepare(
+            "SELECT id, payload FROM snapshots WHERE tournament_id = ? ORDER BY id",
+          )
+          .all(tournamentId) as Array<{ id: number; payload: string }>;
+        const updateSnapshot = this.db.prepare(
+          "UPDATE snapshots SET payload = ?, content_hash = ? WHERE id = ?",
+        );
+
+        const applyFlags = (players: PlayerSnapshot[]) => {
+          let changed = false;
+          const nextPlayers = players.map((player) => {
+            const sourceRounds = completedRounds.get(player.playerId);
+            if (!sourceRounds || !player.rounds?.length) return player;
+            let playerChanged = false;
+            const rounds = player.rounds.map((round) => {
+              const sourceRound = sourceRounds.get(round.order);
+              if (!sourceRound) return round;
+              const sourceHoles = new Map(
+                sourceRound.holes.map((hole) => [hole.hole, hole]),
+              );
+              const holes = round.holes.map((hole) => {
+                const sourceHole = sourceHoles.get(hole.hole);
+                if (
+                  !sourceHole?.outOfBounds ||
+                  sourceHole.score !== hole.score ||
+                  hole.outOfBounds
+                ) {
+                  return hole;
+                }
+                playerChanged = true;
+                markedHoles += 1;
+                return { ...hole, outOfBounds: true };
+              });
+              return playerChanged ? { ...round, holes } : round;
+            });
+            if (!playerChanged) return player;
+            changed = true;
+            return { ...player, rounds };
+          });
+          return { players: nextPlayers, changed };
+        };
+
+        for (const snapshot of snapshots) {
+          const original = JSON.parse(snapshot.payload) as PlayerSnapshot[];
+          const result = applyFlags(original);
+          if (!result.changed) continue;
+          const payload = canonicalPlayers(result.players);
+          updateSnapshot.run(
+            payload,
+            createHash("sha256").update(payload).digest("hex"),
+            snapshot.id,
+          );
+          updatedSnapshots += 1;
+        }
+
+        const state = JSON.parse(tournament.state) as LiveState;
+        const current = applyFlags(state.players);
+        if (current.changed) {
+          this.db
+            .prepare(
+              "UPDATE tournaments SET state = ?, revision = revision + 1 WHERE id = ?",
+            )
+            .run(
+              JSON.stringify({ ...state, players: current.players }),
+              tournamentId,
+            );
+        }
+
+        return {
+          completedPlayerRounds: [...completedRounds.values()].reduce(
+            (sum, rounds) => sum + rounds.size,
+            0,
+          ),
+          updatedSnapshots,
+          markedHoles,
+          updatedCurrentState: current.changed,
+        };
+      })
+      .immediate();
   }
 
   summaries(): TournamentSummary[] {

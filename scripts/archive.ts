@@ -31,6 +31,7 @@ import {
   ratingContextStatus,
 } from "@/lib/server/reporting/ratings-client";
 import { buildRatingsFactSheet } from "@/lib/server/reporting/ratings-fact-sheet";
+import { scrapeSnapshot } from "@/lib/server/scraper";
 import { UPDATE_LOGIC_VERSION } from "@/lib/server/update-engine";
 
 loadEnvConfig(process.cwd());
@@ -67,15 +68,49 @@ async function main() {
       "drafts",
       "export-markdown",
       "ratings",
+      "backfill-ob",
     ].includes(command)
   ) {
     throw new Error(
-      "Usage: archive ratings capture | archive ratings facts | archive draft <tournament-id> [--model=<model-id>] [--allow-incomplete] | archive drafts <tournament-id> | archive export-markdown <tournament-id> --out-dir=<landing-repo> [--draft-id=<draft-id> --event-start=YYYY-MM-DD --event-end=YYYY-MM-DD] [--overwrite] | archive facts <tournament-id> [options] | status | backup <new-path> | upgrade <tournament-id|--all> | replay <tournament-id|--all> [installed-version]",
+      "Usage: archive backfill-ob <tournament-id> | ratings capture | ratings facts | draft <tournament-id> [--model=<model-id>] [--allow-incomplete] | drafts <tournament-id> | export-markdown <tournament-id> --out-dir=<landing-repo> [--draft-id=<draft-id> --event-start=YYYY-MM-DD --event-end=YYYY-MM-DD] [--overwrite] | facts <tournament-id> [options] | status | backup <new-path> | upgrade <tournament-id|--all> | replay <tournament-id|--all> [installed-version]",
     );
   }
   const archive = getArchive();
   try {
-    if (command === "ratings") {
+    if (command === "backfill-ob") {
+      if (!target) throw new Error("Specify a tournament ID");
+      const response = await fetch(
+        `https://turniere.discgolf.de/index.php?p=events&sp=live&id=${encodeURIComponent(target)}`,
+        {
+          cache: "no-store",
+          headers: { "user-agent": "leadcard-mvp/0.1" },
+          signal: AbortSignal.timeout(30_000),
+        },
+      );
+      if (!response.ok)
+        throw new Error(`Live scoring source returned HTTP ${response.status}`);
+      const source = scrapeSnapshot(await response.text());
+      if (!source.players.length)
+        throw new Error("No players found in the live scorecard");
+      const completedRounds = source.players.reduce(
+        (count, player) =>
+          count +
+          (player.rounds?.filter((round) => round.thru === "F").length ?? 0),
+        0,
+      );
+      if (completedRounds === 0)
+        throw new Error("No completed rounds found; archive was not changed");
+      console.log(
+        JSON.stringify(
+          {
+            tournamentId: target,
+            ...archive.backfillOutOfBounds(target, source.players),
+          },
+          null,
+          2,
+        ),
+      );
+    } else if (command === "ratings") {
       if (!target || target === "capture") {
         const snapshot = await fetchRatingsSnapshot();
         const previous = archive.latestRatingsSnapshot();
