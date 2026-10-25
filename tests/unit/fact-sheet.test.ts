@@ -38,6 +38,7 @@ describe("archived tournament facts", () => {
   it("reconstructs Nagelfluh's comeback and holds the missing scorecard", () => {
     const facts = buildFactSheet(source(nagelfluh));
     expect(facts.completion.readyForReview).toBe(false);
+    expect(facts.completion.readyForAutomaticReport).toBe(false);
     expect(
       facts.completion.gaps.some((g) =>
         g.includes("incomplete-or-inconsistent-scorecard"),
@@ -104,7 +105,8 @@ describe("archived tournament facts", () => {
       winningMargin: null,
     });
     expect(facts.divisions[0].standings.map((p) => p.rank)).toEqual([1, 1]);
-    expect(facts.completion.readyForReview).toBe(false);
+    expect(facts.completion.readyForReview).toBe(true);
+    expect(facts.completion.readyForAutomaticReport).toBe(true);
   });
 
   it("requires expected rounds and rejects inconsistent arithmetic", () => {

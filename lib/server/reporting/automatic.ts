@@ -10,6 +10,9 @@ import {
 } from "@/lib/server/reporting/drafts";
 import type { buildFactSheet } from "@/lib/server/reporting/fact-sheet";
 
+const reportAttemptAt = new Map<string, { hash: string; at: number }>();
+const REPORT_RETRY_INTERVAL_MS = 15 * 60 * 1000;
+
 export async function generateAutomaticReport(tournamentId: string) {
   if (process.env.LEADCARD_AUTO_REPORTS_ENABLED !== "true") return;
 
@@ -17,8 +20,8 @@ export async function generateAutomaticReport(tournamentId: string) {
   const sheet = archive.latestTournamentFactSheet(tournamentId);
   if (!sheet) return;
   const facts = sheet.value.facts as ReturnType<typeof buildFactSheet>;
-  if (!facts.completion.readyForReview) {
-    console.info("Automatic report held for fact-sheet review", {
+  if (!facts.completion.readyForAutomaticReport) {
+    console.info("Automatic report held for incomplete scorecards", {
       tournamentId,
       factSheetHash: sheet.contentHash,
       gaps: facts.completion.gaps,
@@ -32,6 +35,16 @@ export async function generateAutomaticReport(tournamentId: string) {
     });
     return;
   }
+  const previousAttempt = reportAttemptAt.get(tournamentId);
+  if (
+    previousAttempt?.hash === sheet.contentHash &&
+    Date.now() - previousAttempt.at < REPORT_RETRY_INTERVAL_MS
+  )
+    return;
+  reportAttemptAt.set(tournamentId, {
+    hash: sheet.contentHash,
+    at: Date.now(),
+  });
   assertReportPullRequestConfig();
 
   const savedDraft = archive

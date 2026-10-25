@@ -27,6 +27,7 @@ type CollectorDependencies = {
   catalog: () => Promise<TournamentSummary[]>;
   pending?: () => string[];
   collect: (id: string, final?: boolean) => Promise<void>;
+  checkAutomaticReport?: (tournamentId: string) => Promise<void>;
   sweepRecentResults?: (tournamentId: string) => Promise<void>;
   pollRatings?: () => Promise<void>;
   lastRatingsPollAt?: () => string | null;
@@ -61,6 +62,7 @@ export function createCollector(dependencies: CollectorDependencies) {
             if (!id) break;
             try {
               await dependencies.collect(id, !activeIds.has(id));
+              await dependencies.checkAutomaticReport?.(id);
               if (!activeIds.has(id)) pending.delete(id);
             } catch (error) {
               failed = true;
@@ -165,12 +167,30 @@ export function startCollector() {
   globalThis.leadcardCollector = createCollector({
     catalog: getTournamentCatalog,
     collect: collectTournament,
+    checkAutomaticReport: async (tournamentId) => {
+      if (process.env.LEADCARD_AUTO_REPORTS_ENABLED !== "true") return;
+      savePostEventFactSheet(tournamentId);
+      await generateAutomaticReport(tournamentId);
+    },
     sweepRecentResults: async (tournamentId) => {
       // Capture one last scorecard snapshot before resolving official results.
       await collectTournament(tournamentId, true);
-      const results = await fetchOfficialResults(tournamentId);
-      if (!results.finalized) return;
-      const outcome = savePostEventFactSheet(tournamentId, results);
+      let results = null;
+      try {
+        results = await fetchOfficialResults(tournamentId);
+      } catch (error) {
+        console.info(
+          "Official results are not available; checking scorecards",
+          {
+            tournamentId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
+      }
+      const outcome = savePostEventFactSheet(
+        tournamentId,
+        results?.finalized ? results : null,
+      );
       if (outcome === "saved")
         console.info("Saved post-event fact sheet", tournamentId);
       await generateAutomaticReport(tournamentId);

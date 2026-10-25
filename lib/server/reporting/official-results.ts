@@ -61,7 +61,25 @@ export function parseOfficialResults(
 ): OfficialResultsContext {
   const $ = load(html);
   const tables = $("table[id^='results_layout_']");
-  if (!tables.length) throw new Error("Official results tables were not found");
+  if (!tables.length) {
+    if (
+      /Ergebnisse\. Bitte warten sie bis das Turnier abgeschlossen ist\./i.test(
+        clean($("body").text()),
+      )
+    )
+      return {
+        sourceUrl,
+        tournamentId,
+        fetchedAt,
+        reportedAt: null,
+        finalized: false,
+        resultsFingerprint: createHash("sha256")
+          .update("not-finalized")
+          .digest("hex"),
+        results: [],
+      };
+    throw new Error("Official results tables were not found");
+  }
 
   const reportedAt =
     clean($("body").text()).match(

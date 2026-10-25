@@ -29,12 +29,22 @@ describe("unattended collector", () => {
         tournament("4", "mock"),
       ]);
     const collect = vi.fn().mockResolvedValue(undefined);
-    const collector = createCollector({ catalog, collect, onError: vi.fn() });
+    const checkAutomaticReport = vi.fn().mockResolvedValue(undefined);
+    const collector = createCollector({
+      catalog,
+      collect,
+      checkAutomaticReport,
+      onError: vi.fn(),
+    });
     collector.start();
     await vi.advanceTimersByTimeAsync(0);
     expect(collect.mock.calls).toEqual([
       ["1", false],
       ["2", false],
+    ]);
+    expect(checkAutomaticReport.mock.calls.map(([id]) => id).sort()).toEqual([
+      "1",
+      "2",
     ]);
     catalog.mockResolvedValue([
       tournament("1", "finished"),

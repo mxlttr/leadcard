@@ -17,7 +17,7 @@ export type ReportSnapshot = {
   players: PlayerSnapshot[];
 };
 
-export const FACT_SHEET_VERSION = "4";
+export const FACT_SHEET_VERSION = "5";
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const MIN_IN_ROUND_COVERAGE_PERCENT = 50;
 
@@ -453,7 +453,6 @@ export function buildFactSheet(
       }));
       const leaders = standings.filter((p) => p.rank === 1);
       const tiedFirst = leaders.length > 1;
-      if (tiedFirst) gaps.push(`unresolved-first-place-tie:${division}`);
       // Round-end comparisons use complete scorecards, never polling sequence as shot order.
       const checkpoints = Array.from(
         { length: totalRounds && totalRounds > 0 ? totalRounds : 0 },
@@ -569,9 +568,10 @@ export function buildFactSheet(
     },
     completion: {
       readyForReview: gaps.length === 0,
+      readyForAutomaticReport: gaps.length === 0,
       gaps: gaps.sort(compare),
       policy:
-        "All expected round scorecards must reconcile unless an official result source explicitly classifies the player DNF, DNS, or DSQ. Terminal results are excluded from scored standings; no withdrawal or playoff outcome is inferred.",
+        "All expected round scorecards must reconcile unless an official result source explicitly classifies the player DNF, DNS, or DSQ. Terminal results are excluded from scored standings; no withdrawal or playoff outcome is inferred. A tied first place is complete: report the tie and state that the scorecards do not identify a tiebreak winner.",
     },
     coverage: {
       snapshotCount: snapshots.length,

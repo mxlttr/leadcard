@@ -59,8 +59,9 @@ versions. Re-running `draft` makes a new model call and saves a new version.
 ## Automatic report pull requests
 
 Set these production environment variables to have the collector generate reports
-when an event has finalized official results and its latest fact sheet is ready
-for review:
+when every expected scorecard is complete and reconciles with the leaderboard.
+The collector checks live events as scorecards update; official result finalization
+by a tournament director is not required:
 
 ```sh
 LEADCARD_AUTO_REPORTS_ENABLED=true
@@ -77,13 +78,17 @@ depends on the repository watchers' settings.
 The app also needs `OPENAI_SECRET_KEY` or `OPENAI_API_KEY`. Keep the collector
 enabled and use its persistent archive as usual.
 
-The collector reuses a saved article for the same fact-sheet hash if a GitHub
-request needs retrying. It creates a regular PR containing English and German
-files with `status: published`; the PR itself does not publish the content. Merge
-the PR to deploy the report. Fact sheets with unresolved completion gaps are
-held and do not generate a report. Repeated sweeps do not create another PR once
+Tied first place is reportable from the scorecards. The article states that the
+players are tied and that the scorecards do not identify a tiebreak winner.
+Incomplete or inconsistent scorecards still hold the report. The collector
+reuses a saved article for the same fact-sheet hash if a GitHub request needs
+retrying. It creates a regular PR containing English and German files with
+`status: published`; the PR itself does not publish the content. Merge the PR to
+deploy the report. Fact sheets with incomplete or inconsistent scorecards are
+held and do not generate a report. Repeated checks do not create another PR once
 the same fact sheet is published. GitHub API failures are logged and retried on
-the next recent-event sweep.
+the next eligible collector check, with a 15-minute retry interval per unchanged
+fact sheet.
 
 ## Exporting local Markdown drafts
 

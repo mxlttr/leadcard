@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { getArchive } from "@/lib/server/archive";
-import { buildFactSheet } from "@/lib/server/reporting/fact-sheet";
+import {
+  buildFactSheet,
+  FACT_SHEET_VERSION,
+} from "@/lib/server/reporting/fact-sheet";
 import type { OfficialResultsContext } from "@/lib/server/reporting/official-results";
 import {
   buildRatingComparisons,
@@ -12,26 +15,35 @@ export type PostEventFactSheetResult = "saved" | "unchanged" | "no-snapshots";
 
 export function savePostEventFactSheet(
   tournamentId: string,
-  officialResults: OfficialResultsContext,
+  officialResults: OfficialResultsContext | null = null,
 ): PostEventFactSheetResult {
-  if (!officialResults.finalized) return "unchanged";
+  if (officialResults && !officialResults.finalized) return "unchanged";
   const archive = getArchive();
   const snapshots = archive.reportSnapshots(tournamentId);
   const latest = snapshots.at(-1);
   if (!latest) return "no-snapshots";
 
   const previous = archive.latestTournamentFactSheet(tournamentId);
+  const effectiveOfficialResults =
+    officialResults ?? previous?.value.officialResults ?? null;
   const previousFacts = previous?.value.facts as
-    | { provenance?: { latestSnapshotId?: number } }
+    | {
+        schemaVersion?: string;
+        provenance?: { latestSnapshotId?: number };
+      }
     | undefined;
   if (
     previous?.value.officialResults?.resultsFingerprint ===
-      officialResults.resultsFingerprint &&
-    previousFacts?.provenance?.latestSnapshotId === latest.id
+      (effectiveOfficialResults?.resultsFingerprint ?? null) &&
+    previousFacts?.schemaVersion === FACT_SHEET_VERSION &&
+    previousFacts.provenance?.latestSnapshotId === latest.id
   )
     return "unchanged";
 
-  const facts = buildFactSheet(snapshots, officialResults);
+  const facts = buildFactSheet(
+    snapshots,
+    effectiveOfficialResults ?? undefined,
+  );
   const ratingContext = previous?.value.ratingContext ?? null;
   const ratings = ratingContext
     ? matchRatings(latest.players, ratingContext)
@@ -39,7 +51,7 @@ export function savePostEventFactSheet(
   const ratingComparisons = buildRatingComparisons(facts, ratings);
   const savedPayload = {
     facts,
-    officialResults,
+    officialResults: effectiveOfficialResults,
     ratingContext,
     ratings,
     ratingComparisons,
