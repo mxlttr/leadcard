@@ -27,8 +27,8 @@ export function reportSlug(tournamentName: string, tournamentId: string) {
 export function reportPermalink(locale: ReportLocale, slug: string) {
   const pathSlug = encodeURIComponent(slug);
   return locale === "de"
-    ? `/de/berichte/${pathSlug}/`
-    : `/reports/${pathSlug}/`;
+    ? `/berichte/${pathSlug}/`
+    : `/en/reports/${pathSlug}/`;
 }
 
 export function buildReportMarkdown(input: {
