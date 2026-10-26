@@ -594,6 +594,23 @@ describe("live-store", () => {
     expect(liveResponse.tournament.roundLabel).toBe("Round 2 of 3");
   });
 
+  it("infers the expected round count for recent events", async () => {
+    loadTournamentSnapshotSource.mockResolvedValue({
+      tournament: {
+        ...tournament,
+        status: "recent",
+        roundLabel: "24.03.2026",
+      },
+      html: multiRoundLiveHtml,
+      nextFixtureIndex: 0,
+    });
+
+    const liveStore = await import("@/lib/server/live-store");
+    const liveResponse = await liveStore.getLiveResponse(tournament.id);
+
+    expect(liveResponse.tournament.totalRounds).toBe(3);
+  });
+
   it("keeps polling between rounds so a later round start is picked up", async () => {
     loadTournamentSnapshotSource
       .mockResolvedValueOnce({

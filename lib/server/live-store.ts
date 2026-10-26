@@ -214,15 +214,16 @@ function inferLiveRound(
   html: string | null,
   players: Array<Pick<PlayerSnapshot, "rounds">>,
 ) {
-  if (tournament.status !== "live" && tournament.status !== "finished") {
+  const supportedStatuses = new Set(["live", "today", "finished", "recent"]);
+  const totalRounds = inferTotalRounds(html) ?? tournament.totalRounds;
+  if (!supportedStatuses.has(tournament.status)) {
     return {
       roundLabel: tournament.roundLabel,
       currentRound: tournament.currentRound,
-      totalRounds: tournament.totalRounds,
+      totalRounds,
     };
   }
 
-  const totalRounds = inferTotalRounds(html);
   const inProgressRounds = players
     .flatMap((player) => player.rounds ?? [])
     .filter((round) => round.thru !== 0 && round.thru !== "F");

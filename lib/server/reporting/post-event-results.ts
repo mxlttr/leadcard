@@ -22,6 +22,8 @@ export function savePostEventFactSheet(
   const snapshots = archive.reportSnapshots(tournamentId);
   const latest = snapshots.at(-1);
   if (!latest) return "no-snapshots";
+  const currentState = archive.load(tournamentId);
+  if (currentState) latest.tournament = currentState.tournament;
 
   const previous = archive.latestTournamentFactSheet(tournamentId);
   const effectiveOfficialResults =
@@ -29,6 +31,7 @@ export function savePostEventFactSheet(
   const previousFacts = previous?.value.facts as
     | {
         schemaVersion?: string;
+        tournament?: { totalRounds?: number };
         provenance?: { latestSnapshotId?: number };
       }
     | undefined;
@@ -36,6 +39,7 @@ export function savePostEventFactSheet(
     previous?.value.officialResults?.resultsFingerprint ===
       (effectiveOfficialResults?.resultsFingerprint ?? null) &&
     previousFacts?.schemaVersion === FACT_SHEET_VERSION &&
+    previousFacts.tournament?.totalRounds === latest.tournament.totalRounds &&
     previousFacts.provenance?.latestSnapshotId === latest.id
   )
     return "unchanged";
