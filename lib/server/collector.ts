@@ -2,6 +2,7 @@ import { getArchive } from "@/lib/server/archive";
 import { collectTournament } from "@/lib/server/live-store";
 import { reportServerError } from "@/lib/server/report-error";
 import { generateAutomaticReport } from "@/lib/server/reporting/automatic";
+import { generateAutomaticRatingsReport } from "@/lib/server/reporting/automatic-ratings";
 import { fetchOfficialResults } from "@/lib/server/reporting/official-results";
 import { savePostEventFactSheet } from "@/lib/server/reporting/post-event-results";
 import { fetchRatingsSnapshot } from "@/lib/server/reporting/ratings-client";
@@ -208,6 +209,7 @@ export function startCollector() {
           contentHash: snapshot.contentHash,
         });
       }
+      await generateAutomaticRatingsReport();
     },
     pending: () =>
       getArchive()
