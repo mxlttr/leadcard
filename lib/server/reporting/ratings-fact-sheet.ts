@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
-import type { PlayerSnapshot, TournamentSummary } from "@/lib/types";
-import { fetchPlayerRatingProfiles } from "./ratings-client";
+import type {
+  PlayerRound,
+  PlayerSnapshot,
+  TournamentSummary,
+} from "@/lib/types";
 
-export const RATINGS_FACT_SHEET_VERSION = "1";
+export const RATINGS_FACT_SHEET_VERSION = "3";
 
 type RatingsRow = {
   firstName: string;
@@ -24,7 +27,10 @@ export type RatingsListSnapshot = {
 
 type WeekendEvent = {
   tournament: TournamentSummary;
-  players: Pick<PlayerSnapshot, "playerId" | "name" | "division" | "club">[];
+  players: Pick<
+    PlayerSnapshot,
+    "playerId" | "name" | "division" | "club" | "rounds"
+  >[];
 };
 
 const normalize = (value: string) =>
@@ -50,84 +56,17 @@ function parseRows(snapshot: RatingsListSnapshot): RatingsRow[] {
   });
 }
 
-function profileEvent(profile: unknown, tournament: TournamentSummary) {
-  if (!profile || typeof profile !== "object") return null;
-  const record = profile as { tournaments?: unknown };
-  if (!Array.isArray(record.tournaments)) return null;
-  const matches = record.tournaments.filter((entry) => {
-    if (!entry || typeof entry !== "object") return false;
-    const event = entry as Record<string, unknown>;
-    const sameId = String(event.tournamentId ?? "") === tournament.id;
-    const sameDates =
-      event.startDate === tournament.startDate &&
-      event.endDate === tournament.endDate;
-    const sameName =
-      typeof event.name === "string" &&
-      normalize(event.name) === normalize(tournament.name);
-    return sameId || (sameDates && sameName);
-  });
-  if (matches.length !== 1) return null;
-  const event = matches[0] as Record<string, unknown>;
-  const rounds = Array.isArray(event.rounds)
-    ? event.rounds.flatMap((value) => {
-        if (!value || typeof value !== "object") return [];
-        const round = value as Record<string, unknown>;
-        if (typeof round.rating !== "number" || !Number.isFinite(round.rating))
-          return [];
-        return [
-          {
-            roundNumber:
-              typeof round.roundNumber === "number" ? round.roundNumber : null,
-            rating: round.rating,
-            division:
-              typeof round.division === "string" ? round.division : null,
-            holes: typeof round.holes === "number" ? round.holes : null,
-            includedInRating:
-              typeof round.inRating === "boolean" ? round.inRating : null,
-          },
-        ];
-      })
-    : [];
-  return {
-    tournamentId: String(event.tournamentId ?? tournament.id),
-    tournamentName:
-      typeof event.name === "string" ? event.name : tournament.name,
-    rounds: rounds.sort((a, b) => (a.roundNumber ?? 0) - (b.roundNumber ?? 0)),
-  };
-}
-
-function profileRatingHistory(profile: unknown, capturedAt: string) {
-  if (!profile || typeof profile !== "object") return null;
-  const history = (profile as { historicRatings?: unknown }).historicRatings;
-  if (!Array.isArray(history)) return null;
-  const cutoff = capturedAt.slice(0, 10);
-  const points = history
-    .flatMap((value) => {
-      if (!value || typeof value !== "object") return [];
-      const point = value as Record<string, unknown>;
-      if (
-        typeof point.date !== "string" ||
-        point.date > cutoff ||
-        !Number.isFinite(Date.parse(point.date)) ||
-        typeof point.rating !== "number" ||
-        !Number.isFinite(point.rating)
-      )
-        return [];
-      return [{ date: point.date, rating: point.rating }];
-    })
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const current = points.at(-1);
-  const previous = points.at(-2);
-  if (!current) return null;
-  return {
-    previous,
-    current,
-    change: previous ? current.rating - previous.rating : null,
-  };
+function scorecardEvidence(rounds: PlayerRound[] | undefined) {
+  return (rounds ?? []).map((round) => ({
+    roundNumber: round.order,
+    label: round.label,
+    scoreToPar: round.scoreToPar,
+    holesPlayed: round.holes.filter((hole) => hole.score !== null).length,
+  }));
 }
 
 /** Build verifiable rating-change facts for players recorded in weekend events. */
-export async function buildRatingsFactSheet(
+export function buildRatingsFactSheet(
   previousSnapshot: RatingsListSnapshot,
   currentSnapshot: RatingsListSnapshot,
   events: WeekendEvent[],
@@ -151,6 +90,7 @@ export async function buildRatingsFactSheet(
       events: {
         tournament: TournamentSummary;
         tournamentDivision: string;
+        scorecards: ReturnType<typeof scorecardEvidence>;
       }[];
     }
   >();
@@ -175,12 +115,11 @@ export async function buildRatingsFactSheet(
       existing.events.push({
         tournament: event.tournament,
         tournamentDivision: player.division,
+        scorecards: scorecardEvidence(player.rounds),
       });
       eventPlayers.set(row.gtNumber, existing);
     }
   }
-  const profiles = await fetchPlayerRatingProfiles([...eventPlayers.keys()]);
-  const profilesById = new Map(profiles.map((item) => [item.gtNumber, item]));
   const players = [...eventPlayers.entries()]
     .flatMap(([gtNumber, entry]) => {
       const before = previousById.get(gtNumber);
@@ -188,19 +127,9 @@ export async function buildRatingsFactSheet(
       if (!before || !after || before.rating === null || after.rating === null)
         return [];
       const sameDivision = before.division === after.division;
-      const profile = profilesById.get(gtNumber);
-      const datedRatingHistory = profileRatingHistory(
-        profile?.profile,
-        currentSnapshot.capturedAt,
-      );
       const snapshotRatingChange = after.rating - before.rating;
-      const hasDatedComparison = datedRatingHistory?.previous !== undefined;
-      const ratingBefore = hasDatedComparison
-        ? (datedRatingHistory?.previous?.rating ?? before.rating)
-        : before.rating;
-      const ratingAfter = hasDatedComparison
-        ? (datedRatingHistory?.current.rating ?? after.rating)
-        : after.rating;
+      const ratingBefore = before.rating;
+      const ratingAfter = after.rating;
       const ratingChange = ratingAfter - ratingBefore;
       return [
         {
@@ -208,13 +137,13 @@ export async function buildRatingsFactSheet(
           name: `${after.firstName} ${after.lastName}`,
           club: after.club,
           playedEvents: entry.events.map(
-            ({ tournament, tournamentDivision }) => ({
+            ({ tournament, tournamentDivision, scorecards }) => ({
               tournamentId: tournament.id,
               name: tournament.name,
               tournamentDivision,
               startDate: tournament.startDate ?? null,
               endDate: tournament.endDate ?? null,
-              profileEvidence: profileEvent(profile?.profile, tournament),
+              scorecardEvidence: scorecards,
             }),
           ),
           ratingDivisionBefore: before.division,
@@ -222,13 +151,10 @@ export async function buildRatingsFactSheet(
           ratingBefore,
           ratingAfter,
           ratingChange,
-          ratingChangeSource: hasDatedComparison
-            ? "dated-player-history"
-            : "rounded-rating-list-snapshots",
+          ratingChangeSource: "ratings-list-snapshots",
           snapshotRatingBefore: before.rating,
           snapshotRatingAfter: after.rating,
           snapshotRatingChange,
-          datedRatingHistory,
           divisionRankBefore: sameDivision ? before.divisionRank : null,
           divisionRankAfter: sameDivision ? after.divisionRank : null,
           divisionRankChange:
@@ -238,7 +164,6 @@ export async function buildRatingsFactSheet(
               ? before.divisionRank - after.divisionRank
               : null,
           rankDivisionChanged: !sameDivision,
-          profileError: profile ? profile.error : "Player profile unavailable",
         },
       ];
     })
@@ -362,10 +287,15 @@ export async function buildRatingsFactSheet(
         startDate: tournament.startDate ?? null,
         endDate: tournament.endDate ?? null,
       })),
-      playerProfilesFetched: profiles.length,
-      playerProfileErrors: profiles
-        .filter((profile) => profile.error)
-        .map(({ gtNumber, error }) => ({ gtNumber, error })),
+      archivedScorecardRoundsUsed: events.reduce(
+        (count, event) =>
+          count +
+          event.players.reduce(
+            (sum, player) => sum + (player.rounds?.length ?? 0),
+            0,
+          ),
+        0,
+      ),
     },
     coverage: {
       weekendPlayerCount: events.reduce(
@@ -379,15 +309,13 @@ export async function buildRatingsFactSheet(
           a.tournamentId.localeCompare(b.tournamentId) ||
           a.playerId.localeCompare(b.playerId),
       ),
+      excludedUnmatchedCount: unmatchedPlayers.length,
       note: "Rating change is the observed difference between these snapshots. It can include older rounds leaving the rolling rating window. Rank changes can also reflect rating changes by other players.",
     },
     completion: {
-      readyForReview: players.length > 0 && unmatchedPlayers.length === 0,
+      readyForReview: players.length > 0,
       gaps: [
         ...(players.length ? [] : ["no-weekend-player-rating-comparisons"]),
-        ...(unmatchedPlayers.length
-          ? ["weekend-players-unmatched-by-name"]
-          : []),
       ],
     },
     players,

@@ -6,7 +6,10 @@ import {
   RATINGS_REPORT_PROMPT_VERSION,
   type RatingsFactSheet,
 } from "@/lib/server/reporting/ratings-drafts";
-import { buildRatingsFactSheet } from "@/lib/server/reporting/ratings-fact-sheet";
+import {
+  buildRatingsFactSheet,
+  RATINGS_FACT_SHEET_VERSION,
+} from "@/lib/server/reporting/ratings-fact-sheet";
 
 const completed = new Set<string>();
 const held = new Set<string>();
@@ -53,11 +56,12 @@ export async function generateAutomaticRatingsReport() {
           {
             tournament,
             players: state.players.map(
-              ({ playerId, name, division, club }) => ({
+              ({ playerId, name, division, club, rounds }) => ({
                 playerId,
                 name,
                 division,
                 club,
+                rounds,
               }),
             ),
           },
@@ -66,7 +70,7 @@ export async function generateAutomaticRatingsReport() {
   });
   const sourceFingerprint = createHash("sha256")
     .update(
-      `${previous.contentHash}:${current.contentHash}:${events
+      `${RATINGS_FACT_SHEET_VERSION}:${previous.contentHash}:${current.contentHash}:${events
         .map((event) => event.tournament.id)
         .sort()
         .join(",")}`,

@@ -145,29 +145,6 @@ async function mapConcurrent<T, R>(
   return result;
 }
 
-/** Fetch rating histories only for players selected for an article fact sheet. */
-export async function fetchPlayerRatingProfiles(gtNumbers: number[]) {
-  const ids = [...new Set(gtNumbers)].sort((a, b) => a - b);
-  return mapConcurrent(ids, 4, async (gtNumber) => {
-    try {
-      return {
-        gtNumber,
-        profile: await fetchJson(
-          new URL(`/players/${gtNumber}`, API).toString(),
-        ),
-        error: null,
-      };
-    } catch (error) {
-      return {
-        gtNumber,
-        profile: null,
-        error:
-          error instanceof Error ? error.message : "Unknown ratings API error",
-      };
-    }
-  });
-}
-
 /** Fetch the currently available ratings and dated rating history for uniquely matched archived players. */
 export async function fetchRatingContext(
   players: PlayerSnapshot[],
