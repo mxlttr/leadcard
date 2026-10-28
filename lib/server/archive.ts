@@ -404,7 +404,7 @@ export class Archive {
     return (
       this.db
         .prepare(
-          "SELECT id, captured_at AS capturedAt, content_hash AS contentHash, payload FROM ratings_snapshots ORDER BY id DESC LIMIT ?",
+          "SELECT id, captured_at AS capturedAt, content_hash AS contentHash, payload FROM ratings_snapshots WHERE id IN (SELECT MAX(id) FROM ratings_snapshots GROUP BY content_hash) ORDER BY id DESC LIMIT ?",
         )
         .all(limit) as SavedRatingsSnapshot[]
     ).reverse();

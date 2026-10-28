@@ -29,6 +29,7 @@ type CollectorDependencies = {
   pending?: () => string[];
   collect: (id: string, final?: boolean) => Promise<void>;
   checkAutomaticReport?: (tournamentId: string) => Promise<void>;
+  checkAutomaticRatingsReport?: () => Promise<void>;
   sweepRecentResults?: (tournamentId: string) => Promise<void>;
   pollRatings?: () => Promise<void>;
   lastRatingsPollAt?: () => string | null;
@@ -116,6 +117,14 @@ export function createCollector(dependencies: CollectorDependencies) {
           }
         }
       }
+      if (dependencies.checkAutomaticRatingsReport) {
+        try {
+          await dependencies.checkAutomaticRatingsReport();
+        } catch (error) {
+          failed = true;
+          dependencies.onError(error);
+        }
+      }
       if (!failed) lastSuccessAt = new Date().toISOString();
     } catch (error) {
       dependencies.onError(error);
@@ -173,6 +182,7 @@ export function startCollector() {
       savePostEventFactSheet(tournamentId);
       await generateAutomaticReport(tournamentId);
     },
+    checkAutomaticRatingsReport: generateAutomaticRatingsReport,
     sweepRecentResults: async (tournamentId) => {
       // Capture one last scorecard snapshot before resolving official results.
       await collectTournament(tournamentId, true);
@@ -209,7 +219,6 @@ export function startCollector() {
           contentHash: snapshot.contentHash,
         });
       }
-      await generateAutomaticRatingsReport();
     },
     pending: () =>
       getArchive()
