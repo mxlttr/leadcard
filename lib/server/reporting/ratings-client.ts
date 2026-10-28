@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
 import type { PlayerSnapshot } from "@/lib/types";
 import { matchRatings, type RatingContext, type RatingPlayer } from "./ratings";
+import { hashRatingValues } from "./ratings-snapshot-hash";
 
 const API = "https://api.syndikat.golf";
 const PAGE_SIZE = 100;
@@ -112,9 +112,7 @@ async function fetchAllRatings() {
 export async function fetchRatingsSnapshot() {
   const retrievedAt = new Date().toISOString();
   const { items, rawResponse } = await fetchAllRatings();
-  const contentHash = createHash("sha256")
-    .update(JSON.stringify(rawResponse))
-    .digest("hex");
+  const contentHash = hashRatingValues(items);
   return {
     contentHash,
     payload: {

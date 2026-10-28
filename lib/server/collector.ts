@@ -211,9 +211,15 @@ export function startCollector() {
       const archive = getArchive();
       const snapshot = await fetchRatingsSnapshot();
       const previous = archive.latestRatingsSnapshot();
-      archive.saveRatingsSnapshot(snapshot.payload, snapshot.contentHash);
+      const saved = archive.saveRatingsSnapshot(
+        snapshot.payload,
+        snapshot.contentHash,
+      );
       archive.markRatingsPolled();
-      if (previous?.contentHash !== snapshot.contentHash) {
+      if (
+        previous?.contentHash !== saved?.contentHash &&
+        saved?.contentHash === snapshot.contentHash
+      ) {
         console.info("Saved ratings snapshot", {
           itemCount: snapshot.itemCount,
           contentHash: snapshot.contentHash,

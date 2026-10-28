@@ -7,6 +7,10 @@ import type { ReportSnapshot } from "@/lib/server/reporting/fact-sheet";
 import type { OfficialResultsContext } from "@/lib/server/reporting/official-results";
 import type { RatingContext } from "@/lib/server/reporting/ratings";
 import {
+  hashRatingValues,
+  haveRatingsChanged,
+} from "@/lib/server/reporting/ratings-snapshot-hash";
+import {
   createRoundStatUpdates,
   toLeaderboardPlayers,
   UPDATE_LOGIC_VERSION,
@@ -247,6 +251,59 @@ export class Archive {
             PRAGMA user_version = 6;
           `);
         }
+        const ratingsSnapshotVersion = this.db.pragma("user_version", {
+          simple: true,
+        }) as number;
+        if (ratingsSnapshotVersion === 6) {
+          const snapshots = this.db
+            .prepare("SELECT id, payload FROM ratings_snapshots ORDER BY id")
+            .all() as { id: number; payload: string }[];
+          const groups: { id: number; payload: string }[] = [];
+          let currentGroup: (typeof snapshots)[number] | undefined;
+          for (const snapshot of snapshots) {
+            const payload = JSON.parse(snapshot.payload) as {
+              items?: { gtNumber: number; rating: number | null }[];
+            };
+            if (!Array.isArray(payload.items))
+              throw new Error("Ratings snapshot has no player list");
+            if (!currentGroup) {
+              currentGroup = snapshot;
+              continue;
+            }
+            const previousPayload = JSON.parse(currentGroup.payload) as {
+              items?: { gtNumber: number; rating: number | null }[];
+            };
+            if (!Array.isArray(previousPayload.items))
+              throw new Error("Ratings snapshot has no player list");
+            if (haveRatingsChanged(previousPayload.items, payload.items)) {
+              groups.push(currentGroup);
+              currentGroup = snapshot;
+            } else {
+              currentGroup = snapshot;
+            }
+          }
+          if (currentGroup) groups.push(currentGroup);
+          const retainedIds = new Set(groups.map(({ id }) => id));
+          const updateHash = this.db.prepare(
+            "UPDATE ratings_snapshots SET content_hash = ? WHERE id = ?",
+          );
+          const deleteDuplicate = this.db.prepare(
+            "DELETE FROM ratings_snapshots WHERE id = ?",
+          );
+          for (const snapshot of snapshots) {
+            if (retainedIds.has(snapshot.id)) continue;
+            deleteDuplicate.run(snapshot.id);
+          }
+          for (const snapshot of groups) {
+            const payload = JSON.parse(snapshot.payload) as {
+              items?: { gtNumber: number; rating: number | null }[];
+            };
+            if (!Array.isArray(payload.items))
+              throw new Error("Ratings snapshot has no player list");
+            updateHash.run(hashRatingValues(payload.items), snapshot.id);
+          }
+          this.db.exec("PRAGMA user_version = 7");
+        }
       })
       .immediate();
   }
@@ -372,7 +429,21 @@ export class Archive {
 
   saveRatingsSnapshot(payload: unknown, contentHash: string) {
     const previous = this.latestRatingsSnapshot();
-    if (previous?.contentHash === contentHash) return previous;
+    if (previous) {
+      if (previous.contentHash === contentHash) return previous;
+      const previousPayload = JSON.parse(previous.payload) as {
+        items?: { gtNumber: number; rating: number | null }[];
+      };
+      const currentPayload = payload as {
+        items?: { gtNumber: number; rating: number | null }[];
+      };
+      if (
+        Array.isArray(previousPayload.items) &&
+        Array.isArray(currentPayload.items) &&
+        !haveRatingsChanged(previousPayload.items, currentPayload.items)
+      )
+        return previous;
+    }
     const capturedAt = new Date().toISOString();
     this.db
       .prepare(
