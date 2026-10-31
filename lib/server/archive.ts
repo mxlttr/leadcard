@@ -131,7 +131,7 @@ export class Archive {
         const version = this.db.pragma("user_version", {
           simple: true,
         }) as number;
-        if (version > 6)
+        if (version > 7)
           throw new Error("Archive schema is newer than this application");
         if (version === 0) {
           this.db.exec(`
