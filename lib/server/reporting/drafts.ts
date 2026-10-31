@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, jsonSchema, Output } from "ai";
 import type { buildFactSheet } from "@/lib/server/reporting/fact-sheet";
@@ -18,10 +19,23 @@ function articleSource(facts: FactSheet) {
   );
   const name = (playerId: string) => names.get(playerId) ?? playerId;
   return {
-    tournament: facts.tournament,
-    completion: facts.completion,
+    tournament: {
+      id: facts.tournament.id,
+      name: facts.tournament.name,
+      course: facts.tournament.course,
+      startDate: facts.tournament.startDate,
+      endDate: facts.tournament.endDate,
+      totalRounds: facts.tournament.totalRounds,
+    },
+    completion: {
+      readyForReview: facts.completion.readyForReview,
+      readyForAutomaticReport: facts.completion.readyForAutomaticReport,
+      gaps: facts.completion.gaps,
+    },
     fieldSize: facts.fieldSize,
-    coverage: facts.coverage,
+    coverage: {
+      note: facts.coverage.note,
+    },
     players: facts.players.map((player) => ({
       playerId: player.playerId,
       name: player.name,
@@ -29,7 +43,15 @@ function articleSource(facts: FactSheet) {
       resultStatus: player.resultStatus,
       holesPlayed: player.holesPlayed,
       birdies: player.birdies,
-      rounds: player.rounds.map(({ layout: _layout, ...round }) => round),
+      rounds: player.rounds.map((round) => ({
+        round: round.round,
+        holeCount: round.holeCount,
+        complete: round.complete,
+        scoreToPar: round.scoreToPar,
+        throws: round.throws,
+        birdies: round.birdies,
+        bogeyFree: round.bogeyFree,
+      })),
     })),
     divisions: facts.divisions.map((division) => ({
       division: division.division,
@@ -95,6 +117,13 @@ function articleSource(facts: FactSheet) {
       },
     })),
   };
+}
+
+/** Fingerprint only the stable facts supplied to the report writer. */
+export function reportInputFingerprint(facts: FactSheet) {
+  return createHash("sha256")
+    .update(JSON.stringify(articleSource(facts)))
+    .digest("hex");
 }
 
 const draftSchema = jsonSchema<BilingualArticleDraft>({

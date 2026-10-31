@@ -838,6 +838,26 @@ export class Archive {
       : undefined;
   }
 
+  tournamentFactSheet(tournamentId: string, contentHash: string) {
+    const row = this.db
+      .prepare(
+        "SELECT tournament_id AS tournamentId, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM report_fact_sheets WHERE tournament_id = ? AND content_hash = ?",
+      )
+      .get(tournamentId, contentHash) as SavedFactSheet | undefined;
+    return row
+      ? {
+          ...row,
+          value: JSON.parse(row.payload) as {
+            facts: unknown;
+            officialResults?: OfficialResultsContext | null;
+            ratingContext: RatingContext | null;
+            ratings: unknown[];
+            ratingFetchError?: string | null;
+          },
+        }
+      : undefined;
+  }
+
   saveFactSheet(sheet: Omit<SavedFactSheet, "createdAt">) {
     const createdAt = new Date().toISOString();
     this.db

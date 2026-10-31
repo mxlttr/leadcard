@@ -7,6 +7,7 @@ import {
   type BilingualArticleDraft,
   generateBilingualDraft,
   REPORT_DRAFT_PROMPT_VERSION,
+  reportInputFingerprint,
 } from "@/lib/server/reporting/drafts";
 import type { buildFactSheet } from "@/lib/server/reporting/fact-sheet";
 
@@ -34,6 +35,32 @@ export async function generateAutomaticReport(tournamentId: string) {
       factSheetHash: sheet.contentHash,
     });
     return;
+  }
+  const previousDraft = archive
+    .reportDrafts(tournamentId)
+    .find((draft) => draft.promptVersion === REPORT_DRAFT_PROMPT_VERSION);
+  if (previousDraft && previousDraft.factSheetHash !== sheet.contentHash) {
+    const previousSheet = archive.tournamentFactSheet(
+      tournamentId,
+      previousDraft.factSheetHash,
+    );
+    const previousFacts = previousSheet?.value.facts as
+      | ReturnType<typeof buildFactSheet>
+      | undefined;
+    if (
+      previousFacts &&
+      reportInputFingerprint(previousFacts) === reportInputFingerprint(facts)
+    ) {
+      console.info(
+        "Automatic report skipped because reportable facts are unchanged",
+        {
+          tournamentId,
+          factSheetHash: sheet.contentHash,
+          previousFactSheetHash: previousDraft.factSheetHash,
+        },
+      );
+      return;
+    }
   }
   const previousAttempt = reportAttemptAt.get(tournamentId);
   if (
