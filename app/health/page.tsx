@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import {
+  type HealthIndicator,
+  healthIndicators,
+} from "@/lib/health-indicators";
 import { getHealth } from "@/lib/server/health";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +26,30 @@ const outcomes: Record<string, string> = {
   "pull-request-ready": "Report pull request is ready",
 };
 
+const indicatorStyles = {
+  green:
+    "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
+  amber:
+    "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300",
+  red: "border-red-500/30 bg-red-500/10 text-red-800 dark:text-red-300",
+  blue: "border-blue-500/30 bg-blue-500/10 text-blue-800 dark:text-blue-300",
+  gray: "border-border bg-background text-muted",
+};
+
+function Indicator({ tone, label }: HealthIndicator) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${indicatorStyles[tone]}`}
+    >
+      <span
+        aria-hidden="true"
+        className="h-2.5 w-2.5 shrink-0 rounded-full bg-current"
+      />
+      {label}
+    </span>
+  );
+}
+
 function timestamp(value: string | null | undefined) {
   if (!value) return "Not recorded";
   return new Intl.DateTimeFormat("en-GB", {
@@ -34,11 +62,13 @@ function timestamp(value: string | null | undefined) {
 export default function HealthPage() {
   const health = getHealth();
   const checkedAt = new Date().toISOString();
+  const indicators = healthIndicators(health, Date.parse(checkedAt));
   const collector = health.ok ? health.collector : null;
   const ratings = health.ok ? health.ratings : null;
   const sections = [
     {
       title: "Tournament collection",
+      indicator: indicators.collector,
       rows: [
         [
           "Collector",
@@ -61,6 +91,7 @@ export default function HealthPage() {
     },
     {
       title: "Ratings data",
+      indicator: indicators.ratings,
       rows: [
         ["Last successful poll", timestamp(ratings?.lastSuccessfulPollAt)],
         ["Latest saved ratings snapshot", timestamp(ratings?.latestSnapshotAt)],
@@ -82,6 +113,7 @@ export default function HealthPage() {
     },
     {
       title: "Rating reports",
+      indicator: indicators.reports,
       rows: [
         [
           "Automatic generation",
@@ -131,20 +163,23 @@ export default function HealthPage() {
           </a>
         </div>
       </header>
-      <p
-        className={`rounded-xl border p-5 font-medium ${health.ok ? "border-border bg-surface" : "border-negative text-negative"}`}
-      >
-        {health.ok
-          ? "Application responding · archive check passed"
-          : "Application responding · archive unavailable"}
-      </p>
+      <div className="rounded-xl border border-border bg-surface p-5">
+        <Indicator {...indicators.application} />
+        <p className="mt-3 text-sm text-muted">
+          Green: normal · Blue: working · Amber: needs attention or waiting ·
+          Red: failed · Gray: disabled or unavailable
+        </p>
+      </div>
       {health.ok ? (
-        sections.map(({ title, rows }) => (
+        sections.map(({ title, rows, indicator }) => (
           <section
             key={title}
             className="rounded-xl border border-border bg-surface p-5 sm:p-7"
           >
-            <h2 className="mb-5 font-display text-xl font-semibold">{title}</h2>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-display text-xl font-semibold">{title}</h2>
+              <Indicator {...indicator} />
+            </div>
             <dl className="space-y-4">
               {rows.map(([label, value]) => (
                 <div key={label} className="grid gap-1 sm:grid-cols-2 sm:gap-6">
