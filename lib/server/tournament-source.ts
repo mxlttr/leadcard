@@ -709,9 +709,32 @@ async function loadDynamicTournamentSnapshotHtml(
   return hasPlayerRows ? html : null;
 }
 
+export function refreshTournamentRelativeDates(
+  tournaments: TournamentSummary[],
+  now = new Date(),
+) {
+  const [year, month, day] = todayKeyInBerlin(now).split("-").map(Number);
+  const todayUtc = Date.UTC(year, month - 1, day);
+  const dayDifference = (dateKey: string) => {
+    const [dateYear, dateMonth, dateDay] = dateKey.split("-").map(Number);
+    return Math.round(
+      (todayUtc - Date.UTC(dateYear, dateMonth - 1, dateDay)) / 86_400_000,
+    );
+  };
+  return tournaments.map((tournament) => ({
+    ...tournament,
+    ...(tournament.startDate
+      ? { daysUntilStart: Math.max(0, -dayDifference(tournament.startDate)) }
+      : {}),
+    ...(tournament.endDate
+      ? { daysSinceEnd: Math.max(0, dayDifference(tournament.endDate)) }
+      : {}),
+  }));
+}
+
 export async function getTournamentCatalog() {
   if (FORCE_MOCK_DATA) {
-    return getMockTournamentCatalog();
+    return refreshTournamentRelativeDates(getMockTournamentCatalog());
   }
 
   const cachedCatalog = globalThis.leadcardTournamentCatalogCache;
@@ -720,11 +743,13 @@ export async function getTournamentCatalog() {
     cachedCatalog &&
     Date.now() - cachedCatalog.cachedAt < TOURNAMENT_CATALOG_CACHE_TTL_MS
   ) {
-    return cachedCatalog.tournaments;
+    return refreshTournamentRelativeDates(cachedCatalog.tournaments);
   }
 
   if (globalThis.leadcardTournamentCatalogPromise) {
-    return globalThis.leadcardTournamentCatalogPromise;
+    return refreshTournamentRelativeDates(
+      await globalThis.leadcardTournamentCatalogPromise,
+    );
   }
 
   globalThis.leadcardTournamentCatalogPromise = (async () => {
@@ -747,7 +772,9 @@ export async function getTournamentCatalog() {
     }
   })();
 
-  return globalThis.leadcardTournamentCatalogPromise;
+  return refreshTournamentRelativeDates(
+    await globalThis.leadcardTournamentCatalogPromise,
+  );
 }
 
 export async function getDefaultTournamentId() {

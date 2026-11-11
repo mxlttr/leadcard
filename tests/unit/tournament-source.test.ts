@@ -4,6 +4,7 @@ import {
   parsePlayerClubs,
   parseRegisteredPlayers,
   playerClubKey,
+  refreshTournamentRelativeDates,
 } from "@/lib/server/tournament-source";
 
 function buildListingRow({
@@ -43,6 +44,33 @@ function buildListingHtml(rows: string[]) {
 }
 
 describe("tournament-source", () => {
+  it("recalculates relative dates from cached event dates", () => {
+    const tournament = {
+      id: "2506",
+      name: "13. Hubertus Open",
+      course: "Kellenhusen",
+      roundLabel: "10.10.2026",
+      startDate: "2026-10-10",
+      endDate: "2026-10-10",
+      status: "recent" as const,
+      daysSinceEnd: 6,
+      daysUntilStart: 0,
+    };
+
+    expect(
+      refreshTournamentRelativeDates(
+        [tournament],
+        new Date("2026-11-11T12:00:00Z"),
+      )[0].daysSinceEnd,
+    ).toBe(32);
+    expect(
+      refreshTournamentRelativeDates(
+        [tournament],
+        new Date("2026-11-12T00:30:00Z"),
+      )[0].daysSinceEnd,
+    ).toBe(33);
+  });
+
   it("parses starter-list clubs and matches live-score name ordering", () => {
     const clubs = parsePlayerClubs(`
       <table id="starterlist">
