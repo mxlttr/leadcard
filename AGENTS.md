@@ -7,7 +7,8 @@ This file is the working guide for contributors and coding agents in this repo.
 - Use Node `20.x` as declared in `package.json`.
 - Install dependencies with `npm install`.
 - Production site: <https://app.leadcard.de>.
-- For production readiness checks, use the production URL rather than assuming a local server is running; `/api/health` reports service health.
+- For production readiness checks, use `https://app.leadcard.de/health.json` rather than assuming a local server is running. `/api/health` remains a compatibility alias.
+- Human-readable status: `https://status.leadcard.de/`, also available at `https://app.leadcard.de/health`. See [health URL hosting](docs/status-hosting.md) for DNS, proxy routing, and verification.
 
 ## Main Commands
 
@@ -114,11 +115,11 @@ automatic reports require `LEADCARD_AUTO_REPORTS_ENABLED=true`.
 
 ### 2. Check health and logs
 
-Start with `https://app.leadcard.de/api/health`. If that cannot be reached, query
+Start with `https://app.leadcard.de/health.json`. If that cannot be reached, query
 the app inside its container:
 
 ```bash
-docker exec "$LEADCARD_CONTAINER" node -e 'fetch("http://127.0.0.1:"+(process.env.PORT||3000)+"/api/health").then(r=>r.text()).then(console.log).catch(e=>{console.error(e.message);process.exitCode=1})'
+docker exec "$LEADCARD_CONTAINER" node -e 'fetch("http://127.0.0.1:"+(process.env.PORT||3000)+"/health.json").then(r=>r.text()).then(console.log).catch(e=>{console.error(e.message);process.exitCode=1})'
 docker logs --timestamps --since 336h "$LEADCARD_CONTAINER" 2>&1 | rg -i -C 3 'Archive collection failed|Automatic report|Automatic rating report|Saved ratings snapshot|Saved post-event fact sheet'
 ```
 
