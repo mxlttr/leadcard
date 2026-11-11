@@ -388,6 +388,7 @@ vi.mock("@/lib/server/tournament-source", () => ({
   loadTournamentSnapshotSource,
   getTournamentCatalog,
   getDefaultTournamentId,
+  refreshTournamentRelativeDates: (tournaments: unknown[]) => tournaments,
 }));
 
 describe("live-store", () => {

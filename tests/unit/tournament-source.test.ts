@@ -57,18 +57,32 @@ describe("tournament-source", () => {
       daysUntilStart: 0,
     };
 
-    expect(
-      refreshTournamentRelativeDates(
-        [tournament],
-        new Date("2026-11-11T12:00:00Z"),
-      )[0].daysSinceEnd,
-    ).toBe(32);
-    expect(
-      refreshTournamentRelativeDates(
-        [tournament],
-        new Date("2026-11-12T00:30:00Z"),
-      )[0].daysSinceEnd,
-    ).toBe(33);
+    const sixDaysAgo = refreshTournamentRelativeDates(
+      [{ ...tournament, endDate: "2026-11-05", startDate: "2026-11-05" }],
+      new Date("2026-11-11T12:00:00Z"),
+    )[0];
+    expect(sixDaysAgo.daysSinceEnd).toBe(6);
+    expect(sixDaysAgo.status).toBe("recent");
+
+    const sevenDaysAgo = refreshTournamentRelativeDates(
+      [{ ...tournament, endDate: "2026-11-04", startDate: "2026-11-04" }],
+      new Date("2026-11-11T12:00:00Z"),
+    )[0];
+    expect(sevenDaysAgo.daysSinceEnd).toBe(7);
+    expect(sevenDaysAgo.status).toBe("recent");
+
+    const eightDaysAgo = refreshTournamentRelativeDates(
+      [tournament],
+      new Date("2026-10-18T12:00:00Z"),
+    )[0];
+    expect(eightDaysAgo.daysSinceEnd).toBeUndefined();
+    expect(eightDaysAgo.status).toBe("finished");
+    const thirtyTwoDaysAgo = refreshTournamentRelativeDates(
+      [tournament],
+      new Date("2026-11-11T12:00:00Z"),
+    )[0];
+    expect(thirtyTwoDaysAgo.daysSinceEnd).toBeUndefined();
+    expect(thirtyTwoDaysAgo.status).toBe("finished");
   });
 
   it("parses starter-list clubs and matches live-score name ordering", () => {

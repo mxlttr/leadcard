@@ -721,15 +721,24 @@ export function refreshTournamentRelativeDates(
       (todayUtc - Date.UTC(dateYear, dateMonth - 1, dateDay)) / 86_400_000,
     );
   };
-  return tournaments.map((tournament) => ({
-    ...tournament,
-    ...(tournament.startDate
-      ? { daysUntilStart: Math.max(0, -dayDifference(tournament.startDate)) }
-      : {}),
-    ...(tournament.endDate
-      ? { daysSinceEnd: Math.max(0, dayDifference(tournament.endDate)) }
-      : {}),
-  }));
+  return tournaments.map((tournament) => {
+    const daysSinceEnd = tournament.endDate
+      ? Math.max(0, dayDifference(tournament.endDate))
+      : tournament.daysSinceEnd;
+    const { daysSinceEnd: _cachedDaysSinceEnd, ...summary } = tournament;
+    return {
+      ...summary,
+      ...(tournament.startDate
+        ? { daysUntilStart: Math.max(0, -dayDifference(tournament.startDate)) }
+        : {}),
+      ...(daysSinceEnd !== undefined && daysSinceEnd <= ACTIVE_WINDOW_DAYS
+        ? { daysSinceEnd }
+        : {}),
+      ...(daysSinceEnd !== undefined && daysSinceEnd > ACTIVE_WINDOW_DAYS
+        ? { status: "finished" as const }
+        : {}),
+    };
+  });
 }
 
 export async function getTournamentCatalog() {

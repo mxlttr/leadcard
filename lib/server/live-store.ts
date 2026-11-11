@@ -8,6 +8,7 @@ import {
   getMockReplaySnapshotCount,
   getTournamentCatalog,
   loadTournamentSnapshotSource,
+  refreshTournamentRelativeDates,
 } from "@/lib/server/tournament-source";
 import {
   divisionsWithMoreThanThreePlayers,
@@ -765,13 +766,13 @@ export async function getTournamentCatalogWithArchive() {
   const current = await getTournamentCatalog();
   if (process.env.LEADCARD_FORCE_MOCK_DATA === "true") return current;
   const known = new Set(current.map((t) => t.id));
-  return [
+  return refreshTournamentRelativeDates([
     ...current,
     ...getArchive()
       .summaries()
       .filter((t) => !known.has(t.id) && !hasFallbackTournamentContent(t))
       .map((t) => ({ ...t, status: "recent" as const })),
-  ];
+  ]);
 }
 
 function hasFallbackTournamentContent(tournament: TournamentSummary) {
