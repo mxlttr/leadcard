@@ -116,6 +116,7 @@ export type TournamentSummary = {
   totalRounds?: number;
   daysUntilStart?: number;
   daysSinceEnd?: number;
+  hasResults?: boolean;
   status: TournamentStatus;
 };
 

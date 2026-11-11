@@ -427,6 +427,19 @@ export class Archive {
     ).map((row) => JSON.parse(row.summary) as TournamentSummary);
   }
 
+  summariesWithResults(): TournamentSummary[] {
+    return (
+      this.db
+        .prepare(
+          "SELECT summary, COALESCE(json_extract(state, '$.hasLiveData'), 0) AS hasResults FROM tournaments",
+        )
+        .all() as { summary: string; hasResults: number }[]
+    ).map((row) => ({
+      ...(JSON.parse(row.summary) as TournamentSummary),
+      hasResults: Boolean(row.hasResults),
+    }));
+  }
+
   saveRatingsSnapshot(payload: unknown, contentHash: string) {
     const previous = this.latestRatingsSnapshot();
     if (previous) {

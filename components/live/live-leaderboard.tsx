@@ -1,7 +1,8 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronDown, Info, Search, Star, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Info, Search, Star, X } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { I18nProvider, useI18n } from "@/components/i18n-provider";
@@ -738,6 +739,13 @@ function LiveLeaderboardContent({ locale }: { locale: AppLocale }) {
       <div className="space-y-5">
         {selectedTournamentId ? (
           <header className="space-y-3">
+            <Link
+              href={`/${locale}`}
+              className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              {t("navigation.allTournaments")}
+            </Link>
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h1 className="truncate font-display text-3xl font-semibold tracking-tight">

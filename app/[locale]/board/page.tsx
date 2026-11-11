@@ -21,7 +21,7 @@ export default async function LocaleBoardPage({
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1680px] flex-col px-4 py-4 sm:px-6 sm:py-6 xl:px-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-4 sm:px-6 sm:py-6 xl:px-8">
         <AppNavigation locale={locale} dictionary={dictionary} />
         <Suspense fallback={null}>
           <LiveBoard locale={locale} dictionary={dictionary} />

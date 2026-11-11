@@ -4,16 +4,14 @@ import { Suspense } from "react";
 
 import { AppNavigation } from "@/components/app-navigation";
 import { LiveLeaderboard } from "@/components/live/live-leaderboard";
+import { TournamentOverview } from "@/components/tournaments/tournament-overview";
 import {
   type AppLocale,
   createTranslator,
   getDictionary,
   isValidLocale,
 } from "@/lib/i18n";
-import {
-  getDefaultTournamentId,
-  getTournamentCatalog,
-} from "@/lib/server/tournament-source";
+import { getTournamentCatalog } from "@/lib/server/tournament-source";
 
 export async function generateMetadata({
   params,
@@ -34,13 +32,15 @@ export async function generateMetadata({
   const requestedTournamentId = (await searchParams).tournamentId;
   let tournament: { id: string; name: string; course: string } | undefined;
 
-  try {
-    const tournaments = await getTournamentCatalog();
-    const tournamentId =
-      requestedTournamentId ?? (await getDefaultTournamentId());
-    tournament = tournaments.find((item) => item.id === tournamentId);
-  } catch {
-    tournament = undefined;
+  if (requestedTournamentId) {
+    try {
+      const tournaments = await getTournamentCatalog();
+      tournament = tournaments.find(
+        (item) => item.id === requestedTournamentId,
+      );
+    } catch {
+      tournament = undefined;
+    }
   }
 
   const title = tournament
@@ -98,10 +98,15 @@ export async function generateMetadata({
 
 export default async function LocaleHomePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ tournamentId?: string }>;
 }) {
-  const resolvedParams = await params;
+  const [resolvedParams, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
 
   if (!isValidLocale(resolvedParams.locale)) {
     notFound();
@@ -112,10 +117,14 @@ export default async function LocaleHomePage({
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-5 sm:px-6 sm:py-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-8">
         <AppNavigation locale={locale} dictionary={dictionary} />
         <Suspense fallback={null}>
-          <LiveLeaderboard locale={locale} dictionary={dictionary} />
+          {resolvedSearchParams.tournamentId ? (
+            <LiveLeaderboard locale={locale} dictionary={dictionary} />
+          ) : (
+            <TournamentOverview locale={locale} dictionary={dictionary} />
+          )}
         </Suspense>
       </div>
     </main>

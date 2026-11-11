@@ -765,11 +765,20 @@ export async function getUpdatesResponse(
 export async function getTournamentCatalogWithArchive() {
   const current = await getTournamentCatalog();
   if (process.env.LEADCARD_FORCE_MOCK_DATA === "true") return current;
+  const archived = getArchive().summariesWithResults();
+  const archivedById = new Map(
+    archived.map((tournament) => [tournament.id, tournament]),
+  );
+  const currentWithResults = current.map((tournament) => {
+    const archivedTournament = archivedById.get(tournament.id);
+    return archivedTournament
+      ? { ...tournament, hasResults: archivedTournament.hasResults }
+      : tournament;
+  });
   const known = new Set(current.map((t) => t.id));
   return refreshTournamentRelativeDates([
-    ...current,
-    ...getArchive()
-      .summaries()
+    ...currentWithResults,
+    ...archived
       .filter((t) => !known.has(t.id) && !hasFallbackTournamentContent(t))
       .map((t) => ({ ...t, status: "recent" as const })),
   ]);
