@@ -37,13 +37,23 @@ function daysBetween(earlier: string, later: string) {
   );
 }
 
-export async function generateAutomaticRatingsReport() {
-  if (process.env.LEADCARD_AUTO_REPORTS_ENABLED !== "true") return;
+export type RatingsReportOutcome =
+  | "disabled"
+  | "insufficient-snapshots"
+  | "unchanged-ratings"
+  | "already-processed"
+  | "held-for-review"
+  | "retry-deferred"
+  | "already-published"
+  | "pull-request-ready";
+
+export async function generateAutomaticRatingsReport(): Promise<RatingsReportOutcome> {
+  if (process.env.LEADCARD_AUTO_REPORTS_ENABLED !== "true") return "disabled";
   const archive = getArchive();
   const snapshots = archive.latestRatingsSnapshots(2);
-  if (snapshots.length < 2) return;
+  if (snapshots.length < 2) return "insufficient-snapshots";
   const [previous, current] = snapshots;
-  if (previous.contentHash === current.contentHash) return;
+  if (previous.contentHash === current.contentHash) return "unchanged-ratings";
   const releaseDate = berlinDate(current.capturedAt);
   const events = archive.summaries().flatMap((tournament) => {
     if (!tournament.endDate) return [];
@@ -86,9 +96,11 @@ export async function generateAutomaticRatingsReport() {
       contentHash: facts.contentHash,
       payload: JSON.stringify(facts),
     });
-  if (completed.has(facts.contentHash) || held.has(facts.contentHash)) return;
+  if (completed.has(facts.contentHash)) return "already-processed";
+  if (held.has(facts.contentHash)) return "held-for-review";
   const lastAttemptAt = attempts.get(facts.contentHash);
-  if (lastAttemptAt && Date.now() - lastAttemptAt < RETRY_INTERVAL_MS) return;
+  if (lastAttemptAt && Date.now() - lastAttemptAt < RETRY_INTERVAL_MS)
+    return "retry-deferred";
   attempts.set(facts.contentHash, Date.now());
   if (!facts.completion.readyForReview) {
     held.add(facts.contentHash);
@@ -97,7 +109,7 @@ export async function generateAutomaticRatingsReport() {
       factSheetHash: facts.contentHash,
       gaps: facts.completion.gaps,
     });
-    return;
+    return "held-for-review";
   }
 
   const generated = await generateBilingualRatingsDraft(facts);
@@ -120,4 +132,5 @@ export async function generateAutomaticRatingsReport() {
       pullRequest: result.url,
     },
   );
+  return result.alreadyPublished ? "already-published" : "pull-request-ready";
 }

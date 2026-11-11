@@ -2,7 +2,10 @@ import { getArchive } from "@/lib/server/archive";
 import { collectTournament } from "@/lib/server/live-store";
 import { reportServerError } from "@/lib/server/report-error";
 import { generateAutomaticReport } from "@/lib/server/reporting/automatic";
-import { generateAutomaticRatingsReport } from "@/lib/server/reporting/automatic-ratings";
+import {
+  generateAutomaticRatingsReport,
+  type RatingsReportOutcome,
+} from "@/lib/server/reporting/automatic-ratings";
 import { fetchOfficialResults } from "@/lib/server/reporting/official-results";
 import { savePostEventFactSheet } from "@/lib/server/reporting/post-event-results";
 import { fetchRatingsSnapshot } from "@/lib/server/reporting/ratings-client";
@@ -29,7 +32,7 @@ type CollectorDependencies = {
   pending?: () => string[];
   collect: (id: string, final?: boolean) => Promise<void>;
   checkAutomaticReport?: (tournamentId: string) => Promise<void>;
-  checkAutomaticRatingsReport?: () => Promise<void>;
+  checkAutomaticRatingsReport?: () => Promise<RatingsReportOutcome | undefined>;
   sweepRecentResults?: (tournamentId: string) => Promise<void>;
   pollRatings?: () => Promise<void>;
   lastRatingsPollAt?: () => string | null;
@@ -44,6 +47,16 @@ export function createCollector(dependencies: CollectorDependencies) {
   let lastSuccessAt: string | null = null;
   let lastPostEventSweepAt = 0;
   let lastPostEventSweepCompletedAt: string | null = null;
+  let lastRatingsPollAttemptAt: string | null = null;
+  let ratingsPollStatus: "idle" | "running" | "succeeded" | "failed" = "idle";
+  let lastRatingsReportSweepAt: string | null = null;
+  let lastRatingsReportSweepCompletedAt: string | null = null;
+  let ratingsReportStatus:
+    | RatingsReportOutcome
+    | "idle"
+    | "running"
+    | "succeeded"
+    | "failed" = "idle";
   const tick = async () => {
     if (running || stopped) return;
     running = true;
@@ -109,18 +122,27 @@ export function createCollector(dependencies: CollectorDependencies) {
           weekday: "short",
         }).format(new Date());
         if (due && ["Mon", "Tue", "Wed"].includes(berlinWeekday)) {
+          lastRatingsPollAttemptAt = new Date().toISOString();
+          ratingsPollStatus = "running";
           try {
             await dependencies.pollRatings();
+            ratingsPollStatus = "succeeded";
           } catch (error) {
+            ratingsPollStatus = "failed";
             failed = true;
             dependencies.onError(error);
           }
         }
       }
       if (dependencies.checkAutomaticRatingsReport) {
+        lastRatingsReportSweepAt = new Date().toISOString();
+        ratingsReportStatus = "running";
         try {
-          await dependencies.checkAutomaticRatingsReport();
+          ratingsReportStatus =
+            (await dependencies.checkAutomaticRatingsReport()) ?? "succeeded";
+          lastRatingsReportSweepCompletedAt = new Date().toISOString();
         } catch (error) {
+          ratingsReportStatus = "failed";
           failed = true;
           dependencies.onError(error);
         }
@@ -157,6 +179,11 @@ export function createCollector(dependencies: CollectorDependencies) {
             ? new Date(lastPostEventSweepAt).toISOString()
             : null,
         lastPostEventSweepCompletedAt,
+        lastRatingsPollAttemptAt,
+        ratingsPollStatus,
+        lastRatingsReportSweepAt,
+        lastRatingsReportSweepCompletedAt,
+        ratingsReportStatus,
       };
     },
   };

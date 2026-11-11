@@ -84,6 +84,51 @@ describe("unattended collector", () => {
     collector.stop();
   });
 
+  it("exposes ratings poll and report outcomes and retains the last successful sweep on failure", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-11T08:00:00Z"));
+    const pollRatings = vi.fn().mockResolvedValue(undefined);
+    const checkAutomaticRatingsReport = vi
+      .fn()
+      .mockResolvedValue("held-for-review");
+    const onError = vi.fn();
+    const collector = createCollector({
+      catalog: async () => [],
+      collect: async () => {},
+      pollRatings,
+      checkAutomaticRatingsReport,
+      onError,
+    });
+    await collector.tick();
+    const first = collector.status();
+    expect(first).toMatchObject({
+      ratingsPollStatus: "succeeded",
+      ratingsReportStatus: "held-for-review",
+      lastRatingsPollAttemptAt: "2026-11-11T08:00:00.000Z",
+      lastRatingsReportSweepAt: "2026-11-11T08:00:00.000Z",
+      lastRatingsReportSweepCompletedAt: "2026-11-11T08:00:00.000Z",
+    });
+    vi.setSystemTime(new Date("2026-11-11T14:00:00Z"));
+    pollRatings.mockRejectedValue(new Error("upstream unavailable"));
+    checkAutomaticRatingsReport.mockRejectedValue(
+      new Error("private upstream detail"),
+    );
+    await collector.tick();
+    expect(collector.status()).toMatchObject({
+      ratingsPollStatus: "failed",
+      ratingsReportStatus: "failed",
+      lastRatingsPollAttemptAt: "2026-11-11T14:00:00.000Z",
+      lastRatingsReportSweepAt: "2026-11-11T14:00:00.000Z",
+      lastRatingsReportSweepCompletedAt:
+        first.lastRatingsReportSweepCompletedAt,
+    });
+    expect(JSON.stringify(collector.status())).not.toContain(
+      "private upstream detail",
+    );
+    expect(onError).toHaveBeenCalledTimes(2);
+    collector.stop();
+  });
+
   it("never overlaps a slow collection cycle", async () => {
     let done: (() => void) | undefined;
     const collect = vi.fn(
