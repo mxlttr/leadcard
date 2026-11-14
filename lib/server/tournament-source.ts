@@ -490,6 +490,67 @@ function scoringStatusInLivePage(html: string): TournamentStatus {
   return hasCompletedRound && totalRounds > 1 ? "live" : "today";
 }
 
+export function parseSubEvents(html: string, parentId: string) {
+  const $ = load(html);
+  const events = new Map<string, { id: string; name: string }>();
+  $("tr").each((_, row) => {
+    const label = sanitizeText($(row).children("td").first().text());
+    const name = label.replace(/^(Livescores|Flights|Spielerliste)\s+/i, "");
+    if (name === label || !name) return;
+    $(row)
+      .find("a[href]")
+      .each((_, link) => {
+        try {
+          const url = new URL($(link).attr("href") ?? "", LISTING_URL);
+          const id = url.searchParams.get("id");
+          if (
+            url.origin !== new URL(LISTING_URL).origin ||
+            url.searchParams.get("p") !== "events" ||
+            !["live", "flights", "list-players"].includes(
+              url.searchParams.get("sp") ?? "",
+            ) ||
+            !id ||
+            !/^\d+$/.test(id) ||
+            id === parentId
+          )
+            return;
+          events.set(id, { id, name });
+        } catch {
+          // Ignore malformed links in upstream event details.
+        }
+      });
+  });
+  return [...events.values()];
+}
+
+async function discoverSubEvents<T extends TournamentSummary>(
+  parent: T,
+): Promise<T[]> {
+  try {
+    const response = await fetch(
+      `${LISTING_URL}&sp=view&id=${encodeURIComponent(parent.id)}`,
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+        headers: buildHeaders(),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`Event details returned ${response.status}`);
+    // Sub-events share the parent event's date window and venue; their scoring
+    // status and scorecards are loaded independently using their own source ID.
+    return parseSubEvents(await response.text(), parent.id).map((event) => ({
+      ...parent,
+      ...event,
+    }));
+  } catch (error) {
+    reportServerError(error, "tournament-subevent-discovery", {
+      "tournament.id": parent.id,
+    });
+    return [];
+  }
+}
+
 async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
   const response = await fetch(LISTING_URL, {
     cache: "no-store",
@@ -622,8 +683,19 @@ async function loadDynamicTournamentCatalog(): Promise<TournamentSummary[]> {
       } => Boolean(tournament),
     );
 
+  const byId = new Map(baseTournaments.map((event) => [event.id, event]));
+  // Bound upstream detail requests, and keep explicitly listed metadata when
+  // a sub-event is also present in the main catalog.
+  for (let index = 0; index < baseTournaments.length; index += 4) {
+    const groups = await Promise.all(
+      baseTournaments.slice(index, index + 4).map(discoverSubEvents),
+    );
+    for (const event of groups.flat()) {
+      if (!byId.has(event.id)) byId.set(event.id, event);
+    }
+  }
   const tournaments = await Promise.all(
-    baseTournaments.map(resolveLiveTournamentStatus),
+    [...byId.values()].map(resolveLiveTournamentStatus),
   );
 
   return tournaments

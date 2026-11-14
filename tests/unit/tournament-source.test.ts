@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   parsePlayerClubs,
   parseRegisteredPlayers,
+  parseSubEvents,
   playerClubKey,
   refreshTournamentRelativeDates,
 } from "@/lib/server/tournament-source";
@@ -44,6 +45,123 @@ function buildListingHtml(rows: string[]) {
 }
 
 describe("tournament-source", () => {
+  it("discovers Hemer's NRW-Pokal once from real event details", () => {
+    const html = readFileSync(
+      "tests/fixtures/live/hemer-event-2709.html",
+      "utf8",
+    );
+    expect(parseSubEvents(html, "2709")).toEqual([
+      { id: "2710", name: "NRW-Pokal 11 2026" },
+    ]);
+    expect(parseSubEvents(html, "2710")).toEqual([]);
+  });
+
+  it("adds linked sub-events to the catalog with independent scoring", async () => {
+    vi.setSystemTime(new Date("2026-11-14T13:00:00Z"));
+    const listing = buildListingHtml([
+      buildListingRow({
+        id: "2709",
+        name: "Hemer",
+        course: "Hemer",
+        startDate: new Date("2026-11-14"),
+        endDate: new Date("2026-11-14"),
+      }),
+    ]);
+    const detail = readFileSync(
+      "tests/fixtures/live/hemer-event-2709.html",
+      "utf8",
+    );
+    const fetchMock = vi.fn(
+      async (input: string) =>
+        new Response(
+          input.includes("sp=view")
+            ? detail
+            : input.includes("sp=live")
+              ? ""
+              : listing,
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { getTournamentCatalog } = await import(
+      "@/lib/server/tournament-source"
+    );
+    const catalog = await getTournamentCatalog();
+    expect(catalog.map((event) => event.id)).toEqual(["2709", "2710"]);
+    expect(catalog[1]).toMatchObject({
+      name: "NRW-Pokal 11 2026",
+      course: "Hemer",
+      startDate: "2026-11-14",
+    });
+    expect(
+      fetchMock.mock.calls.some(([url]) => url.includes("sp=live&id=2710")),
+    ).toBe(true);
+  });
+
+  it("keeps listed metadata when a linked sub-event is already listed", async () => {
+    const row = (id: string, name: string) =>
+      buildListingRow({
+        id,
+        name,
+        course: "Listed venue",
+        startDate: new Date("2026-03-26"),
+        endDate: new Date("2026-03-26"),
+      });
+    const listing = buildListingHtml([
+      row("2709", "Parent"),
+      row("2710", "Listed child"),
+    ]);
+    const detail = readFileSync(
+      "tests/fixtures/live/hemer-event-2709.html",
+      "utf8",
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async (input: string) =>
+          new Response(
+            input.includes("sp=view")
+              ? detail
+              : input.includes("sp=live")
+                ? ""
+                : listing,
+          ),
+      ),
+    );
+    const { getTournamentCatalog } = await import(
+      "@/lib/server/tournament-source"
+    );
+    const catalog = await getTournamentCatalog();
+    expect(catalog).toHaveLength(2);
+    expect(catalog.find((event) => event.id === "2710")?.name).toBe(
+      "Listed child",
+    );
+  });
+
+  it("keeps the parent when sub-event discovery fails", async () => {
+    const listing = buildListingHtml([
+      buildListingRow({
+        id: "2709",
+        name: "Parent",
+        course: "Hemer",
+        startDate: new Date("2026-03-26"),
+        endDate: new Date("2026-03-26"),
+      }),
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        if (input.includes("sp=view")) return new Response("", { status: 503 });
+        return new Response(input.includes("sp=live") ? "" : listing);
+      }),
+    );
+    const { getTournamentCatalog } = await import(
+      "@/lib/server/tournament-source"
+    );
+    expect((await getTournamentCatalog()).map((event) => event.id)).toEqual([
+      "2709",
+    ]);
+  });
+
   it("recalculates relative dates from cached event dates", () => {
     const tournament = {
       id: "2506",
@@ -461,6 +579,7 @@ describe("tournament-source", () => {
         headers: { "Content-Type": "text/html" },
       }),
     );
+    fetchMock.mockResolvedValueOnce(new Response(""));
     fetchMock.mockResolvedValueOnce(
       new Response(emptyLiveHtml, {
         status: 200,
@@ -498,12 +617,9 @@ describe("tournament-source", () => {
       }),
     ]);
 
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(listingHtml, {
-        status: 200,
-        headers: { "Content-Type": "text/html" },
-      }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response(listingHtml));
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -512,7 +628,7 @@ describe("tournament-source", () => {
     await tournamentSource.getTournamentCatalog();
     await tournamentSource.getTournamentCatalog();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("shares the in-flight tournament catalog request across concurrent callers", async () => {
@@ -527,11 +643,12 @@ describe("tournament-source", () => {
     ]);
 
     let resolveResponse: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn().mockImplementation(
-      () =>
-        new Promise<Response>((resolve) => {
-          resolveResponse = resolve;
-        }),
+    const fetchMock = vi.fn().mockImplementation((input: string) =>
+      input.includes("sp=view")
+        ? Promise.resolve(new Response(""))
+        : new Promise<Response>((resolve) => {
+            resolveResponse = resolve;
+          }),
     );
 
     vi.stubGlobal("fetch", fetchMock);
@@ -555,6 +672,6 @@ describe("tournament-source", () => {
     ]);
 
     expect(firstCatalog).toEqual(secondCatalog);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
