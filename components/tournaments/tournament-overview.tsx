@@ -207,7 +207,11 @@ function TournamentOverviewContent() {
       )
     : catalog;
   const liveTournaments = filteredTournaments
-    .filter((tournament) => ["live", "mock"].includes(tournament.status))
+    .filter(
+      (tournament) =>
+        ["live", "mock"].includes(tournament.status) ||
+        (tournament.status === "finished" && tournament.daysSinceEnd === 0),
+    )
     .sort(
       (a, b) =>
         Number(b.status === "live") - Number(a.status === "live") ||
@@ -220,6 +224,7 @@ function TournamentOverviewContent() {
         tournament.status === "recent" ||
         (tournament.status === "finished" &&
           tournament.daysSinceEnd !== undefined &&
+          tournament.daysSinceEnd > 0 &&
           tournament.daysSinceEnd <= 7),
     )
     .sort((a, b) => dateTime(b.endDate) - dateTime(a.endDate));
