@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getArchive } from "@/lib/server/archive";
 import { createRatingsReportPullRequest } from "@/lib/server/reporting/automatic-ratings-pr";
+import { fetchLatestProcessedRatingsEventDate } from "@/lib/server/reporting/ratings-client";
 import {
   generateBilingualRatingsDraft,
   RATINGS_REPORT_PROMPT_VERSION,
@@ -41,6 +42,8 @@ export type RatingsReportOutcome =
   | "disabled"
   | "insufficient-snapshots"
   | "unchanged-ratings"
+  | "no-reportable-events"
+  | "ratings-source-behind"
   | "already-processed"
   | "held-for-review"
   | "retry-deferred"
@@ -78,6 +81,22 @@ export async function generateAutomaticRatingsReport(): Promise<RatingsReportOut
         ]
       : [];
   });
+  if (!events.length) return "no-reportable-events";
+  const latestEventDate = events.reduce(
+    (latest, { tournament }) =>
+      tournament.endDate && tournament.endDate > latest
+        ? tournament.endDate
+        : latest,
+    "",
+  );
+  const latestProcessedEventDate = await fetchLatestProcessedRatingsEventDate();
+  if (latestProcessedEventDate < latestEventDate) {
+    console.info("Automatic rating report waiting for ratings source", {
+      latestEventDate,
+      latestProcessedEventDate,
+    });
+    return "ratings-source-behind";
+  }
   const sourceFingerprint = createHash("sha256")
     .update(
       `${RATINGS_FACT_SHEET_VERSION}:${previous.contentHash}:${current.contentHash}:${events

@@ -3,6 +3,7 @@ import { matchRatings, type RatingContext, type RatingPlayer } from "./ratings";
 import { hashRatingValues } from "./ratings-snapshot-hash";
 
 const API = "https://api.syndikat.golf";
+const RATINGS_HOME = "https://rating.discgolf.de/";
 const PAGE_SIZE = 100;
 const timeoutMs = 10_000;
 
@@ -123,6 +124,32 @@ export async function fetchRatingsSnapshot() {
     },
     itemCount: items.length,
   };
+}
+
+/** The original ratings site shows the date of its latest processed tournament. */
+export async function fetchLatestProcessedRatingsEventDate() {
+  const url = new URL(RATINGS_HOME);
+  url.searchParams.set("_", String(Date.now()));
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: { accept: "text/html", "cache-control": "no-cache" },
+  });
+  if (!response.ok) throw new Error(`Ratings page ${response.status} for /`);
+  const html = await response.text();
+  const text = html
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/&nbsp;/giu, " ")
+    .replace(/&uuml;/giu, "ü")
+    .replace(/&ouml;/giu, "ö")
+    .replace(/&auml;/giu, "ä")
+    .replace(/&szlig;/giu, "ß")
+    .replace(/\s+/gu, " ");
+  const match = text.match(
+    /Letztes gewertetes Turnier:\s*(?:[\w\s.-]+?)\s+Datum:\s*(\d{2})\.(\d{2})\.(\d{4})/iu,
+  );
+  if (!match)
+    throw new Error("Ratings page has no latest rated tournament date");
+  return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
 async function mapConcurrent<T, R>(
