@@ -57,6 +57,8 @@ export async function generateAutomaticRatingsReport(): Promise<RatingsReportOut
   if (snapshots.length < 2) return "insufficient-snapshots";
   const [previous, current] = snapshots;
   if (previous.contentHash === current.contentHash) return "unchanged-ratings";
+  if (archive.ratingsReportSubmitted(previous.contentHash, current.contentHash))
+    return "already-processed";
   const releaseDate = berlinDate(current.capturedAt);
   const events = archive.summaries().flatMap((tournament) => {
     if (!tournament.endDate) return [];
@@ -99,13 +101,27 @@ export async function generateAutomaticRatingsReport(): Promise<RatingsReportOut
   }
   const sourceFingerprint = createHash("sha256")
     .update(
-      `${RATINGS_FACT_SHEET_VERSION}:${previous.contentHash}:${current.contentHash}:${events
-        .map((event) => event.tournament.id)
-        .sort()
-        .join(",")}`,
+      `${RATINGS_FACT_SHEET_VERSION}:${previous.contentHash}:${current.contentHash}`,
     )
     .digest("hex");
   const existing = archive.ratingsFactSheetForSource(sourceFingerprint);
+  const legacy = existing
+    ? undefined
+    : archive.ratingsFactSheetForSnapshots(
+        previous.contentHash,
+        current.contentHash,
+      );
+  if (
+    legacy &&
+    (JSON.parse(legacy.payload) as RatingsFactSheet).completion.readyForReview
+  ) {
+    archive.markRatingsReportSubmitted(
+      previous.contentHash,
+      current.contentHash,
+      legacy.contentHash,
+    );
+    return "already-processed";
+  }
   const facts = existing
     ? (JSON.parse(existing.payload) as RatingsFactSheet)
     : await buildRatingsFactSheet(previous, current, events);
@@ -139,6 +155,11 @@ export async function generateAutomaticRatingsReport(): Promise<RatingsReportOut
     model: generated.model,
     generatedAt: new Date().toISOString(),
   });
+  archive.markRatingsReportSubmitted(
+    previous.contentHash,
+    current.contentHash,
+    facts.contentHash,
+  );
   completed.add(facts.contentHash);
   console.info(
     result.alreadyPublished

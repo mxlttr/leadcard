@@ -304,6 +304,21 @@ export class Archive {
           }
           this.db.exec("PRAGMA user_version = 7");
         }
+        const ratingsReportVersion = this.db.pragma("user_version", {
+          simple: true,
+        }) as number;
+        if (ratingsReportVersion === 7) {
+          this.db.exec(`
+            CREATE TABLE ratings_report_submissions (
+              previous_snapshot_hash TEXT NOT NULL,
+              current_snapshot_hash TEXT NOT NULL,
+              fact_sheet_hash TEXT NOT NULL,
+              submitted_at TEXT NOT NULL,
+              PRIMARY KEY(previous_snapshot_hash, current_snapshot_hash)
+            );
+            PRAGMA user_version = 8;
+          `);
+        }
       })
       .immediate();
   }
@@ -536,6 +551,48 @@ export class Archive {
         "SELECT id, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM ratings_fact_sheets WHERE source_fingerprint = ? ORDER BY id DESC LIMIT 1",
       )
       .get(sourceFingerprint) as SavedRatingsFactSheet | undefined;
+  }
+
+  ratingsFactSheetForSnapshots(previousHash: string, currentHash: string) {
+    const rows = this.db
+      .prepare(
+        "SELECT id, source_fingerprint AS sourceFingerprint, content_hash AS contentHash, payload, created_at AS createdAt FROM ratings_fact_sheets ORDER BY id DESC",
+      )
+      .all() as SavedRatingsFactSheet[];
+    return rows.find((row) => {
+      const payload = JSON.parse(row.payload) as {
+        provenance?: {
+          previousSnapshot?: { contentHash?: string };
+          currentSnapshot?: { contentHash?: string };
+        };
+      };
+      return (
+        payload.provenance?.previousSnapshot?.contentHash === previousHash &&
+        payload.provenance?.currentSnapshot?.contentHash === currentHash
+      );
+    });
+  }
+
+  ratingsReportSubmitted(previousHash: string, currentHash: string) {
+    return Boolean(
+      this.db
+        .prepare(
+          "SELECT 1 FROM ratings_report_submissions WHERE previous_snapshot_hash = ? AND current_snapshot_hash = ?",
+        )
+        .get(previousHash, currentHash),
+    );
+  }
+
+  markRatingsReportSubmitted(
+    previousHash: string,
+    currentHash: string,
+    factSheetHash: string,
+  ) {
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO ratings_report_submissions(previous_snapshot_hash, current_snapshot_hash, fact_sheet_hash, submitted_at) VALUES (?, ?, ?, ?)",
+      )
+      .run(previousHash, currentHash, factSheetHash, new Date().toISOString());
   }
 
   lastRatingsPollAt() {
