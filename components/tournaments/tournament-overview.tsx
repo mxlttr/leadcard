@@ -447,7 +447,7 @@ function TournamentOverviewContent() {
             <Button
               type="button"
               variant="ghost"
-              className="h-auto justify-between rounded-[18px] border border-border bg-surface px-4 py-3 text-left"
+              className="h-auto w-full justify-between rounded-[18px] border border-border bg-surface px-4 py-3 text-left sm:w-auto"
               onClick={() => setShowOlder((current) => !current)}
               aria-expanded={showOlder}
               aria-controls="older-tournament-results"
