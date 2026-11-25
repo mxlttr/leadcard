@@ -720,12 +720,23 @@ export async function getClubsResponse(): Promise<ClubsResponse> {
 export async function getClubTournamentResponse(
   tournamentId: string,
 ): Promise<ClubTournamentResponse | null> {
-  const tournament = (await getTournamentCatalog()).find(
+  const tournament = (await getTournamentCatalogWithArchive()).find(
     (item) => item.id === tournamentId,
   );
 
   if (!tournament) {
     return null;
+  }
+
+  if (tournament.status === "recent" || tournament.status === "finished") {
+    const archived = getArchive().load(tournamentId);
+    if (archived) {
+      return {
+        tournament,
+        players: archived.players.filter((player) => Boolean(player.club)),
+        generatedAt: archived.generatedAt,
+      };
+    }
   }
 
   const leaderboard = await getLeaderboardResponse(tournamentId, "__all");
